@@ -140,3 +140,20 @@ func (g *OpenAICompatGateway) Generate(req Request) (*Response, error) {
 		},
 	}, nil
 }
+
+// NewOpenAICompat creates a gateway from explicit parameters (no env).
+func NewOpenAICompat(baseURL, apiKey, cheapModel, frontierModel string) *OpenAICompatGateway {
+	if cheapModel == "" {
+		cheapModel = "gpt-4o-mini"
+	}
+	if frontierModel == "" {
+		frontierModel = cheapModel
+	}
+	return &OpenAICompatGateway{
+		BaseURL:       baseURL,
+		APIKey:        apiKey,
+		CheapModel:    cheapModel,
+		FrontierModel: frontierModel,
+		HTTPClient:    &http.Client{Timeout: 60 * time.Second},
+	}
+}
