@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Catalog Review</title>
+  <style>
+    :root { --bg: #f7f7f8; --card: #fff; --text: #1a1a1a; --muted: #666; --ok: #0a7; --bad: #c33; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
+    header { background: var(--card); border-bottom: 1px solid #eee; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; }
+    h1 { margin: 0; font-size: 18px; font-weight: 600; }
+    .stats { font-size: 13px; color: var(--muted); }
+    main { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .item { background: var(--card); border-radius: 12px; padding: 16px; margin-bottom: 16px; display: grid; grid-template-columns: 140px 1fr; gap: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+    .thumb { width: 140px; height: 140px; background: #eee; border-radius: 8px; object-fit: cover; }
+    .meta { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+    .title { font-size: 16px; font-weight: 600; margin: 0 0 8px; }
+    .before { color: var(--muted); text-decoration: line-through; font-size: 13px; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 12px; font-weight: 600; }
+    .badge.ok { background: #e6f7f1; color: var(--ok); }
+    .badge.bad { background: #fdecea; color: var(--bad); }
+    .actions { margin-top: 12px; display: flex; gap: 8px; }
+    button { border: 0; border-radius: 8px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
+    .approve { background: var(--ok); color: #fff; }
+    .reject { background: #f3f3f3; color: var(--text); }
+    .feedback { width: 100%; margin-top: 8px; padding: 8px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Catalog Review</h1>
+    <div class="stats" id="stats">Loading…</div>
+  </header>
+  <main id="list"></main>
+  <script>
+    const items = [
+      { id: "sku-wrong-pt-1", image: "https://placehold.co/280x280/png?text=Nike+Air+Max", before: { title: "Nike Air Max 270", pt: "Apparel" }, after: { title: "Nike Men's Air Max 270 Running Shoe", pt: "Footwear" }, status: "pending", reason: "Product type corrected from Apparel to Footwear" },
+      { id: "sku-wrong-weight-1", image: "https://placehold.co/280x280/png?text=Nike+Tee", before: { title: "Nike Dri-FIT Tee", weight: "40 oz" }, after: { title: "Nike Dri-FIT Training Tee", weight: "6 oz" }, status: "pending", reason: "Weight corrected to a plausible value" },
+      { id: "sku-good-1", image: "https://placehold.co/280x280/png?text=Adidas+Ultraboost", before: { title: "Adidas Ultraboost 22 Men's Running Shoe" }, after: { title: "Adidas Ultraboost 22 Men's Running Shoe, Size 10" }, status: "approved", reason: "Title enriched with size" }
+    ];
+    function render() {
+      const pending = items.filter(i => i.status === "pending").length;
+      document.getElementById("stats").textContent = pending + " to review · " + items.length + " total";
+      document.getElementById("list").innerHTML = items.map(it => `
+        <div class="item">
+          <img class="thumb" src="${it.image}" alt="">
+          <div>
+            <div class="meta">${it.id}</div>
+            <p class="title">${it.after.title}</p>
+            <div class="before">${it.before.title}${it.before.pt ? " · " + it.before.pt : ""}${it.before.weight ? " · " + it.before.weight : ""}</div>
+            <div style="margin-top:8px">
+              <span class="badge ${it.status === "approved" ? "ok" : it.status === "rejected" ? "bad" : ""}">${it.status}</span>
+              <span style="margin-left:8px;font-size:13px;color:#666">${it.reason}</span>
+            </div>
+            ${it.status === "pending" ? `
+              <div class="actions">
+                <button class="approve" onclick="decide('${it.id}','approved')">Looks good</button>
+                <button class="reject" onclick="decide('${it.id}','rejected')">Needs change</button>
+              </div>
+              <input class="feedback" id="fb-${it.id}" placeholder="Optional: tell us what to fix…">
+            ` : ""}
+          </div>
+        </div>
+      `).join("");
+    }
+    function decide(id, status) {
+      const it = items.find(i => i.id === id);
+      it.status = status;
+      const fb = document.getElementById("fb-" + id);
+      if (fb && fb.value) it.feedback = fb.value;
+      render();
+    }
+    render();
+  </script>
+</body>
+</html>
