@@ -6,14 +6,19 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/idristarwala/agent-factory/internal/domain"
+	"github.com/idristarwala/agent-factory/internal/graph"
+	"github.com/idristarwala/agent-factory/internal/models"
 	"github.com/idristarwala/agent-factory/internal/unitofwork"
 )
 
 // SmartSteward uses domain packs to turn a goal into units of work
-// and can create workers.
+// and can create workers when given a gateway and graph.
 type SmartSteward struct {
-	store unitofwork.Store
-	packs []domain.Pack
+	store   unitofwork.Store
+	packs   []domain.Pack
+	Gateway models.Gateway
+	Graph   graph.Graph
+	Rules   []Rule
 }
 
 func NewSmartSteward(store unitofwork.Store) *SmartSteward {
@@ -21,6 +26,12 @@ func NewSmartSteward(store unitofwork.Store) *SmartSteward {
 		store: store,
 		packs: domain.All(),
 	}
+}
+
+func (s *SmartSteward) SetRuntime(gw models.Gateway, g graph.Graph, rules []Rule) {
+	s.Gateway = gw
+	s.Graph = g
+	s.Rules = rules
 }
 
 func (s *SmartSteward) InterpretGoal(goal string, graphSnapshot any) ([]*unitofwork.UnitOfWork, error) {
@@ -33,10 +44,9 @@ func (s *SmartSteward) InterpretGoal(goal string, graphSnapshot any) ([]*unitofw
 		}
 	}
 	if chosen.Name == "" {
-		chosen = s.packs[0] // default to catalog
+		chosen = s.packs[0]
 	}
 
-	// Create one unit of work per worker role (simple strategy)
 	var uows []*unitofwork.UnitOfWork
 	for _, role := range chosen.WorkerRoles {
 		id := uuid.NewString()
@@ -54,7 +64,6 @@ func (s *SmartSteward) InterpretGoal(goal string, graphSnapshot any) ([]*unitofw
 		uows = append(uows, u)
 	}
 	if len(uows) == 0 {
-		// fallback single unit
 		id := uuid.NewString()
 		u := &unitofwork.UnitOfWork{
 			ID:          id,
@@ -68,8 +77,10 @@ func (s *SmartSteward) InterpretGoal(goal string, graphSnapshot any) ([]*unitofw
 }
 
 func (s *SmartSteward) CreateWorker(spec WorkerSpec) (Worker, error) {
-	// Actual worker creation with gateway happens outside; this returns a marker.
-	return nil, fmt.Errorf("use NewLLMWorker directly; Steward records the intent")
+	if s.Gateway == nil || s.Graph == nil {
+		return nil, fmt.Errorf("CreateWorker requires SetRuntime(gateway, graph, rules) first")
+	}
+	return NewLLMWorker(spec.Name, spec.Role, s.Gateway, s.Graph, s.Rules), nil
 }
 
 func (s *SmartSteward) SetAutonomyMode(mode string) error {
