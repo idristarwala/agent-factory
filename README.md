@@ -20,6 +20,15 @@ Agent-first platform for any problem in retail (and beyond).
 4. Feedback is turned into rules.
 5. Future proposals and judgments are constrained by the updated rules.
 
+## Diagrams
+
+Logical ER and the request flow (goal to commit, including the model gateway and the feedback-to-rule loop):
+
+- FigJam: https://www.figma.com/board/KuMPrXQ5TOGtIQivDJWxOv
+- In this repo: [docs/diagrams.md](docs/diagrams.md)
+
+The board has two pages, **Entity relationship** and **Request flow**. The markdown file is the same model, rendered with Mermaid.
+
 ## Language & Runtime
 
 - Core fabric and agent runtime: **Go** (concurrency, deployment simplicity, scale).
