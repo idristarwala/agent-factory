@@ -1,55 +1,61 @@
 # Agent Factory Documentation
 
-A domain-agnostic agent swarm that takes a goal and works until the outcome is achieved.
+Welcome to the official documentation for Agent Factory — a domain-agnostic, self-improving multi-agent execution fabric.
 
-## Getting started
-
-| Guide | Description |
-|-------|-------------|
-| [Overview](OVERVIEW.md) | What it is, core concepts, design principles |
-| [Quick start](RUNNING.md) | Run locally, with Docker, or on Kubernetes |
-| [Examples](EXAMPLES.md) | Goal runs, continuous swarm, ReAct workers |
-| [Configuration](CONFIGURATION.md) | Secrets, environment variables, model tiers |
-
-## Architecture
+## Getting Started
 
 | Guide | Description |
 |-------|-------------|
-| [Architecture](ARCHITECTURE.md) | Primitives, data flow, continuous loop |
-| [ER Diagrams](ER_DIAGRAMS.md) | Entity relationships and system flows |
-| [Schema](SCHEMA.md) | Unified Entity and Decision model |
+| [Overview](OVERVIEW.md) | What the factory is, who it is for, and core concepts |
+| [Quick Start](RUNNING.md) | Install, run locally, Docker, and Kubernetes |
+| [Examples](EXAMPLES.md) | Common goals and usage patterns |
+
+## Core Concepts
+
+| Topic | Description |
+|-------|-------------|
+| [Architecture](ARCHITECTURE.md) | Primitives, data flow, and continuous loop |
+| [Schema](SCHEMA.md) | Unified Entity model and Decisions |
+| [Rules](ARCHITECTURE.md#rules) | Versioned, immutable rule engine |
+| [Learning Loop](ARCHITECTURE.md#learning) | How the Steward improves the system |
+
+## Domain & Data
+
+| Topic | Description |
+|-------|-------------|
 | [Domain Packs](DOMAIN_PACKS.md) | Catalog, pricing, inventory, merchandising |
-
-## Capabilities
-
-| Guide | Description |
-|-------|-------------|
-| [Mapping](MAPPING.md) | Source auto-mapping (BigQuery, SQL, API) |
-| [Attributes](ATTRIBUTES.md) | Dynamic attribute discovery and fill |
-| [Grouping](GROUPING.md) | Variant grouping and policies |
-| [Clarification](CLARIFICATION.md) | Steward asks when goals or sources are incomplete |
-| [Rules](../internal/rules/) | Versioned rule engine |
+| [Source Mapping](MAPPING.md) | Auto-map from BigQuery, API, or SQL |
+| [Dynamic Attributes](ATTRIBUTES.md) | Hundreds of product-type-specific attributes |
+| [Grouping & Variants](GROUPING.md) | Partial groups, ungrouped items, multi-axis varianting |
 
 ## Operations
 
-| Guide | Description |
+| Topic | Description |
 |-------|-------------|
-| [Operations](OPERATIONS.md) | Health, logs, scaling, failure modes |
+| [Configuration](CONFIGURATION.md) | Secrets, model tiers, environment variables |
 | [Observability](OBSERVABILITY.md) | Traces, metrics, audit log |
-| [Security](SECURITY.md) | Secrets, auth, fail-closed behavior |
+| [Operations](OPERATIONS.md) | Scaling, failure modes, health |
+| [Security](SECURITY.md) | Auth, secrets, fail-closed Judge |
 | [Troubleshooting](TROUBLESHOOTING.md) | Common issues and fixes |
 
 ## Interfaces
 
-| Guide | Description |
+| Topic | Description |
 |-------|-------------|
-| [API](API.md) | HTTP endpoints and extension points |
-| [UI](UI.md) | Review interface and chatbot |
-| [Contributing](CONTRIBUTING.md) | How to propose changes |
+| [API Reference](API.md) | CLI, HTTP endpoints, extension points |
+| [UI](UI.md) | Customer review interface and chatbot |
+| [Clarification](CLARIFICATION.md) | How the Steward asks for missing information |
 
-## Related
+## Diagrams
 
-- [Secrets](../SECRETS.md)
-- [Auth](../AUTH.md)
-- [Packaging](../PACKAGING.md)
-- [License](../LICENSE)
+| Topic | Description |
+|-------|-------------|
+| [ER & Architecture Diagrams](ER_DIAGRAMS.md) | Entity-relationship and flow diagrams |
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+---
+
+All diagrams render natively on GitHub. For production use, also see the root [README](../README.md).

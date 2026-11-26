@@ -1,63 +1,43 @@
 # Agent Factory
 
-A domain-agnostic swarm of agents that works on a goal until the outcome is achieved.
+**Domain-agnostic multi-agent execution fabric.**
 
-## Quick start
+Give it a goal in plain language. A Steward decomposes it into units of work, specialized agents propose changes to a central graph, a Judge approves or rejects against versioned rules, and the system continues until the outcome is achieved — improving itself from every rejection.
+
+## Quick Start
 
 ```bash
-# 1. Setup
 ./scripts/setup.sh
-
-# 2. Run a goal
 export GEMINI_API_KEY=your-key
-./scripts/run-local.sh "Fix titles and product types"
+./scripts/run-local.sh "Fix product types and weights"
+```
 
-# 3. Or with Docker
+Or with Docker:
+
+```bash
 ./scripts/docker-up.sh
 ```
 
-## What it does
-
-1. You give a **goal** (plain text).
-2. The **Steward** turns it into units of work and spawns specialized agents.
-3. Agents propose changes to a **central graph**.
-4. The **Judge** approves or rejects against versioned rules.
-5. The loop continues until the outcome is clean.
-
-## Layout
-
-| Path | Purpose |
-|------|---------|
-| `cmd/` | Entry points (goal, continuous-demo, catalog-swarm, …) |
-| `internal/` | Core (graph, agents, rules, tools, secrets, swarm) |
-| `deploy/k8s/` | Kubernetes manifests |
-| `scripts/` | Setup and run helpers |
-| `docs/` | Full documentation |
-
 ## Documentation
 
-| Doc | Contents |
-|-----|----------|
-| [Overview](docs/OVERVIEW.md) | Concepts, principles, flow |
-| [Architecture](docs/ARCHITECTURE.md) | Primitives, data flow, persistence |
-| [Schema](docs/SCHEMA.md) | Unified Entity and Decision |
-| [Mapping](docs/MAPPING.md) | Source auto-mapping (BQ, API, SQL) |
-| [Attributes](docs/ATTRIBUTES.md) | Dynamic PT attributes |
-| [Grouping](docs/GROUPING.md) | Variant states, axes, policies |
-| [Clarification](docs/CLARIFICATION.md) | Steward asks when goal or source is missing |
-| [Running](docs/RUNNING.md) | Local, Docker, Kubernetes |
-| [Configuration](docs/CONFIGURATION.md) | Secrets, env vars, tiers, packs |
-| [Operations](docs/OPERATIONS.md) | Health, logs, scaling, failure modes |
-| [Examples](docs/EXAMPLES.md) | Goal, continuous, ReAct, compose |
-| [API Reference](docs/API.md) | CLI, types, extension points |
-| [UI](docs/UI.md) | React review app + chatbot |
-| [Security](docs/SECURITY.md) | Secrets, auth, fail-closed |
-| [Troubleshooting](docs/TROUBLESHOOTING.md) | Build, LLM, Docker, k8s |
-| [Domain packs](docs/DOMAIN_PACKS.md) | Built-in packs |
-| [Secrets](SECRETS.md) / [Auth](AUTH.md) | Secret layout and auth methods |
-| [Packaging](PACKAGING.md) | Docker, compose, Kubernetes |
-| [Contributing](docs/CONTRIBUTING.md) | How to propose changes |
+Full documentation lives in [`docs/`](docs/README.md):
+
+- [Getting Started](docs/RUNNING.md)
+- [Architecture & Concepts](docs/ARCHITECTURE.md)
+- [Domain Packs & Data Mapping](docs/DOMAIN_PACKS.md)
+- [Operations & Observability](docs/OPERATIONS.md)
+- [API & UI](docs/API.md)
+- [Diagrams](docs/ER_DIAGRAMS.md)
+
+## What makes it different
+
+- **Agent-first** — no external orchestration frameworks
+- **Governed** — nothing reaches the graph without Judge approval
+- **Self-improving** — rejections automatically become new rules and specialist agents
+- **Domain-agnostic** — catalog is one pack; the same system works for pricing, inventory, compliance, or any Entity-based problem
+- **Concurrent** — claimable work queue with parallel workers
+- **Observable** — traces, metrics, and immutable audit log
 
 ## License
 
-See [LICENSE](LICENSE). All rights reserved. No copying without permission.
+Proprietary. All rights reserved. See [LICENSE](LICENSE).
