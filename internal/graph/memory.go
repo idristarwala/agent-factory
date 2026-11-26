@@ -41,52 +41,40 @@ func (g *MemoryGraph) ProposeMutation(proposal *Mutation) error {
 	return g.Apply(proposal)
 }
 
-// Apply merges updates into existing nodes instead of replacing them.
-// This prevents attribute loss when a worker only updates title/description.
+// Apply merges updates into existing nodes so attributes are not lost.
 func (g *MemoryGraph) Apply(proposal *Mutation) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
 	for _, n := range proposal.Adds {
 		nCopy := n
-		if nCopy.Props == nil {
-			nCopy.Props = make(map[string]any)
-		}
 		g.nodes[n.ID] = &nCopy
 	}
-
-	for _, n := range proposal.Updates {
-		existing, ok := g.nodes[n.ID]
+	for _, update := range proposal.Updates {
+		existing, ok := g.nodes[update.ID]
 		if !ok {
-			// Treat as add if node does not exist
-			nCopy := n
-			if nCopy.Props == nil {
-				nCopy.Props = make(map[string]any)
-			}
-			g.nodes[n.ID] = &nCopy
+			nCopy := update
+			g.nodes[update.ID] = &nCopy
 			continue
 		}
-		// Merge props: new values overwrite, existing values are preserved
+		// Merge props
 		if existing.Props == nil {
 			existing.Props = make(map[string]any)
 		}
-		for k, v := range n.Props {
+		for k, v := range update.Props {
 			existing.Props[k] = v
 		}
-		if n.Type != "" {
-			existing.Type = n.Type
+		if update.Type != "" {
+			existing.Type = update.Type
 		}
 	}
-
 	for _, e := range proposal.Edges {
 		eCopy := e
 		g.edges[e.ID] = &eCopy
 	}
-
 	for _, id := range proposal.Deletes {
 		delete(g.nodes, id)
 	}
-
 	return nil
 }
 
@@ -95,7 +83,7 @@ func (g *MemoryGraph) Snapshot() any {
 	defer g.mu.RUnlock()
 	snap := make(map[NodeID]*Node, len(g.nodes))
 	for id, n := range g.nodes {
-		// Deep copy the node to prevent external mutation
+		// Deep-ish copy to avoid mutation through snapshot
 		nCopy := *n
 		if n.Props != nil {
 			nCopy.Props = make(map[string]any, len(n.Props))
@@ -112,8 +100,5 @@ func (g *MemoryGraph) AddNode(n Node) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	nCopy := n
-	if nCopy.Props == nil {
-		nCopy.Props = make(map[string]any)
-	}
 	g.nodes[n.ID] = &nCopy
 }

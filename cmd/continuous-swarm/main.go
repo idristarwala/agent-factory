@@ -11,6 +11,7 @@ import (
 	"github.com/idristarwala/agent-factory/internal/queue"
 	"github.com/idristarwala/agent-factory/internal/rules"
 	"github.com/idristarwala/agent-factory/internal/swarm"
+	"github.com/idristarwala/agent-factory/internal/unitofwork"
 )
 
 func main() {
@@ -20,7 +21,6 @@ func main() {
 	reg := agents.NewRegistry()
 	ll := learning.NewLearningLoop(re, reg)
 
-	// Stub steward and judge for demo
 	steward := &stubSteward{}
 	judge := &stubJudge{}
 
@@ -41,7 +41,6 @@ func main() {
 type stubSteward struct{}
 
 func (s *stubSteward) InterpretGoal(goal string, snap any) ([]*unitofwork.UnitOfWork, error) {
-	// Return one demo unit so the loop can run
 	return []*unitofwork.UnitOfWork{{
 		ID:          "demo-uow-1",
 		Description: goal,

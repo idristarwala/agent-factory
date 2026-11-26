@@ -11,7 +11,6 @@ import (
 	"github.com/idristarwala/agent-factory/internal/learning"
 	"github.com/idristarwala/agent-factory/internal/queue"
 	"github.com/idristarwala/agent-factory/internal/rules"
-	"github.com/idristarwala/agent-factory/internal/unitofwork"
 )
 
 // ContinuousRunner runs the factory until problems are resolved or max rounds hit.
@@ -22,7 +21,7 @@ type ContinuousRunner struct {
 	Graph     graph.Graph
 	Rules     *rules.Engine
 	Learning  *learning.LearningLoop
-	Workers   int // parallel workers
+	Workers   int
 	MaxRounds int
 }
 
@@ -44,7 +43,6 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 	for round := 1; round <= r.MaxRounds; round++ {
 		fmt.Printf("===== Round %d =====\n", round)
 
-		// Steward interprets remaining problems into units of work
 		uows, err := r.Steward.InterpretGoal(goal, r.Graph.Snapshot())
 		if err != nil {
 			return err
@@ -54,14 +52,12 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 			return nil
 		}
 
-		// Enqueue
 		for _, uow := range uows {
 			if err := r.Queue.Enqueue(ctx, uow); err != nil {
 				return err
 			}
 		}
 
-		// Parallel workers
 		var wg sync.WaitGroup
 		decisions := make([]agents.Decision, 0)
 		var mu sync.Mutex
@@ -75,8 +71,11 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 					if err != nil || uow == nil {
 						return
 					}
-					// In real impl, create specialized worker based on uow
-					worker, _ := r.Steward.CreateWorker(agents.WorkerSpec{Name: "generic", Role: "worker", ModelTier: "cheap"})
+					worker, err := r.Steward.CreateWorker(agents.WorkerSpec{Name: "generic", Role: "worker", ModelTier: "cheap"})
+					if err != nil {
+						r.Queue.Fail(ctx, uow.ID, "create worker: "+err.Error())
+						continue
+					}
 					mutation, err := worker.Execute(uow)
 					if err != nil {
 						r.Queue.Fail(ctx, uow.ID, err.Error())
@@ -99,7 +98,6 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 		}
 		wg.Wait()
 
-		// Closed learning loop
 		if r.Learning != nil && len(decisions) > 0 {
 			gaps := r.Learning.Review(decisions, nil)
 			updates := r.Learning.ProposeUpdates(gaps)
@@ -111,7 +109,7 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 
 		pending, _ := r.Queue.PendingCount(ctx)
 		if pending == 0 {
-			fmt.Println("Queue empty. Checking for remaining problems...")
+			fmt.Println("Queue empty.")
 		}
 	}
 	return fmt.Errorf("max rounds reached")
