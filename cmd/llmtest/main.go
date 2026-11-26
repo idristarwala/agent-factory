@@ -8,10 +8,12 @@ import (
 )
 
 func main() {
-	gw, err := models.NewOpenAICompatFromEnv()
+	gw, err := models.NewGatewayFromEnv()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "config error: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Set LLM_BASE_URL, LLM_API_KEY, and optionally LLM_CHEAP_MODEL\n")
+		fmt.Fprintf(os.Stderr, "Set LLM_PROVIDER=gemini|openai|groq|openrouter and the matching keys\n")
+		fmt.Fprintf(os.Stderr, "  gemini: GEMINI_API_KEY (or LLM_API_KEY)\n")
+		fmt.Fprintf(os.Stderr, "  openai/groq/openrouter: LLM_BASE_URL + LLM_API_KEY\n")
 		os.Exit(1)
 	}
 
