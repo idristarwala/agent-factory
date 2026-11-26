@@ -11,7 +11,7 @@ import (
 )
 
 // GeminiGateway uses Google's native generateContent endpoint.
-// Works with free-tier models such as gemini-3.5-flash.
+// Works with free-tier models such as gemini-3.5-flash-lite.
 
 type GeminiGateway struct {
 	APIKey        string
@@ -30,7 +30,7 @@ func NewGeminiFromEnv() (*GeminiGateway, error) {
 	}
 	cheap := os.Getenv("GEMINI_CHEAP_MODEL")
 	if cheap == "" {
-		cheap = "gemini-3.5-flash"
+		cheap = "gemini-3.5-flash-lite"
 	}
 	frontier := os.Getenv("GEMINI_FRONTIER_MODEL")
 	if frontier == "" {
