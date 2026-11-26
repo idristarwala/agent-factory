@@ -24,6 +24,8 @@ type Graph interface {
 	GetNode(id NodeID) (*Node, error)
 	GetSubgraph(root NodeID, depth int) ([]Node, []Edge, error)
 	ProposeMutation(proposal *Mutation) error
+	Apply(m *Mutation) error
+	Snapshot() any
 }
 
 type Mutation struct {
