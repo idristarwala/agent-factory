@@ -24,7 +24,7 @@ type Graph interface {
 	GetNode(id NodeID) (*Node, error)
 	GetSubgraph(root NodeID, depth int) ([]Node, []Edge, error)
 	ProposeMutation(proposal *Mutation) error
-	Apply(m *Mutation) error
+	Apply(proposal *Mutation) error
 	Snapshot() any
 }
 
