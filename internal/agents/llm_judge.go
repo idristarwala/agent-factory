@@ -8,7 +8,8 @@ import (
 	"github.com/idristarwala/agent-factory/internal/models"
 )
 
-// LLMJudge evaluates proposals using rules and optionally a frontier model.
+// LLMJudge evaluates proposals using rules.
+// Fails closed: any model error or unclear reply rejects the proposal.
 type LLMJudge struct {
 	Gateway models.Gateway
 }
@@ -18,7 +19,6 @@ func NewLLMJudge(gw models.Gateway) *LLMJudge {
 }
 
 func (j *LLMJudge) Evaluate(proposal *graph.Mutation, rules []Rule) (Decision, error) {
-	// Build a simple rule summary
 	var ruleText strings.Builder
 	for _, r := range rules {
 		ruleText.WriteString(fmt.Sprintf("- %s\n", r.Description))
@@ -27,7 +27,6 @@ func (j *LLMJudge) Evaluate(proposal *graph.Mutation, rules []Rule) (Decision, e
 		ruleText.WriteString("(no rules)\n")
 	}
 
-	// Extract proposed title/description for the prompt
 	var title, desc string
 	if len(proposal.Updates) > 0 {
 		if t, ok := proposal.Updates[0].Props["title"].(string); ok {
@@ -38,7 +37,7 @@ func (j *LLMJudge) Evaluate(proposal *graph.Mutation, rules []Rule) (Decision, e
 		}
 	}
 
-	prompt := fmt.Sprintf(`Evaluate this catalog proposal against the rules.
+	prompt := fmt.Sprintf(`Evaluate this proposal against the rules.
 Rules:
 %s
 Proposed title: %s
@@ -50,15 +49,15 @@ or
 REJECT: <reason>`, ruleText.String(), title, desc)
 
 	resp, err := j.Gateway.Generate(models.Request{
-		Tier:        models.TierFrontier, // Judge may use frontier
+		Tier:        models.TierFrontier,
 		System:      "You are a strict judge. Output only APPROVE: or REJECT: followed by a short reason.",
 		User:        prompt,
 		Temperature: 0.0,
 		MaxTokens:   150,
 	})
 	if err != nil {
-		// Fallback to simple approval if model fails
-		return Decision{Approved: true, Reason: "model unavailable, default approve"}, nil
+		// Fail closed
+		return Decision{Approved: false, Reason: "gateway error, fail closed: " + err.Error()}, nil
 	}
 
 	line := strings.TrimSpace(resp.Content)
@@ -69,6 +68,6 @@ REJECT: <reason>`, ruleText.String(), title, desc)
 	if strings.HasPrefix(upper, "REJECT") {
 		return Decision{Approved: false, Reason: line}, nil
 	}
-	// Default
-	return Decision{Approved: true, Reason: "unclear response, default approve: " + line}, nil
+	// Unclear reply also fails closed
+	return Decision{Approved: false, Reason: "unclear response, fail closed: " + line}, nil
 }
