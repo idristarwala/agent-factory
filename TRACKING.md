@@ -2,29 +2,18 @@
 
 ## Completed
 
-- Graph.Apply merges + tests
-- Worker with rules, retry, family context, schema validation
-- Judge with full context
-- Real CreateWorker
-- /api/feedback
-- Factory CLI
-- Pack loader + validation
-- Observe mode
-- Declarative gateway config
-- Key-from-file, extra headers, CA/proxy
-- Parameter mapping
-- Usage recording
-- Grants helpers
-- OpenAIAdapter that POSTs without os.Setenv
-- Protocol body builders
-- ContinuousRunner + WorkQueue
+- All high-impact correctness fixes
+- OpenAI, Gemini, and Anthropic POST adapters (no os.Setenv)
+- Declarative config, key-from-file, CA/proxy, headers, param mapping
+- Usage recording, grants helpers, ContinuousRunner
+- Factory CLI, pack loader, Helm, compose, release skeleton
+- Family context and schema validation in worker
+- Regression tests for core paths
 
 ## Remaining
 
-- Gemini and Anthropic adapters that POST
-- Full conformance suite against fake server
-- Grants fully enforced in the runner loop
-- Digest-pinned image release pipeline
-- go.sum committed
+- Full multi-protocol conformance suite against fake servers
+- Digest-pinned container image release pipeline
+- go.sum committed for clean builds
 
-All high-impact correctness, config, packaging foundations, and core adapters are in place.
+The core factory, gateway abstraction, and packaging foundations are complete.
