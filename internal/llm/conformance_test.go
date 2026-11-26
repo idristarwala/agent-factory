@@ -26,3 +26,18 @@ func (f *fakeHarness) Client() Client { return &fakeClient{} }
 func TestConformanceBasic(t *testing.T) {
 	RunConformance(t, &fakeHarness{})
 }
+
+func TestAdapterNoSetenv(t *testing.T) {
+	// Ensure adapters can be created from config without relying on env mutation.
+	cfg := map[string]string{
+		"base_url": "http://localhost:9999",
+		"api_key":  "test-key",
+	}
+	c, err := New("openai", cfg)
+	if err != nil {
+		t.Fatalf("openai adapter from config: %v", err)
+	}
+	if c == nil {
+		t.Fatal("nil client")
+	}
+}

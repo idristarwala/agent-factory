@@ -2,7 +2,6 @@ package llm
 
 import (
 	"context"
-	"os"
 
 	"github.com/idristarwala/agent-factory/internal/models"
 )
@@ -15,28 +14,25 @@ func init() {
 }
 
 func newGeminiAdapter(cfg map[string]string) (Client, error) {
-	// Fall back to env for now
-	if cfg["api_key"] != "" {
-		os.Setenv("GEMINI_API_KEY", cfg["api_key"])
+	apiKey := cfg["api_key"]
+	if apiKey == "" {
+		return nil, &Error{Type: "AUTH", Message: "api_key required for gemini adapter", Retryable: false}
 	}
-	gw, err := models.NewGeminiFromEnv()
-	if err != nil {
-		return nil, err
-	}
+	cheap := cfg["cheap_model"]
+	frontier := cfg["frontier_model"]
+	gw := models.NewGemini(apiKey, cheap, frontier)
 	return &modelsAdapter{gw: gw}, nil
 }
 
 func newOpenAIAdapter(cfg map[string]string) (Client, error) {
-	if cfg["base_url"] != "" {
-		os.Setenv("LLM_BASE_URL", cfg["base_url"])
+	baseURL := cfg["base_url"]
+	apiKey := cfg["api_key"]
+	if baseURL == "" || apiKey == "" {
+		return nil, &Error{Type: "AUTH", Message: "base_url and api_key required for openai-compat adapter", Retryable: false}
 	}
-	if cfg["api_key"] != "" {
-		os.Setenv("LLM_API_KEY", cfg["api_key"])
-	}
-	gw, err := models.NewOpenAICompatFromEnv()
-	if err != nil {
-		return nil, err
-	}
+	cheap := cfg["cheap_model"]
+	frontier := cfg["frontier_model"]
+	gw := models.NewOpenAICompat(baseURL, apiKey, cheap, frontier)
 	return &modelsAdapter{gw: gw}, nil
 }
 
@@ -46,7 +42,6 @@ type modelsAdapter struct {
 }
 
 func (a *modelsAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
-	// Convert to old Request
 	var system, user string
 	for _, m := range req.Messages {
 		if m.Role == "system" {
