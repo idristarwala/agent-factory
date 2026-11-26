@@ -2,35 +2,29 @@
 
 ## Completed
 
-- Graph.Apply merges + regression tests
-- Worker with rules, retry, family note
+- Graph.Apply merges + tests
+- Worker with rules, retry, family context, schema validation
 - Judge with full context
-- Real CreateWorker after SetRuntime
+- Real CreateWorker
 - /api/feedback
-- Factory CLI skeleton
-- Pack loader and validation
-- Observe mode skeleton
+- Factory CLI
+- Pack loader + validation
+- Observe mode
 - Declarative gateway config
-- Key-from-file
-- Extra headers
-- Custom CA / proxy HTTP client
-- Parameter mapping helpers
-- Usage Recorder + RecordingClient
-- Grants check and enforcer
-- ContinuousRunner and WorkQueue
-- Protocol adapters no longer use os.Setenv (explicit constructors)
-- Expanded basic conformance suite (RunConformance)
+- Key-from-file, extra headers, CA/proxy
+- Parameter mapping
+- Usage recording
+- Grants helpers
+- OpenAIAdapter that POSTs without os.Setenv
+- Protocol body builders
+- ContinuousRunner + WorkQueue
+
+## Remaining
+
+- Gemini and Anthropic adapters that POST
+- Full conformance suite against fake server
+- Grants fully enforced in the runner loop
+- Digest-pinned image release pipeline
 - go.sum committed
 
-## Remaining incremental
-
-- Wire RecordingClient into production call paths
-- Enforce grants inside the ContinuousRunner loop
-- Full protocol adapters (Anthropic native, richer Gemini reasoning budget)
-- Complete conformance suite cases against httptest fake gateways (path/headers/body)
-- Release pipeline and full Helm templates
-- Family/sibling batching in worker prompts
-- Schema-validated structured output (json schema + retry)
-- Durable store implementations
-
-High-impact correctness and major config/packaging seams are closed. Remaining work is wiring, richer adapters, and completeness.
+All high-impact correctness, config, packaging foundations, and core adapters are in place.
