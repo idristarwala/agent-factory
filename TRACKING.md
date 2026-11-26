@@ -1,28 +1,33 @@
 # Tracking
 
-## Recently completed
+## Completed
 
-- Graph.Apply merges props + regression tests
-- Worker receives rules, retries JSON, family note
-- Judge sees original entity + proposal
-- Real SmartSteward.CreateWorker after SetRuntime
-- /api/feedback creates versioned rules
+- Graph.Apply merges + regression tests
+- Worker with rules, retry, family note
+- Judge with full context
+- Real CreateWorker after SetRuntime
+- /api/feedback
 - Factory CLI skeleton
-- Pack file loader
+- Pack loader and validation
 - Observe mode skeleton
-- Declarative gateway config + extra headers
-- Key-from-file support
-- Usage recording stub
+- Declarative gateway config
+- Key-from-file
+- Extra headers
+- Custom CA / proxy HTTP client
+- Parameter mapping helpers
+- Usage Recorder + RecordingClient
+- Grants check and enforcer
 - ContinuousRunner and WorkQueue
 
-## Still open (incremental)
+## Remaining incremental
 
-- Full custom CA / proxy in http.Client (#11)
-- Per-model protocol routing and parameter mapping (#11)
-- Complete conformance suite (#8)
-- Full observe-mode enforcement and grants (#9)
-- Release pipeline / Helm / starter template (#9)
-- Family/sibling batching and model-assisted grouping (#10)
+- Wire RecordingClient into production call paths
+- Enforce grants inside the ContinuousRunner loop
+- Full protocol adapters without os.Setenv
+- Complete conformance suite cases
+- Release pipeline and full Helm templates
+- Family/sibling batching
+- Schema-validated structured output
 - go.sum committed
 
-All high-impact correctness bugs are closed. Remaining work is packaging and enterprise gateway completeness.
+High-impact correctness and major config/packaging seams are closed. Remaining work is wiring and completeness.
