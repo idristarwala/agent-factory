@@ -1,6 +1,11 @@
 package grouping
 
-import "github.com/idristarwala/agent-factory/internal/schema"
+import (
+	"sort"
+	"strings"
+
+	"github.com/idristarwala/agent-factory/internal/schema"
+)
 
 // GroupKey is how entities should be grouped.
 // Catalog: variant group. Pricing: price family. Inventory: location cluster.
@@ -25,6 +30,7 @@ type Detector interface {
 }
 
 // SimpleDetector uses attribute similarity.
+// Deterministic: ties broken by sorted group name, ungrouped items are first-class.
 type SimpleDetector struct{}
 
 func (d *SimpleDetector) Detect(entities []schema.Entity, groupField string) []Proposal {
@@ -42,18 +48,33 @@ func (d *SimpleDetector) Detect(entities []schema.Entity, groupField string) []P
 		counts := map[string]int{}
 		for _, e := range bucket {
 			g, _ := e.Attributes[groupField].(string)
+			if g == "" {
+				g = "__ungrouped__"
+			}
 			counts[g]++
 		}
+
+		// Deterministic majority: highest count, then lexicographic name
 		var best string
 		var bestN int
-		for g, n := range counts {
-			if n > bestN {
+		keys := make([]string, 0, len(counts))
+		for k := range counts {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, g := range keys {
+			n := counts[g]
+			if n > bestN || (n == bestN && (best == "" || g < best)) {
 				best, bestN = g, n
 			}
 		}
+
 		for _, e := range bucket {
 			g, _ := e.Attributes[groupField].(string)
-			if g != best && best != "" {
+			if g == "" {
+				g = "__ungrouped__"
+			}
+			if g != best && best != "__ungrouped__" {
 				proposals = append(proposals, Proposal{
 					EntityID:   e.ID,
 					FromGroup:  g,
@@ -70,10 +91,11 @@ func (d *SimpleDetector) Detect(entities []schema.Entity, groupField string) []P
 func signature(e schema.Entity) string {
 	brand, _ := e.Attributes["brand"].(string)
 	title, _ := e.Attributes["title"].(string)
-	if brand == "" && title == "" {
+	ptype, _ := e.Attributes["product_type"].(string)
+	if brand == "" && title == "" && ptype == "" {
 		return e.ID
 	}
-	return brand + "|" + firstToken(title)
+	return strings.ToLower(brand) + "|" + strings.ToLower(ptype) + "|" + firstToken(strings.ToLower(title))
 }
 
 func firstToken(s string) string {
