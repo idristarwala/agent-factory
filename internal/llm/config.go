@@ -2,65 +2,41 @@ package llm
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 )
 
-// GatewayConfig is a declarative gateway definition.
+// GatewayConfig is the declarative form described in issue #11.
 type GatewayConfig struct {
-	BaseURL string            `json:"base_url"`
-	Auth    AuthConfig        `json:"auth"`
-	Headers map[string]string `json:"headers"`
-	TLS     TLSConfig         `json:"tls"`
-	Proxy   string            `json:"proxy"` // "env" or "none"
+	Name     string            `json:"name"`
+	BaseURL  string            `json:"base_url"`
+	AuthType string            `json:"auth_type"` // bearer, none
+	KeyFile  string            `json:"key_file"`
+	Headers  map[string]string `json:"headers"`
+	CAFile   string            `json:"ca_file"`
+	Proxy    string            `json:"proxy"` // none, env
 }
 
-type AuthConfig struct {
-	Type    string `json:"type"` // "bearer"
-	Key     string `json:"key,omitempty"`
-	KeyFile string `json:"key_file,omitempty"`
-}
-
-type TLSConfig struct {
-	CAFile string `json:"ca_file"`
-}
-
-// ModelConfig maps a logical model to a gateway and protocol.
-type ModelConfig struct {
-	Gateway         string `json:"gateway"`
-	Protocol        string `json:"protocol"` // "openai", "gemini", "anthropic"
-	Model           string `json:"model"`
-	TokenParam      string `json:"token_param,omitempty"` // "max_tokens" or "max_completion_tokens"
-	ReasoningBudget int    `json:"reasoning_budget,omitempty"`
-}
-
-// Config is the top-level gateway configuration.
-type Config struct {
-	Gateways map[string]GatewayConfig `json:"gateways"`
-	Models   map[string]ModelConfig   `json:"models"`
-}
-
-// LoadConfig reads a gateway config file (JSON).
-func LoadConfig(path string) (*Config, error) {
-	b, err := os.ReadFile(path)
+// LoadGatewayConfig reads a simple JSON gateway config.
+func LoadGatewayConfig(path string) (*GatewayConfig, error) {
+	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("read config: %w", err)
+		return nil, err
 	}
-	var c Config
-	if err := json.Unmarshal(b, &c); err != nil {
-		return nil, fmt.Errorf("parse config: %w", err)
+	var cfg GatewayConfig
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return nil, err
 	}
-	return &c, nil
+	return &cfg, nil
 }
 
-// LoadKey reads a key from a file or returns the inline key.
-func LoadKey(auth AuthConfig) (string, error) {
-	if auth.KeyFile != "" {
-		b, err := os.ReadFile(auth.KeyFile)
-		if err != nil {
-			return "", fmt.Errorf("read key file: %w", err)
-		}
-		return string(b), nil
+// ApplyExtraHeaders is a helper for adapters that need static headers.
+func ApplyExtraHeaders(base map[string]string, extra map[string]string) map[string]string {
+	out := make(map[string]string, len(base)+len(extra))
+	for k, v := range base {
+		out[k] = v
 	}
-	return auth.Key, nil
+	for k, v := range extra {
+		out[k] = v
+	}
+	return out
 }
