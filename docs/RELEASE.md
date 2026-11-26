@@ -2,16 +2,17 @@
 
 ## Current state
 
-- `cmd/factory` CLI skeleton
-- `deploy/compose.yaml` for local runs
-- Helm values and basic chart structure
-- Pack loader and validation
+- `cmd/factory` CLI skeleton (`up`, `validate`, `test`, `readiness`, `publish`)
+- `deploy/release.sh` builds binaries and documents digest-pinning steps
+- CI workflow runs `go vet`, `go test -race`, and a release-skeleton job on main
+- `go.sum` committed; clean clones build
+- Docker / compose / basic k8s manifests present
 
-## Next steps for full release
+## Next steps for full digest-pinned release
 
-1. Tag a version (`git tag v0.1.0`)
-2. Build and push container images pinned by digest
-3. Generate a release manifest listing digests and schema version
-4. Starter repo template that pins the engine version
+1. Automate `docker build` + `docker inspect` digest capture in CI
+2. Publish a release manifest (digests, pack-spec version, schema version)
+3. Starter repo template that pins the engine version via `factory.yaml`
+4. Durable store contract tests shared by memory and SQL backends
 
-The hourly automation continues advancing these artifacts.
+The pipeline skeleton is ready for the remaining automation.

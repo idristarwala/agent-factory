@@ -1,6 +1,6 @@
-# Enterprise Gateway Support (Issue #11)
+# Enterprise Gateway Support (Issues #1–#8, #11)
 
-The declarative config skeleton is in `internal/llm/config.go`.
+Declarative config is in `internal/llm/config.go`.
 
 Example gateway.json:
 ```json
@@ -18,14 +18,21 @@ Example gateway.json:
 }
 ```
 
-Adapters can call `ApplyExtraHeaders` to merge static headers.
+## Current capabilities
 
-Remaining for full native support:
-- Per-model protocol routing
-- Key reload from file
-- Custom CA and proxy in http.Client
-- Parameter mapping (max_completion_tokens, reasoning_budget)
-- Usage recording into obs
-- Typed retries on 429/5xx
+- OpenAI, Gemini, and Anthropic POST adapters (no `os.Setenv`)
+- Key from file (`LoadKey`)
+- Custom CA and proxy control (`NewHTTPClient`)
+- Typed errors (RATE_LIMITED, AUTH, BAD_REQUEST) with retryable flag
+- Basic multi-protocol conformance against `httptest` servers
+- Extended conformance: auth errors, concurrency, SSE reassembly
 
-These continue as incremental work.
+## Remaining for full native support
+
+- Tool-call parsing in adapters
+- Auth token refresh / rotation reload
+- Full parameter mapping (max_completion_tokens, reasoning_budget) wired end-to-end
+- Streaming native (currently reassembly helpers + one-shot fallback)
+- Usage recording into `internal/obs` on every call
+
+See TRACKING.md for status.
