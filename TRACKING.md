@@ -1,26 +1,28 @@
 # Tracking
 
-## Implemented
+## Recently completed
 
-- WorkQueue (memory + SQL stub) with claim/lease
-- ContinuousRunner with parallel workers and LearningLoop
-- Graph.Apply merges props (regression tested)
-- Worker receives active rules in prompt
-- Judge sees original entity + proposed mutation
-- SmartSteward.CreateWorker returns real LLMWorker after SetRuntime
+- Graph.Apply merges props + regression tests
+- Worker receives rules, retries JSON, family note
+- Judge sees original entity + proposal
+- Real SmartSteward.CreateWorker after SetRuntime
 - /api/feedback creates versioned rules
-- Regression tests for Apply, rules, feedback
-- internal/llm package with Client, registry, router, types, streaming basics
+- Factory CLI skeleton
+- Pack file loader
+- Observe mode skeleton
+- Declarative gateway config + extra headers
+- Key-from-file support
+- Usage recording stub
+- ContinuousRunner and WorkQueue
 
-## Remaining (tracked in issues)
+## Still open (incremental)
 
-- Family/sibling context for workers (#10)
-- Deterministic block-then-decide grouping (#10)
-- Full schema-validated structured output + retry (#10)
-- go.sum committed (#9, #10)
-- Full context.Context wiring through all LLM calls (#1)
+- Full custom CA / proxy in http.Client (#11)
+- Per-model protocol routing and parameter mapping (#11)
 - Complete conformance suite (#8)
-- Packaging as factory CLI + packs-as-files (#9)
-- Real BigQuery/MCP clients
+- Full observe-mode enforcement and grants (#9)
+- Release pipeline / Helm / starter template (#9)
+- Family/sibling batching and model-assisted grouping (#10)
+- go.sum committed
 
-Critical correctness and accuracy gaps from the field test are closed. Larger packaging and full gateway conformance remain open.
+All high-impact correctness bugs are closed. Remaining work is packaging and enterprise gateway completeness.
