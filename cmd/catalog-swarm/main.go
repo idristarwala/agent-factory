@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
-	"strings"
+	"time"
 
 	"github.com/idristarwala/agent-factory/internal/agents"
 	"github.com/idristarwala/agent-factory/internal/catalog"
@@ -18,8 +18,7 @@ import (
 func needsWork(n graph.Node) bool {
 	title, _ := n.Props["title"].(string)
 	desc, _ := n.Props["description"].(string)
-	// Heuristic: short/generic titles or descriptions, or empty material when expected
-	if len(title) < 15 || strings.Contains(strings.ToLower(title), "shirt") && !strings.Contains(strings.ToLower(title), "nike") && !strings.Contains(strings.ToLower(title), "adidas") {
+	if len(title) < 15 {
 		return true
 	}
 	if len(desc) < 20 {
@@ -46,42 +45,48 @@ func main() {
 	store := unitofwork.NewMemoryStore()
 	ruleEngine := rules.NewEngine()
 	mem := memory.NewStore()
+	agentReg := agents.NewRegistry()
 
+	// Register agents with versions
+	agentReg.Register(agents.AgentVersion{Name: "steward", Role: "steward", Version: "0.1.0", ModelTier: "frontier"})
+	agentReg.Register(agents.AgentVersion{Name: "worker-1", Role: "worker", Version: "0.1.0", ModelTier: "cheap"})
+	agentReg.Register(agents.AgentVersion{Name: "judge", Role: "judge", Version: "0.1.0", ModelTier: "frontier"})
+
+	// Load domain-pack rules as versioned
 	for _, r := range domain.CatalogPack().DefaultRules {
-		ruleEngine.Add(agents.Rule{Description: r, Source: "domain-pack"})
+		ruleEngine.Propose(rules.VersionedRule{Description: r, Source: "domain-pack", CreatedBy: "system"})
 	}
-	ruleEngine.Add(agents.Rule{
-		Description: "Titles should include brand and key attributes (color, type). Descriptions should be specific.",
+	ruleEngine.Propose(rules.VersionedRule{
+		Description: "Titles should include brand and key attributes. Descriptions should be specific.",
 		Source:      "human",
-	})
-	ruleEngine.Add(agents.Rule{
-		Description: "Do not include attributes that do not apply to the product type (e.g. battery_hours on footwear).",
-		Source:      "human",
+		CreatedBy:   "operator",
 	})
 
-	steward := agents.NewSmartSteward(store)
-	worker := agents.NewLLMWorker("swarm-worker", "catalog-corrector", gw, g)
-	judge := agents.NewLLMJudge(gw)
-
-	fmt.Println("=== Catalog Swarm Correction ===")
+	fmt.Println("=== Agent Factory (domain-agnostic core, catalog pack) ===")
+	fmt.Println(agentReg.Summary())
+	fmt.Println(ruleEngine.Summary())
 	fmt.Println("Variant groups:")
 	for group, ids := range catalog.VariantGroups() {
 		fmt.Printf("  %s: %v\n", group, ids)
 	}
 	fmt.Println()
 
+	steward := agents.NewSmartSteward(store)
+	worker := agents.NewLLMWorker("worker-1", "catalog-corrector", gw, g)
+	judge := agents.NewLLMJudge(gw)
+
 	nodes := catalog.Seed()
 	corrected := 0
 	for _, n := range nodes {
 		if !needsWork(n) {
-			fmt.Printf("SKIP (looks ok): %s — %v\n", n.ID, n.Props["title"])
+			fmt.Printf("SKIP: %s — %v\n", n.ID, n.Props["title"])
 			continue
 		}
 
-		fmt.Printf("\n--- Correcting %s (PT=%v Brand=%v) ---\n", n.ID, n.Props["pt"], n.Props["brand"])
-		fmt.Printf("  Before: title=%q desc=%q\n", n.Props["title"], n.Props["description"])
+		fmt.Printf("\n--- %s (PT=%v Brand=%v) ---\n", n.ID, n.Props["pt"], n.Props["brand"])
+		fmt.Printf("  Before: %q\n", n.Props["title"])
 
-		uows, err := steward.InterpretGoal(fmt.Sprintf("Fix title and description for %s", n.ID), nil)
+		uows, err := steward.InterpretGoal(fmt.Sprintf("Improve title and description for %s", n.ID), nil)
 		if err != nil || len(uows) == 0 {
 			fmt.Printf("  Steward error: %v\n", err)
 			continue
@@ -95,7 +100,7 @@ func main() {
 			continue
 		}
 
-		decision, err := judge.Evaluate(proposal, ruleEngine.All())
+		decision, err := judge.Evaluate(proposal, ruleEngine.ToAgentsRules())
 		if err != nil {
 			fmt.Printf("  Judge error: %v\n", err)
 			continue
@@ -104,14 +109,14 @@ func main() {
 		if decision.Approved && len(proposal.Updates) > 0 {
 			g.ProposeMutation(proposal)
 			updated, _ := g.GetNode(n.ID)
-			fmt.Printf("  After:  title=%q\n          desc=%q\n", updated.Props["title"], updated.Props["description"])
+			fmt.Printf("  After:  %q\n", updated.Props["title"])
 			fmt.Printf("  Judge: %s\n", decision.Reason)
-			mem.Add("learning", fmt.Sprintf("%s corrected to: %v", n.ID, updated.Props["title"]), "swarm", nil)
+			mem.Add("learning", fmt.Sprintf("%s -> %v", n.ID, updated.Props["title"]), "swarm", nil)
 			corrected++
 		} else {
 			fmt.Printf("  Rejected: %s\n", decision.Reason)
 		}
 	}
 
-	fmt.Printf("\n=== Summary ===\nCorrected: %d\nLearnings: %d\nRules: %d\n", corrected, len(mem.ByKind("learning")), len(ruleEngine.All()))
+	fmt.Printf("\n=== Done at %s ===\nCorrected: %d\n%s\n", time.Now().Format(time.RFC3339), corrected, ruleEngine.Summary())
 }
