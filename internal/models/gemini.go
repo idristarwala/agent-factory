@@ -34,7 +34,7 @@ func NewGeminiFromEnv() (*GeminiGateway, error) {
 	}
 	frontier := os.Getenv("GEMINI_FRONTIER_MODEL")
 	if frontier == "" {
-		frontier = "gemini-3.5-pro" // fallback; may need adjustment
+		frontier = "gemini-3.5-flash-lite" // free-tier safe default
 	}
 	return &GeminiGateway{
 		APIKey:        key,
