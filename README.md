@@ -34,14 +34,23 @@ export GEMINI_API_KEY=your-key
 | `scripts/` | Setup and run helpers |
 | `docs/` | Full documentation |
 
-## Docs
+## Documentation
 
-- [Architecture](docs/ARCHITECTURE.md)
-- [Running](docs/RUNNING.md)
-- [Secrets & Auth](SECRETS.md) / [AUTH.md](AUTH.md)
-- [Packaging](PACKAGING.md)
-- [Domain packs](docs/DOMAIN_PACKS.md)
-- [Contributing](docs/CONTRIBUTING.md)
+| Doc | Contents |
+|-----|----------|
+| [Overview](docs/OVERVIEW.md) | Concepts, principles, flow diagram |
+| [Architecture](docs/ARCHITECTURE.md) | Primitives, data flow, persistence |
+| [Running](docs/RUNNING.md) | Local, Docker, Kubernetes |
+| [Configuration](docs/CONFIGURATION.md) | Secrets, env vars, tiers, packs |
+| [Operations](docs/OPERATIONS.md) | Health, logs, scaling, failure modes |
+| [Examples](docs/EXAMPLES.md) | Goal, continuous, ReAct, compose, k8s |
+| [API Reference](docs/API.md) | CLI, types, interfaces, extension points |
+| [Security](docs/SECURITY.md) | Secrets, auth, fail-closed, supply chain |
+| [Troubleshooting](docs/TROUBLESHOOTING.md) | Build, LLM, Docker, k8s, tests |
+| [Domain packs](docs/DOMAIN_PACKS.md) | Built-in packs and how to add one |
+| [Secrets](SECRETS.md) / [Auth](AUTH.md) | Secret layout and auth methods |
+| [Packaging](PACKAGING.md) | Docker, compose, Kubernetes |
+| [Contributing](docs/CONTRIBUTING.md) | How to propose changes |
 
 ## License
 
