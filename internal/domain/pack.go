@@ -40,5 +40,5 @@ func PricingPack() Pack {
 }
 
 func All() []Pack {
-	return []Pack{CatalogPack(), PricingPack()}
+	return []Pack{CatalogPack(), PricingPack(), InventoryPack(), MerchandisingPack()}
 }
