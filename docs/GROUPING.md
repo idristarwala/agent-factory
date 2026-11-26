@@ -1,38 +1,52 @@
-# Regrouping and customer policies
+# Regrouping and varianting
 
-Both are domain-agnostic.
+Domain-agnostic. Catalog variant groups, pricing families, and inventory clusters use the same machinery.
 
-## Regrouping
+## Group states
 
-Items (or any entities) that share a signature but sit in different groups are proposed for regrouping.
+| State | Meaning |
+|-------|---------|
+| ungrouped | No group; signature matches an existing one or needs a new one |
+| partial | Missing attributes (or variant axes) that block proper grouping |
+| wrong | In a different group than the signature majority |
+| singleton | Alone in its group |
+| complete | Properly grouped |
 
-| Domain | Group field | Signature |
-|--------|-------------|-----------|
-| Catalog | variant_group or pt | brand + title token |
-| Pricing | price_family | brand + product |
-| Inventory | location_cluster | sku + region |
+## Variant axes
 
-`SimpleDetector` finds the majority group and proposes moving outliers. The Judge still approves.
+Up to three axes distinguish variants (e.g. color, size, material).  
+Missing axes mark an entity partial so attribute filling happens before grouping.
 
-## Customer policies and decision trees
+## Assessor
 
-Customers can supply rules in plain text:
+```go
+assessor := &grouping.Assessor{
+    GroupField:      "group",
+    SignatureFields: []string{"brand", "title"},
+    Axes:            grouping.VariantAxes{Axes: []string{"color", "size"}},
+}
+results := assessor.Assess(entities)
+```
+
+## Customer policies
+
+Plain-text decision trees become versioned rules:
 
 ```
 if pt == Apparel and title contains shoe then set pt = Footwear
 if weight_oz > 30 and pt == Apparel then flag weight
-if price < cost then reject
 ```
 
-`ParseSimpleTree` turns these into Policies.  
-`IngestPolicies` writes them as versioned rules.  
-The Judge uses the active versions on the next pass.
+## Flow
 
-## Fit together
+1. Assess every entity (state + missing attributes).
+2. Fix attributes that block grouping (PT, title, missing axes).
+3. Propose regroupings.
+4. Judge approves against active rules (including customer policies).
+5. Repeat until clean.
 
-1. Steward loads entities and discovers attributes.
-2. Customer policies are ingested as versioned rules.
-3. Grouping detector proposes regroupings.
-4. Specialized agents propose attribute fixes.
-5. Judge evaluates everything against the active rules (including customer policies).
-6. Approved changes land on the graph. Customers see Decisions.
+## Demo
+
+```bash
+go run ./cmd/variant-demo
+```
