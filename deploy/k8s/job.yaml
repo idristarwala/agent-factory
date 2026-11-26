@@ -1,0 +1,23 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: agent-factory-run
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: factory
+          image: agent-factory:latest
+          args: ["Fix titles and product types"]
+          env:
+            - name: SECRETS_DIR
+              value: /etc/secrets
+          volumeMounts:
+            - name: secrets
+              mountPath: /etc/secrets
+              readOnly: true
+      volumes:
+        - name: secrets
+          secret:
+            secretName: agent-factory-secrets
