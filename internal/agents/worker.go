@@ -7,25 +7,21 @@ import (
 
 	"github.com/idristarwala/agent-factory/internal/graph"
 	"github.com/idristarwala/agent-factory/internal/models"
-	"github.com/idristarwala/agent-factory/internal/rules"
 	"github.com/idristarwala/agent-factory/internal/unitofwork"
 )
 
-// LLMWorker is a domain-agnostic worker that calls the model gateway (cheap tier).
+// LLMWorker is a real worker that calls the model gateway (cheap tier only).
+// Now receives active rules so customer policies can shape the proposal.
 type LLMWorker struct {
 	ID      string
 	Role    string
 	Gateway models.Gateway
 	Graph   graph.Graph
-	Rules   *rules.Engine
+	Rules   []Rule // active rules passed at creation time
 }
 
-func NewLLMWorker(id, role string, gw models.Gateway, g graph.Graph) *LLMWorker {
-	return &LLMWorker{ID: id, Role: role, Gateway: gw, Graph: g}
-}
-
-func (w *LLMWorker) SetRules(re *rules.Engine) {
-	w.Rules = re
+func NewLLMWorker(id, role string, gw models.Gateway, g graph.Graph, rules []Rule) *LLMWorker {
+	return &LLMWorker{ID: id, Role: role, Gateway: gw, Graph: g, Rules: rules}
 }
 
 func (w *LLMWorker) Claim(uow *unitofwork.UnitOfWork) error {
@@ -34,74 +30,76 @@ func (w *LLMWorker) Claim(uow *unitofwork.UnitOfWork) error {
 
 func (w *LLMWorker) Execute(uow *unitofwork.UnitOfWork) (*graph.Mutation, error) {
 	var context string
+	var originalTitle, originalDesc string
 	if uow.InputSubgraph != "" {
 		n, err := w.Graph.GetNode(uow.InputSubgraph)
 		if err == nil {
 			b, _ := json.Marshal(n)
 			context = string(b)
+			if t, ok := n.Props["title"].(string); ok {
+				originalTitle = t
+			}
+			if d, ok := n.Props["description"].(string); ok {
+				originalDesc = d
+			}
 		}
 	}
 
-	var rulesText string
-	if w.Rules != nil {
-		var descs []string
-		for _, r := range w.Rules.ToAgentsRules() {
-			descs = append(descs, r.Description)
-		}
-		rulesText = strings.Join(descs, "\n- ")
+	var ruleText strings.Builder
+	for _, r := range w.Rules {
+		ruleText.WriteString(fmt.Sprintf("- %s\n", r.Description))
+	}
+	if ruleText.Len() == 0 {
+		ruleText.WriteString("(no active rules)\n")
 	}
 
-	prompt := fmt.Sprintf(`You are a specialized agent in a domain-agnostic factory.
-Goal / task: %s
-Active rules you must follow:
-- %s
+	prompt := fmt.Sprintf(`You are a specialized worker fixing entities.
+Goal / unit of work: %s
+Active rules you MUST follow:
+%s
 Current entity (JSON): %s
+Original title: %s
+Original description: %s
 
-Propose updates to any attributes that help achieve the goal while respecting the rules.
-Respond ONLY with valid JSON object of key-value pairs to set or update, e.g.:
-{"title": "improved title", "description": "...", "pt": "Footwear"}
-Do not include keys you are not changing. Output pure JSON only.`, uow.Description, rulesText, context)
+Propose improvements as a JSON object of attribute key-value pairs.
+Respect the rules (e.g. keep original wording when required).
+Respond ONLY with valid JSON of this form:
+{"title":"...", "description":"...", "other_attr":"..."}`, uow.Description, ruleText.String(), context, originalTitle, originalDesc)
 
-	var lastErr error
-	for attempt := 0; attempt < 2; attempt++ {
-		resp, err := w.Gateway.Generate(models.Request{
-			Tier:        models.TierCheap,
-			System:      "You produce structured improvements. Output JSON object only. No markdown.",
-			User:        prompt,
-			Temperature: 0.2,
-			MaxTokens:   600,
-		})
-		if err != nil {
-			lastErr = err
-			continue
-		}
-
-		content := strings.TrimSpace(resp.Content)
-		content = strings.TrimPrefix(content, "```json")
-		content = strings.TrimPrefix(content, "```")
-		content = strings.TrimSuffix(content, "```")
-		content = strings.TrimSpace(content)
-
-		var updates map[string]any
-		if err := json.Unmarshal([]byte(content), &updates); err != nil {
-			lastErr = fmt.Errorf("JSON parse failed: %w\nraw: %s", err, resp.Content)
-			continue
-		}
-
-		nodeID := uow.InputSubgraph
-		if nodeID == "" {
-			nodeID = graph.NodeID("entity-unknown")
-		}
-
-		return &graph.Mutation{
-			UnitOfWorkID: uow.ID,
-			Updates: []graph.Node{{
-				ID:    nodeID,
-				Type:  "entity",
-				Props: updates,
-			}},
-			Evidence: []string{"source: generic-llm-worker", "model: " + resp.Model, "role: " + w.Role},
-		}, nil
+	resp, err := w.Gateway.Generate(models.Request{
+		Tier:        models.TierCheap,
+		System:      "You produce structured attribute updates that obey the provided rules. Output JSON only.",
+		User:        prompt,
+		Temperature: 0.2,
+		MaxTokens:   800,
+	})
+	if err != nil {
+		return nil, err
 	}
-	return nil, lastErr
+
+	content := strings.TrimSpace(resp.Content)
+	content = strings.TrimPrefix(content, "```json")
+	content = strings.TrimPrefix(content, "```")
+	content = strings.TrimSuffix(content, "```")
+	content = strings.TrimSpace(content)
+
+	var updates map[string]any
+	if err := json.Unmarshal([]byte(content), &updates); err != nil {
+		return nil, fmt.Errorf("worker JSON parse failed: %w\nraw: %s", err, resp.Content)
+	}
+
+	nodeID := uow.InputSubgraph
+	if nodeID == "" {
+		nodeID = graph.NodeID("entity-unknown")
+	}
+
+	return &graph.Mutation{
+		UnitOfWorkID: uow.ID,
+		Updates: []graph.Node{{
+			ID:    nodeID,
+			Type:  "entity",
+			Props: updates,
+		}},
+		Evidence: []string{"source: llm-worker-with-rules", "model: " + resp.Model},
+	}, nil
 }

@@ -1,6 +1,7 @@
 package agents
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -10,12 +11,14 @@ import (
 
 // LLMJudge evaluates proposals using rules.
 // Fails closed: any model error or unclear reply rejects the proposal.
+// Now receives the full proposed mutation so it can see facts and original context.
 type LLMJudge struct {
 	Gateway models.Gateway
+	Graph   graph.Graph
 }
 
-func NewLLMJudge(gw models.Gateway) *LLMJudge {
-	return &LLMJudge{Gateway: gw}
+func NewLLMJudge(gw models.Gateway, g graph.Graph) *LLMJudge {
+	return &LLMJudge{Gateway: gw, Graph: g}
 }
 
 func (j *LLMJudge) Evaluate(proposal *graph.Mutation, rules []Rule) (Decision, error) {
@@ -27,36 +30,42 @@ func (j *LLMJudge) Evaluate(proposal *graph.Mutation, rules []Rule) (Decision, e
 		ruleText.WriteString("(no rules)\n")
 	}
 
-	var title, desc string
-	if len(proposal.Updates) > 0 {
-		if t, ok := proposal.Updates[0].Props["title"].(string); ok {
-			title = t
-		}
-		if d, ok := proposal.Updates[0].Props["description"].(string); ok {
-			desc = d
+	var proposalJSON string
+	if b, err := json.Marshal(proposal); err == nil {
+		proposalJSON = string(b)
+	}
+
+	var original string
+	if len(proposal.Updates) > 0 && j.Graph != nil {
+		if n, err := j.Graph.GetNode(proposal.Updates[0].ID); err == nil {
+			if b, err := json.Marshal(n); err == nil {
+				original = string(b)
+			}
 		}
 	}
 
-	prompt := fmt.Sprintf(`Evaluate this proposal against the rules.
+	prompt := fmt.Sprintf(`Evaluate this proposal against the rules and the original entity.
 Rules:
 %s
-Proposed title: %s
-Proposed description: %s
+Original entity (JSON):
+%s
+Proposed mutation (JSON):
+%s
 
+Check that the proposal does not invent facts or violate rules.
 Reply with exactly one line:
 APPROVE: <reason>
 or
-REJECT: <reason>`, ruleText.String(), title, desc)
+REJECT: <reason>`, ruleText.String(), original, proposalJSON)
 
 	resp, err := j.Gateway.Generate(models.Request{
 		Tier:        models.TierFrontier,
 		System:      "You are a strict judge. Output only APPROVE: or REJECT: followed by a short reason.",
 		User:        prompt,
 		Temperature: 0.0,
-		MaxTokens:   150,
+		MaxTokens:   300,
 	})
 	if err != nil {
-		// Fail closed
 		return Decision{Approved: false, Reason: "gateway error, fail closed: " + err.Error()}, nil
 	}
 
@@ -68,6 +77,5 @@ REJECT: <reason>`, ruleText.String(), title, desc)
 	if strings.HasPrefix(upper, "REJECT") {
 		return Decision{Approved: false, Reason: line}, nil
 	}
-	// Unclear reply also fails closed
 	return Decision{Approved: false, Reason: "unclear response, fail closed: " + line}, nil
 }
