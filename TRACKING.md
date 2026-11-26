@@ -1,10 +1,8 @@
 # Tracking
 
-Items that could not be created via GitHub UI forms. Tracked here so nothing is lost.
+## Implemented and verified
 
-## Implemented
-
-- [x] Multi-step ReAct workers with tool calling (`internal/agents/react_worker.go`)
+- [x] Multi-step ReAct workers with tool calling (`internal/agents/react_worker.go`) — tested live with Gemini
 - [x] Tool layer: interface + registry (`internal/tools/tool.go`)
 - [x] MCP tool adapter seam (`internal/tools/mcp.go`)
 - [x] SQL + BigQuery connectors (`internal/tools/db.go`)
@@ -15,6 +13,7 @@ Items that could not be created via GitHub UI forms. Tracked here so nothing is 
 - [x] Steward learning loop (`internal/learning/loop.go`)
 - [x] Judge fails closed
 - [x] LLM Client interface, registry, router, config, auth, codecs, retry
+- [x] Full build + tests pass
 
 ## Still open / next
 
@@ -25,7 +24,6 @@ Items that could not be created via GitHub UI forms. Tracked here so nothing is 
 - [ ] No-code UI / operator surface beyond CLI
 - [ ] CI/CD packaging
 - [ ] More domain packs (pricing, inventory, merchandising)
-- [ ] ReAct worker tested end-to-end with live model
 
 ## Existing GitHub issues (foundations in place)
 
