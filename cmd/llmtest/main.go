@@ -22,7 +22,7 @@ func main() {
 		System:      "You are a helpful assistant.",
 		User:        "Reply with exactly: Agent Factory real model test OK",
 		Temperature: 0.0,
-		MaxTokens:   30,
+		MaxTokens:   200,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "generate error: %v\n", err)
