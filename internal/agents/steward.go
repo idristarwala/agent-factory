@@ -2,21 +2,28 @@ package agents
 
 import (
 	"fmt"
+
 	"github.com/google/uuid"
 
+	"github.com/idristarwala/agent-factory/internal/graph"
+	"github.com/idristarwala/agent-factory/internal/models"
 	"github.com/idristarwala/agent-factory/internal/unitofwork"
 )
 
-// StubSteward is a minimal Steward for early testing.
-// It takes a goal string and produces a single unit of work.
-// Later it will inspect the graph and design a real swarm.
-
+// StubSteward is a minimal Steward. CreateWorker returns a real LLMWorker.
 type StubSteward struct {
-	store unitofwork.Store
+	store   unitofwork.Store
+	gateway models.Gateway
+	graph   graph.Graph
 }
 
 func NewStubSteward(store unitofwork.Store) *StubSteward {
 	return &StubSteward{store: store}
+}
+
+func (s *StubSteward) SetDependencies(gw models.Gateway, g graph.Graph) {
+	s.gateway = gw
+	s.graph = g
 }
 
 func (s *StubSteward) InterpretGoal(goal string, graphSnapshot any) ([]*unitofwork.UnitOfWork, error) {
@@ -36,7 +43,10 @@ func (s *StubSteward) InterpretGoal(goal string, graphSnapshot any) ([]*unitofwo
 }
 
 func (s *StubSteward) CreateWorker(spec WorkerSpec) (Worker, error) {
-	return nil, fmt.Errorf("not implemented in stub")
+	if s.gateway == nil || s.graph == nil {
+		return nil, fmt.Errorf("steward dependencies not set; call SetDependencies")
+	}
+	return NewLLMWorker(spec.Name, spec.Role, s.gateway, s.graph, nil), nil
 }
 
 func (s *StubSteward) SetAutonomyMode(mode string) error {
