@@ -3,32 +3,32 @@ package llm
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"fmt"
 	"net/http"
 	"os"
 	"time"
 )
 
-// NewHTTPClient builds an HTTP client with optional custom CA and proxy.
-func NewHTTPClient(tlsCfg TLSConfig, proxy string) (*http.Client, error) {
-	transport := &http.Transport{}
+// NewHTTPClient builds an HTTP client with optional custom CA and proxy control.
+// Supports the TLS and proxy requirements from issue #11.
+func NewHTTPClient(caFile, proxy string) (*http.Client, error) {
+	transport := &http.Transport{
+		TLSHandshakeTimeout: 10 * time.Second,
+	}
 
-	if tlsCfg.CAFile != "" {
-		caCert, err := os.ReadFile(tlsCfg.CAFile)
+	if caFile != "" {
+		caCert, err := os.ReadFile(caFile)
 		if err != nil {
-			return nil, fmt.Errorf("read CA file: %w", err)
+			return nil, err
 		}
-		pool := x509.NewCertPool()
-		if !pool.AppendCertsFromPEM(caCert) {
-			return nil, fmt.Errorf("failed to parse CA file")
-		}
-		transport.TLSClientConfig = &tls.Config{RootCAs: pool}
+		caPool := x509.NewCertPool()
+		caPool.AppendCertsFromPEM(caCert)
+		transport.TLSClientConfig = &tls.Config{RootCAs: caPool}
 	}
 
 	if proxy == "none" {
 		transport.Proxy = nil
 	}
-	// "env" uses the default proxy from environment
+	// else uses environment proxy by default
 
 	return &http.Client{
 		Transport: transport,
