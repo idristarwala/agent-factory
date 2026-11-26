@@ -1,143 +1,156 @@
-# Agent Factory — Entity Relationship & Flow Diagrams
+# Entity-Relationship and Architecture Diagrams
 
-## Core Entities
+This document contains detailed diagrams of the Agent Factory control plane and data model.
+
+## 1. Core Data Model (ER Diagram)
 
 ```mermaid
 erDiagram
     GOAL ||--o{ UNIT_OF_WORK : "creates"
-    UNIT_OF_WORK ||--o| MUTATION : "proposes"
-    MUTATION ||--|| DECISION : "evaluated by"
-    DECISION }o--|| RULE : "checked against"
-    DECISION }o--o{ LEARNING_GAP : "feeds"
-    LEARNING_GAP ||--o{ RULE : "may create"
-    LEARNING_GAP ||--o{ AGENT : "may spawn"
-    AGENT ||--o{ UNIT_OF_WORK : "claims"
-    NODE ||--o{ UNIT_OF_WORK : "input for"
-    NODE ||--o{ EDGE : "connected by"
-    DOMAIN_PACK ||--o{ AGENT : "defines roles"
-    DOMAIN_PACK ||--o{ RULE : "default rules"
+    STEWARD ||--o{ UNIT_OF_WORK : "interprets into"
+    UNIT_OF_WORK ||--o{ MUTATION : "produces"
+    WORKER ||--o{ MUTATION : "proposes"
+    JUDGE ||--o{ DECISION : "evaluates"
+    MUTATION ||--|| DECISION : "results in"
+    DECISION ||--o{ RULE : "may create via learning"
+    GRAPH ||--o{ NODE : "contains"
+    GRAPH ||--o{ EDGE : "contains"
+    NODE ||--o{ ATTRIBUTE : "has"
+    RULE ||--o{ RULE_VERSION : "has versions"
+    LEARNING_LOOP ||--o{ RULE : "proposes"
+    LEARNING_LOOP ||--o{ AGENT_VERSION : "registers"
+    WORK_QUEUE ||--o{ UNIT_OF_WORK : "holds"
+    AGENT_REGISTRY ||--o{ AGENT_VERSION : "tracks"
 
     GOAL {
-        string id PK
-        string description
-        string status
-        datetime created_at
+        string text
+        string domain
+        string success_criteria
     }
     UNIT_OF_WORK {
         string id PK
-        string goal_id FK
         string description
         string status
+        string input_subgraph
+        timestamp claimed_at
         string claimed_by
-        datetime lease_until
-        string input_node_id FK
+    }
+    MUTATION {
+        string unit_of_work_id FK
+        json updates
+        json adds
+        string[] evidence
+    }
+    DECISION {
+        bool approved
+        string reason
+        string feedback
+        timestamp decided_at
+    }
+    RULE {
+        string id PK
+        int version
+        string description
+        string source
+        bool active
     }
     NODE {
         string id PK
         string type
         json props
     }
-    EDGE {
-        string id PK
-        string from_id FK
-        string to_id FK
-        string type
-        json props
-    }
-    MUTATION {
-        string id PK
-        string unit_of_work_id FK
-        json adds
-        json updates
-        json deletes
-        string[] evidence
-    }
-    DECISION {
-        string id PK
-        bool approved
-        string reason
-        string feedback
-    }
-    RULE {
-        string id PK
-        int version
-        string description
-        string condition
-        string action
-        string source
-        bool active
-    }
-    AGENT {
-        string name PK
-        string role
-        string version
-        string model_tier
-        datetime started_at
-    }
-    LEARNING_GAP {
-        string pattern
-        int occurrences
-        string severity
-    }
-    DOMAIN_PACK {
-        string name PK
-        string description
-        string[] node_types
-        string[] worker_roles
+    WORK_QUEUE {
+        string uow_id FK
+        timestamp lease_expires
+        string worker_id
     }
 ```
 
-## Continuous Swarm Flow
+## 2. Continuous Execution Flow
 
 ```mermaid
 flowchart TD
-    A[Goal] --> B[Steward.InterpretGoal]
-    B --> C[DetectProblems via Domain Pack]
-    C --> D[Create Units of Work]
-    D --> E[Enqueue to WorkQueue]
-    E --> F{Workers claim with lease}
-    F --> G[Worker.Execute → Mutation]
-    G --> H[Judge.Evaluate against Rules]
-    H -->|Approved| I[Graph.Apply]
-    H -->|Rejected| J[Record Decision]
-    I --> K[Complete UoW]
-    J --> K
-    K --> L[LearningLoop.Review]
-    L --> M[ProposeUpdates]
-    M --> N[Apply: new Rules / Agents]
-    N --> O{Problems remain?}
-    O -->|Yes| B
-    O -->|No| P[Done]
+    A[Goal Text] --> B[Steward.InterpretGoal]
+    B --> C{Problems remaining?}
+    C -->|No| D[Done]
+    C -->|Yes| E[Create Units of Work]
+    E --> F[Enqueue to WorkQueue]
+    F --> G[Parallel Workers Claim]
+    G --> H[Worker.Execute → Mutation]
+    H --> I[Judge.Evaluate against active Rules]
+    I --> J{Approved?}
+    J -->|Yes| K[Graph.Apply Mutation]
+    J -->|No| L[Record Rejection]
+    K --> M[Complete UoW]
+    L --> M
+    M --> N[LearningLoop.Review Decisions]
+    N --> O[Propose new Rules / Agents]
+    O --> P[Apply Updates]
+    P --> B
 ```
 
-## Rule Versioning
+## 3. Self-Learning Loop
 
 ```mermaid
-stateDiagram-v2
-    [*] --> Proposed: human / learning / feedback
-    Proposed --> Active: Activate
-    Active --> Superseded: new version
-    Superseded --> [*]
-    Proposed --> Rejected: human rejects
+sequenceDiagram
+    participant Runner as ContinuousRunner
+    participant Judge
+    participant Learning as LearningLoop
+    participant Rules as RuleEngine
+    participant Registry as AgentRegistry
+
+    Runner->>Judge: Evaluate(mutation)
+    Judge-->>Runner: Decision (approved/rejected)
+    Runner->>Learning: Review(decisions)
+    Learning->>Learning: Detect gaps from reject patterns
+    Learning->>Rules: Propose new VersionedRule
+    Learning->>Registry: Register specialist agent
+    Rules-->>Learning: New active version
+    Registry-->>Learning: Agent registered
+    Learning-->>Runner: Applied updates
+    Runner->>Runner: Next round uses new rules/agents
 ```
 
-## Data Flow (any domain)
+## 4. Source Mapping to Entity
 
 ```mermaid
 flowchart LR
-    subgraph Sources
-        BQ[BigQuery / SQL]
-        API[External API]
-        MCP[MCP Tools]
-    end
-    Sources --> Mapping[Auto-mapping]
-    Mapping --> Graph[Central Graph]
-    Graph --> Queue[WorkQueue]
-    Queue --> Workers[Parallel Workers]
-    Workers --> Judge
-    Judge --> Graph
-    Judge --> Learning
-    Learning --> Rules
-    Rules --> Judge
-    UI[Review UI] -->|feedback| Rules
+    A[BigQuery / API / SQL Source] --> B[Steward samples columns]
+    B --> C[InferMapping]
+    C --> D[AttributeIndex by type]
+    D --> E[Sparse Entity]
+    E --> F[Central Graph]
+    F --> G[Workers + Judge]
+    G --> H[Decisions visible to customer]
 ```
+
+## 5. Customer Feedback Path
+
+```mermaid
+flowchart TD
+    A[React UI] -->|POST /api/feedback| B[API]
+    B --> C[RuleEngine.Propose]
+    C --> D[New VersionedRule Source=feedback]
+    D --> E[Active Rules]
+    E --> F[Next ContinuousRunner round]
+    F --> G[Judge uses new rule]
+```
+
+## 6. Persistence Modes
+
+```mermaid
+flowchart LR
+    A[Steward] -->|volume ≤ 10k| B[MemoryGraph + MemoryQueue]
+    A -->|volume > 10k| C[SQLGraph + SQLQueue]
+    B --> D[ContinuousRunner]
+    C --> D
+    D --> E[Audit Log + Metrics]
+```
+
+## Notes
+
+- All mutations are proposed and only applied after Judge approval.
+- Rules are immutable and versioned; only one version is active.
+- LearningLoop closes the loop so rejects improve the next round automatically.
+- Domain packs supply detectors, attribute sets, and default rules without changing the core.
+- The same model works for catalog, pricing, inventory, merchandising, or any Entity-based problem.
