@@ -41,25 +41,52 @@ func (g *MemoryGraph) ProposeMutation(proposal *Mutation) error {
 	return g.Apply(proposal)
 }
 
+// Apply merges updates into existing nodes instead of replacing them.
+// This prevents attribute loss when a worker only updates title/description.
 func (g *MemoryGraph) Apply(proposal *Mutation) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
 	for _, n := range proposal.Adds {
 		nCopy := n
+		if nCopy.Props == nil {
+			nCopy.Props = make(map[string]any)
+		}
 		g.nodes[n.ID] = &nCopy
 	}
+
 	for _, n := range proposal.Updates {
-		nCopy := n
-		g.nodes[n.ID] = &nCopy
+		existing, ok := g.nodes[n.ID]
+		if !ok {
+			// Treat as add if node does not exist
+			nCopy := n
+			if nCopy.Props == nil {
+				nCopy.Props = make(map[string]any)
+			}
+			g.nodes[n.ID] = &nCopy
+			continue
+		}
+		// Merge props: new values overwrite, existing values are preserved
+		if existing.Props == nil {
+			existing.Props = make(map[string]any)
+		}
+		for k, v := range n.Props {
+			existing.Props[k] = v
+		}
+		if n.Type != "" {
+			existing.Type = n.Type
+		}
 	}
+
 	for _, e := range proposal.Edges {
 		eCopy := e
 		g.edges[e.ID] = &eCopy
 	}
+
 	for _, id := range proposal.Deletes {
 		delete(g.nodes, id)
 	}
+
 	return nil
 }
 
@@ -68,7 +95,15 @@ func (g *MemoryGraph) Snapshot() any {
 	defer g.mu.RUnlock()
 	snap := make(map[NodeID]*Node, len(g.nodes))
 	for id, n := range g.nodes {
-		snap[id] = n
+		// Deep copy the node to prevent external mutation
+		nCopy := *n
+		if n.Props != nil {
+			nCopy.Props = make(map[string]any, len(n.Props))
+			for k, v := range n.Props {
+				nCopy.Props[k] = v
+			}
+		}
+		snap[id] = &nCopy
 	}
 	return snap
 }
@@ -77,5 +112,8 @@ func (g *MemoryGraph) AddNode(n Node) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	nCopy := n
+	if nCopy.Props == nil {
+		nCopy.Props = make(map[string]any)
+	}
 	g.nodes[n.ID] = &nCopy
 }
