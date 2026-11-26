@@ -165,3 +165,19 @@ func (g *GeminiGateway) Generate(req Request) (*Response, error) {
 		},
 	}, nil
 }
+
+// NewGemini creates a native Gemini gateway from explicit parameters.
+func NewGemini(apiKey, cheapModel, frontierModel string) *GeminiGateway {
+	if cheapModel == "" {
+		cheapModel = "gemini-1.5-flash"
+	}
+	if frontierModel == "" {
+		frontierModel = "gemini-1.5-pro"
+	}
+	return &GeminiGateway{
+		APIKey:        apiKey,
+		CheapModel:    cheapModel,
+		FrontierModel: frontierModel,
+		HTTPClient:    &http.Client{Timeout: 60 * time.Second},
+	}
+}
