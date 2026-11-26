@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent-factory
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: agent-factory
+  template:
+    metadata:
+      labels:
+        app: agent-factory
+    spec:
+      containers:
+        - name: factory
+          image: agent-factory:latest
+          env:
+            - name: SECRETS_DIR
+              value: /etc/secrets
+            - name: LLM_PROVIDER
+              value: gemini
+          volumeMounts:
+            - name: secrets
+              mountPath: /etc/secrets
+              readOnly: true
+      volumes:
+        - name: secrets
+          secret:
+            secretName: agent-factory-secrets
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: agent-factory-secrets
+type: Opaque
+stringData:
+  gemini-api-key: "REPLACE_ME"
+  bigquery-sa.json: "{}"
