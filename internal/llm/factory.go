@@ -4,24 +4,33 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/idristarwala/agent-factory/internal/secrets"
 )
 
 // NewFromEnv creates a Router wrapping the configured adapter.
-// Honors LLM_PROVIDER, GEMINI_API_KEY, LLM_API_KEY, LLM_BASE_URL.
+// Secrets come from SECRETS_DIR (default /etc/secrets) with env fallback.
 func NewFromEnv() (*Router, error) {
+	sec := secrets.New()
+
 	provider := strings.ToLower(os.Getenv("LLM_PROVIDER"))
 	if provider == "" {
-		if os.Getenv("GEMINI_API_KEY") != "" {
+		if _, err := sec.Get("gemini-api-key"); err == nil {
 			provider = "gemini"
-		} else if os.Getenv("LLM_API_KEY") != "" {
+		} else if _, err := sec.Get("llm-api-key"); err == nil {
 			provider = "openai"
 		} else {
 			return nil, fmt.Errorf("no LLM provider configured")
 		}
 	}
 
+	key, _ := sec.Get("gemini-api-key")
+	if key == "" {
+		key, _ = sec.Get("llm-api-key")
+	}
+
 	cfg := map[string]string{
-		"api_key":  firstNonEmpty(os.Getenv("GEMINI_API_KEY"), os.Getenv("LLM_API_KEY")),
+		"api_key":  key,
 		"base_url": os.Getenv("LLM_BASE_URL"),
 	}
 
@@ -30,13 +39,4 @@ func NewFromEnv() (*Router, error) {
 		return nil, err
 	}
 	return NewRouter(c), nil
-}
-
-func firstNonEmpty(ss ...string) string {
-	for _, s := range ss {
-		if s != "" {
-			return s
-		}
-	}
-	return ""
 }
