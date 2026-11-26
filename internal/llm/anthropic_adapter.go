@@ -35,7 +35,7 @@ func (a *AnthropicAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatResp
 		"max_tokens": req.MaxTokens,
 	}
 	b, _ := json.Marshal(body)
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", a.BaseURL+"/messages", bytes.NewReader(b))
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", a.BaseURL+"/v1/messages", bytes.NewReader(b))
 	if err != nil {
 		return nil, err
 	}

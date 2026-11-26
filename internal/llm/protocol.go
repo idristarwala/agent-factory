@@ -2,7 +2,6 @@ package llm
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 )
@@ -15,7 +14,7 @@ type ProtocolAdapter struct {
 }
 
 func NewProtocolAdapter(cfg *GatewayConfig) (*ProtocolAdapter, error) {
-	hc, err := NewHTTPClient(TLSConfig{CAFile: cfg.CAFile}, cfg.Proxy)
+	hc, err := NewHTTPClient(cfg.CAFile, cfg.Proxy)
 	if err != nil {
 		return nil, err
 	}
@@ -23,17 +22,12 @@ func NewProtocolAdapter(cfg *GatewayConfig) (*ProtocolAdapter, error) {
 }
 
 func (p *ProtocolAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
-	key, err := p.cfg.LoadKey()
+	key, err := LoadKey(p.cfg.KeyFile, "")
 	if err != nil {
 		return nil, err
 	}
 	// Dispatch based on a protocol field if present; for now return a structured response.
 	// Real implementation would build the correct body (openai chat/completions, gemini generateContent, etc.)
-	body := map[string]any{
-		"model": req.Model,
-		"messages": req.Messages,
-	}
-	_ = body
 	_ = key
 	_ = p.client
 
@@ -46,19 +40,4 @@ func (p *ProtocolAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatRespo
 
 func (p *ProtocolAdapter) Stream(ctx context.Context, req ChatRequest) (Stream, error) {
 	return nil, ErrStreamingUnsupported
-}
-
-// Helper to build OpenAI-compatible body.
-func BuildOpenAIBody(req ChatRequest) ([]byte, error) {
-	m := map[string]any{
-		"model":    req.Model,
-		"messages": req.Messages,
-	}
-	if req.MaxTokens > 0 {
-		m["max_tokens"] = req.MaxTokens
-	}
-	if req.Temperature != nil {
-		m["temperature"] = *req.Temperature
-	}
-	return json.Marshal(m)
 }

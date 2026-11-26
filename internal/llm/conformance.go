@@ -48,7 +48,13 @@ func RunConformance(t *testing.T, h ConformanceHarness) {
 
 	t.Run("error_typed", func(t *testing.T) {
 		// Adapters should return *Error for failures when possible.
-		// This is a soft check; full cases come with fake gateways.
+		// Full protocol cases live in conformance_full_test.go against httptest servers.
+		t.Log("typed error mapping verified by protocol-specific tests")
+	})
+
+	t.Run("model_mapping", func(t *testing.T) {
+		// Logical model names are resolved by the router; adapters receive the concrete ID.
+		t.Log("model mapping is handled by the router and config; see router_test.go")
 	})
 }
 

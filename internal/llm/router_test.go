@@ -5,17 +5,17 @@ import (
 	"testing"
 )
 
-type fakeClient struct{}
+type routerFakeClient struct{}
 
-func (f *fakeClient) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
+func (f *routerFakeClient) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
 	return &ChatResponse{Content: "ok"}, nil
 }
-func (f *fakeClient) Stream(ctx context.Context, req ChatRequest) (Stream, error) {
+func (f *routerFakeClient) Stream(ctx context.Context, req ChatRequest) (Stream, error) {
 	return nil, ErrStreamingUnsupported
 }
 
 func TestRouterRejectsWorkerFrontier(t *testing.T) {
-	r := NewRouter(&fakeClient{})
+	r := NewRouter(&routerFakeClient{})
 	_, err := r.Chat(context.Background(), ChatRequest{
 		Tier:       TierFrontier,
 		CallerRole: RoleWorker,
@@ -30,7 +30,7 @@ func TestRouterRejectsWorkerFrontier(t *testing.T) {
 }
 
 func TestRouterAllowsJudgeFrontier(t *testing.T) {
-	r := NewRouter(&fakeClient{})
+	r := NewRouter(&routerFakeClient{})
 	resp, err := r.Chat(context.Background(), ChatRequest{
 		Tier:       TierFrontier,
 		CallerRole: RoleJudge,
@@ -45,7 +45,7 @@ func TestRouterAllowsJudgeFrontier(t *testing.T) {
 }
 
 func TestRouterAllowsWorkerCheap(t *testing.T) {
-	r := NewRouter(&fakeClient{})
+	r := NewRouter(&routerFakeClient{})
 	_, err := r.Chat(context.Background(), ChatRequest{
 		Tier:       TierCheap,
 		CallerRole: RoleWorker,

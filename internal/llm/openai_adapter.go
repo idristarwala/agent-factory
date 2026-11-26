@@ -48,7 +48,18 @@ func (a *OpenAIAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatRespons
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
-		return nil, &Error{Type: "GATEWAY", Status: resp.StatusCode, Retryable: resp.StatusCode >= 500 || resp.StatusCode == 429, Message: fmt.Sprintf("status %d", resp.StatusCode)}
+		typ := "GATEWAY"
+		retryable := resp.StatusCode >= 500 || resp.StatusCode == 429
+		if resp.StatusCode == 429 {
+			typ = "RATE_LIMITED"
+		} else if resp.StatusCode == 401 || resp.StatusCode == 403 {
+			typ = "AUTH"
+			retryable = false
+		} else if resp.StatusCode >= 400 && resp.StatusCode < 500 {
+			typ = "BAD_REQUEST"
+			retryable = false
+		}
+		return nil, &Error{Type: typ, Status: resp.StatusCode, Retryable: retryable, Message: fmt.Sprintf("status %d", resp.StatusCode)}
 	}
 
 	var out struct {

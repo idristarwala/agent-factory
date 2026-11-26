@@ -26,7 +26,7 @@ func TestGeminiAdapterAgainstFake(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	a := NewGeminiAdapter(srv.URL, "test-key", "flash", nil, nil)
+	a := NewGeminiAdapter(srv.URL, "test-key", nil)
 	resp, err := a.Chat(context.Background(), ChatRequest{
 		Model:    "flash",
 		Messages: []Message{{Role: "user", Content: "hi"}},
@@ -60,7 +60,7 @@ func TestAnthropicAdapterAgainstFake(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	a := NewAnthropicAdapter(srv.URL, "test-key", "claude", nil, nil)
+	a := NewAnthropicAdapter(srv.URL, "test-key", nil)
 	resp, err := a.Chat(context.Background(), ChatRequest{
 		Model:    "claude",
 		Messages: []Message{{Role: "user", Content: "hi"}},
@@ -81,7 +81,7 @@ func TestOpenAIAdapterRateLimit(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	a := NewOpenAIAdapter(srv.URL, "key", "gpt", nil, nil)
+	a := NewOpenAIAdapter(srv.URL, "key", nil)
 	_, err := a.Chat(context.Background(), ChatRequest{
 		Model:    "gpt",
 		Messages: []Message{{Role: "user", Content: "hi"}},
