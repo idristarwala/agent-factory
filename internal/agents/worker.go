@@ -12,7 +12,7 @@ import (
 )
 
 // LLMWorker is a real worker that calls the model gateway (cheap tier only).
-// Receives active rules and retries structured JSON parsing.
+// Receives active rules, retries structured JSON parsing, and validates output.
 type LLMWorker struct {
 	ID      string
 	Role    string
@@ -25,9 +25,7 @@ func NewLLMWorker(id, role string, gw models.Gateway, g graph.Graph, rules []Rul
 	return &LLMWorker{ID: id, Role: role, Gateway: gw, Graph: g, Rules: rules}
 }
 
-func (w *LLMWorker) Claim(uow *unitofwork.UnitOfWork) error {
-	return nil
-}
+func (w *LLMWorker) Claim(uow *unitofwork.UnitOfWork) error { return nil }
 
 func (w *LLMWorker) Execute(uow *unitofwork.UnitOfWork) (*graph.Mutation, error) {
 	var context string
@@ -54,8 +52,17 @@ func (w *LLMWorker) Execute(uow *unitofwork.UnitOfWork) (*graph.Mutation, error)
 		ruleText.WriteString("(no active rules)\n")
 	}
 
-	// Basic family context note (siblings can be added by domain pack later)
-	familyNote := "If this item has siblings, apply consistent wording across the family."
+	// Family context
+	var familyNote string
+	if uow.InputSubgraph != "" {
+		fam, err := GatherFamily(w.Graph, uow.InputSubgraph, "group")
+		if err == nil && fam != nil {
+			familyNote = fam.PromptFragment()
+		}
+	}
+	if familyNote == "" {
+		familyNote = "If this item has siblings, apply consistent wording across the family."
+	}
 
 	prompt := fmt.Sprintf(`You are a specialized worker fixing entities.
 Goal / unit of work: %s
@@ -70,6 +77,8 @@ Propose improvements as a JSON object of attribute key-value pairs.
 Respect the rules (e.g. keep original wording when required).
 Respond ONLY with valid JSON of this form:
 {"title":"...", "description":"...", "other_attr":"..."}`, uow.Description, ruleText.String(), context, originalTitle, originalDesc, familyNote)
+
+	allowed := []string{"title", "description", "brand", "product_type", "color", "size"}
 
 	var lastErr error
 	for attempt := 0; attempt < 2; attempt++ {
@@ -86,15 +95,9 @@ Respond ONLY with valid JSON of this form:
 			continue
 		}
 
-		content := strings.TrimSpace(resp.Content)
-		content = strings.TrimPrefix(content, "```json")
-		content = strings.TrimPrefix(content, "```")
-		content = strings.TrimSuffix(content, "```")
-		content = strings.TrimSpace(content)
-
-		var updates map[string]any
-		if err := json.Unmarshal([]byte(content), &updates); err != nil {
-			lastErr = fmt.Errorf("worker JSON parse failed: %w\nraw: %s", err, resp.Content)
+		updates, err := ParseAndValidate(resp.Content, allowed)
+		if err != nil {
+			lastErr = fmt.Errorf("worker validation failed: %w", err)
 			continue
 		}
 
