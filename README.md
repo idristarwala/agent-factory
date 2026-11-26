@@ -38,16 +38,22 @@ export GEMINI_API_KEY=your-key
 
 | Doc | Contents |
 |-----|----------|
-| [Overview](docs/OVERVIEW.md) | Concepts, principles, flow diagram |
+| [Overview](docs/OVERVIEW.md) | Concepts, principles, flow |
 | [Architecture](docs/ARCHITECTURE.md) | Primitives, data flow, persistence |
+| [Schema](docs/SCHEMA.md) | Unified Entity and Decision |
+| [Mapping](docs/MAPPING.md) | Source auto-mapping (BQ, API, SQL) |
+| [Attributes](docs/ATTRIBUTES.md) | Dynamic PT attributes |
+| [Grouping](docs/GROUPING.md) | Variant states, axes, policies |
+| [Clarification](docs/CLARIFICATION.md) | Steward asks when goal or source is missing |
 | [Running](docs/RUNNING.md) | Local, Docker, Kubernetes |
 | [Configuration](docs/CONFIGURATION.md) | Secrets, env vars, tiers, packs |
 | [Operations](docs/OPERATIONS.md) | Health, logs, scaling, failure modes |
-| [Examples](docs/EXAMPLES.md) | Goal, continuous, ReAct, compose, k8s |
-| [API Reference](docs/API.md) | CLI, types, interfaces, extension points |
-| [Security](docs/SECURITY.md) | Secrets, auth, fail-closed, supply chain |
-| [Troubleshooting](docs/TROUBLESHOOTING.md) | Build, LLM, Docker, k8s, tests |
-| [Domain packs](docs/DOMAIN_PACKS.md) | Built-in packs and how to add one |
+| [Examples](docs/EXAMPLES.md) | Goal, continuous, ReAct, compose |
+| [API Reference](docs/API.md) | CLI, types, extension points |
+| [UI](docs/UI.md) | React review app + chatbot |
+| [Security](docs/SECURITY.md) | Secrets, auth, fail-closed |
+| [Troubleshooting](docs/TROUBLESHOOTING.md) | Build, LLM, Docker, k8s |
+| [Domain packs](docs/DOMAIN_PACKS.md) | Built-in packs |
 | [Secrets](SECRETS.md) / [Auth](AUTH.md) | Secret layout and auth methods |
 | [Packaging](PACKAGING.md) | Docker, compose, Kubernetes |
 | [Contributing](docs/CONTRIBUTING.md) | How to propose changes |
