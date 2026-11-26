@@ -1,0 +1,27 @@
+version: "3.9"
+
+services:
+  factory:
+    build: .
+    environment:
+      - SECRETS_DIR=/etc/secrets
+      - LLM_PROVIDER=${LLM_PROVIDER:-gemini}
+    volumes:
+      - ./secrets:/etc/secrets:ro
+    depends_on:
+      - postgres
+    command: ["Fix catalog titles"]
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: factory
+      POSTGRES_PASSWORD: factory
+      POSTGRES_DB: factory
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  pgdata:
