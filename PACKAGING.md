@@ -32,3 +32,8 @@ Replace the placeholder secret values before applying.
 
 All environments use the same contract: `SECRETS_DIR` (default `/etc/secrets`).
 See `SECRETS.md` and `AUTH.md`.
+
+## CI
+
+`.github/workflows/ci.yml` runs `go vet` and `go test -race` on every PR.
+`go.sum` is committed so clean clones build.
