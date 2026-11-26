@@ -1,65 +1,48 @@
 # Agent Factory
 
-Agent-first platform for any problem in retail (and beyond).
+A domain-agnostic swarm of agents that works on a goal until the outcome is achieved.
 
-## Core Ideas
-
-- **Central Graph**: Single source of truth. Every agent reads from and proposes mutations to the graph. Universal for any domain (catalog, pricing, inventory, merchandising, compliance, etc.).
-- **Unit of Work**: Discrete, claimable pieces of work. Agents claim, process, and propose graph changes.
-- **Steward**: Oversees the factory. Interprets goals, creates specialized agents, assigns units of work, manages autonomy.
-- **Judge (Arbiter)**: Evaluates agent proposals against rules and evidence. Approves or rejects.
-- **Workers**: Specialized agents that do the work. Always on cheapest viable models.
-- **Memory & Learnings**: Shared, graph-resident or graph-linked.
-- **Rule Engine**: Hybrid (human-authored + agent-proposed). Human feedback on results becomes rules.
-
-## Governance Loop
-
-1. Agents propose graph mutations (from units of work).
-2. Judge evaluates and approves/rejects.
-3. Humans review results and provide feedback.
-4. Feedback is turned into rules.
-5. Future proposals and judgments are constrained by the updated rules.
-
-## Diagrams
-
-Logical ER and the request flow (goal to commit, including the model gateway and the feedback-to-rule loop):
-
-- FigJam: https://www.figma.com/board/KuMPrXQ5TOGtIQivDJWxOv
-- In this repo: [docs/diagrams.md](docs/diagrams.md)
-
-The board has two pages, **Entity relationship** and **Request flow**. The markdown file is the same model, rendered with Mermaid.
-
-## Language & Runtime
-
-- Core fabric and agent runtime: **Go** (concurrency, deployment simplicity, scale).
-- No-code UI / control plane: TypeScript (later).
-- Custom execution fabric. No external orchestration frameworks.
-
-## Domains
-
-The same fabric applies to all retail facets:
-- Catalog / PIM
-- Pricing & Promotions
-- Inventory & Supply
-- Merchandising & Assortment
-- Content & Marketing
-- Customer & Personalization
-- Order & Fulfillment
-- Returns & Service
-- Compliance & Governance
-- Vendor Management
-
-## Status
-
-Early scaffold. Architecture first.
-
-## Build & Test
-
-Primary development happens in this repository. Clone it locally to build and test the Go core. The no-code UI will live in the same repo.
+## Quick start
 
 ```bash
-git clone https://github.com/idristarwala/agent-factory.git
-cd agent-factory
-go build ./...
-go test ./...
+# 1. Setup
+./scripts/setup.sh
+
+# 2. Run a goal
+export GEMINI_API_KEY=your-key
+./scripts/run-local.sh "Fix titles and product types"
+
+# 3. Or with Docker
+./scripts/docker-up.sh
 ```
+
+## What it does
+
+1. You give a **goal** (plain text).
+2. The **Steward** turns it into units of work and spawns specialized agents.
+3. Agents propose changes to a **central graph**.
+4. The **Judge** approves or rejects against versioned rules.
+5. The loop continues until the outcome is clean.
+
+## Layout
+
+| Path | Purpose |
+|------|---------|
+| `cmd/` | Entry points (goal, continuous-demo, catalog-swarm, …) |
+| `internal/` | Core (graph, agents, rules, tools, secrets, swarm) |
+| `deploy/k8s/` | Kubernetes manifests |
+| `scripts/` | Setup and run helpers |
+| `docs/` | Full documentation |
+
+## Docs
+
+- [Architecture](docs/ARCHITECTURE.md)
+- [Running](docs/RUNNING.md)
+- [Secrets & Auth](SECRETS.md) / [AUTH.md](AUTH.md)
+- [Packaging](PACKAGING.md)
+- [Domain packs](docs/DOMAIN_PACKS.md)
+- [Contributing](docs/CONTRIBUTING.md)
+
+## License
+
+See [LICENSE](LICENSE). All rights reserved. No copying without permission.
