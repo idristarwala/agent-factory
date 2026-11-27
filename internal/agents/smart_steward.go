@@ -34,7 +34,49 @@ func (s *SmartSteward) SetRuntime(gw models.Gateway, g graph.Graph, rules []Rule
 	s.Rules = rules
 }
 
+// InterpretGoal returns units only for entities that still need work.
+// Returns empty when the graph is clean so the runner can stop.
 func (s *SmartSteward) InterpretGoal(goal string, graphSnapshot any) ([]*unitofwork.UnitOfWork, error) {
+	// Check graph for remaining problems
+	if s.Graph != nil {
+		snap, ok := graphSnapshot.(map[graph.NodeID]*graph.Node)
+		if !ok {
+			snap = s.Graph.Snapshot()
+		}
+		var needsWork []*graph.Node
+		for _, n := range snap {
+			if n == nil {
+				continue
+			}
+			status, _ := n.Props["status"].(string)
+			if status != "fixed" && status != "clean" && status != "complete" {
+				needsWork = append(needsWork, n)
+			}
+		}
+		if len(needsWork) == 0 {
+			return nil, nil // graph is clean
+		}
+		// Create units only for nodes that need work
+		var uows []*unitofwork.UnitOfWork
+		for _, n := range needsWork {
+			id := uuid.NewString()
+			u := &unitofwork.UnitOfWork{
+				ID:             id,
+				GoalID:         "goal-" + id[:8],
+				Description:    fmt.Sprintf("%s — fix %s", goal, n.ID),
+				InputSubgraph:  n.ID,
+				ExpectedOutput: "graph mutation",
+				Mode:           "non_deterministic",
+			}
+			if err := s.store.Create(u); err != nil {
+				return nil, err
+			}
+			uows = append(uows, u)
+		}
+		return uows, nil
+	}
+
+	// Fallback when no graph is set
 	goalLower := strings.ToLower(goal)
 	var chosen domain.Pack
 	for _, p := range s.packs {
@@ -43,10 +85,9 @@ func (s *SmartSteward) InterpretGoal(goal string, graphSnapshot any) ([]*unitofw
 			break
 		}
 	}
-	if chosen.Name == "" {
+	if chosen.Name == "" && len(s.packs) > 0 {
 		chosen = s.packs[0]
 	}
-
 	var uows []*unitofwork.UnitOfWork
 	for _, role := range chosen.WorkerRoles {
 		id := uuid.NewString()
@@ -56,21 +97,10 @@ func (s *SmartSteward) InterpretGoal(goal string, graphSnapshot any) ([]*unitofw
 			Description:    fmt.Sprintf("[%s] %s — role: %s", chosen.Name, goal, role),
 			ExpectedOutput: "graph mutation",
 			Mode:           "non_deterministic",
-			Budget:         map[string]any{"max_tokens": 1000},
 		}
 		if err := s.store.Create(u); err != nil {
 			return nil, err
 		}
-		uows = append(uows, u)
-	}
-	if len(uows) == 0 {
-		id := uuid.NewString()
-		u := &unitofwork.UnitOfWork{
-			ID:          id,
-			Description: goal,
-			Mode:        "non_deterministic",
-		}
-		s.store.Create(u)
 		uows = append(uows, u)
 	}
 	return uows, nil
