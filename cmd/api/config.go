@@ -10,6 +10,10 @@ import (
 )
 
 func configRoutes(mux *http.ServeMux, s revision.Store) {
+	mux.HandleFunc("/api/releases/{id}", apiRoute(func(w http.ResponseWriter, r *http.Request) {
+		history, err := revision.Documents(s, "pack-release/"+r.PathValue("id"))
+		sendJSON(w, history, err)
+	}, "GET"))
 	mux.HandleFunc("/api/settings/schema", apiRoute(func(w http.ResponseWriter, r *http.Request) { sendJSON(w, settings.Schema, nil) }, "GET"))
 	mux.HandleFunc("/api/settings", apiRoute(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" {

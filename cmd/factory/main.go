@@ -60,7 +60,9 @@ func main() {
 			log.Fatal(err)
 		}
 	case "publish":
-		runPublish()
+		if err := publishPack(os.Args[2:]); err != nil {
+			log.Fatal(err)
+		}
 	default:
 		fmt.Printf("Unknown command: %s\n", cmd)
 		printUsage()
@@ -117,12 +119,6 @@ func runReadiness() {
 	fmt.Println("Ready (grants enforced in ContinuousRunner; secrets by reference).")
 }
 
-func runPublish() {
-	fmt.Println("Publishing pack revision as proposed release...")
-	fmt.Println("Proposed (see deploy/release.sh and .github/workflows/release.yml for digest pinning).")
-	fmt.Println("After publish, re-run: factory validate && factory readiness")
-}
-
 func printUsage() {
 	fmt.Println("Usage: factory <command>")
 	fmt.Println("Commands:")
@@ -131,5 +127,5 @@ func printUsage() {
 	fmt.Println("  validate [PATH...]   Check packs against the published schema")
 	fmt.Println("  test       Run fixture / contract tests")
 	fmt.Println("  readiness  Check environment readiness")
-	fmt.Println("  publish    Publish a pack revision")
+	fmt.Println("  publish -pack FILE -evidence FILE -expected N   Publish a proposed revision")
 }

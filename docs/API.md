@@ -45,3 +45,5 @@ Edits append a revision. Send the last observed revision in `Expected`, or zero 
 ### Goal attachments
 
 Upload a file to `POST /api/chat/artifacts` with `name` and base64-encoded `data`, or submit a GitHub `url` to `POST /api/chat/github`. Pass the returned artifact IDs and versions in the chat request’s `artifacts` array. With sources attached, goal creation returns a reviewable proposal. To revise it, send its `proposal` ID and `expected` draft revision with the selected sources. Approve the reviewed revision with `POST /api/chat/proposals/{id}/approve` and `{"version":1}` (substitute the reviewed version). Each criterion cites a source location. [Supported formats and limits](../README.md#goal-chat-attachments)
+
+`GET /api/releases/{id}` returns the immutable proposed release history for a pack name in the current workspace. Each revision contains the Git commit, pack and CI evidence bytes, and their SHA-256 digests. Viewer access suffices. [Publishing a pack](RELEASE.md#publish-a-proposed-pack-revision)

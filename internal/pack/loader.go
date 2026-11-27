@@ -42,6 +42,12 @@ func Load(path string) (*Pack, error) {
 	if err != nil {
 		return nil, err
 	}
+	return Parse(path, data)
+}
+
+// Parse validates and decodes a single pack from captured file bytes.
+func Parse(path string, data []byte) (*Pack, error) {
+	var err error
 	var input any
 	if strings.HasSuffix(path, ".yaml") || strings.HasSuffix(path, ".yml") {
 		decoder := yaml.NewDecoder(bytes.NewReader(data))
