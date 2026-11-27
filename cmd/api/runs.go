@@ -165,31 +165,14 @@ func runRoutes(mux *http.ServeMux, ws *factory.Workspace, engine *rules.Engine) 
 			runResponse(w, nil, err)
 			return
 		}
-		total := 0
-		cost := 0.0
-		calls := 0
-		unknown := 0
-		for _, g := range list {
-			if id := r.URL.Query().Get("run"); id != "" && id != g.ID {
-				continue
-			}
-			for _, c := range g.Calls {
-				total += c.Total
-				cost += c.Cost
-				calls++
-				if !c.Priced {
-					unknown++
-				}
-			}
-		}
-		usageMu.Lock()
-		chat := usageTotals
-		usageMu.Unlock()
+		usage := runUsage(list, r.URL.Query().Get("run"))
 		if r.URL.Query().Get("run") == "" {
-			total += chat.TokensUsed
-			cost += chat.EstimatedUSD
+			usageMu.Lock()
+			usage.ChatTokens = usageTotals.TokensUsed
+			usageMu.Unlock()
 		}
-		runResponse(w, map[string]any{"tokens_used": total, "estimated_usd": cost, "tool_calls": 0, "model_calls": calls, "unpriced_calls": unknown}, nil)
+		usage.Tokens = usage.RunTokens + usage.ChatTokens
+		runResponse(w, usage, nil)
 	}, "GET"))
 }
 

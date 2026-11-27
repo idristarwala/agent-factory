@@ -105,9 +105,9 @@ func Prepare(st revision.Store, name string, number int) (Plan, error) {
 	return plan, err
 }
 func (p Plan) Evaluate(gw models.Gateway, goal string, e schema.Entity) (*graph.Mutation, agents.Decision, error) {
-	return p.evaluate(gw, goal, e, nil, artifact.Evidence{})
+	return p.evaluate(gw, goal, e, nil, artifact.Evidence{}, nil)
 }
-func (p Plan) evaluate(gw models.Gateway, goal string, e schema.Entity, origin *SourceLineage, goalEvidence artifact.Evidence) (*graph.Mutation, agents.Decision, error) {
+func (p Plan) evaluate(gw models.Gateway, goal string, e schema.Entity, origin *SourceLineage, goalEvidence artifact.Evidence, toolCalls map[string]int) (*graph.Mutation, agents.Decision, error) {
 	if e.ID == "" || e.Type != p.Spec.RecordType {
 		return nil, agents.Decision{}, fmt.Errorf("record %q must have type %q", e.ID, p.Spec.RecordType)
 	}
@@ -129,6 +129,9 @@ func (p Plan) evaluate(gw models.Gateway, goal string, e schema.Entity, origin *
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
 		var err error
+		if toolCalls != nil {
+			toolCalls["collect_mapped_images"]++
+		}
 		media, err = tools.CollectMappedImages(ctx, e.ImageURLs)
 		if err != nil {
 			return nil, agents.Decision{}, err

@@ -33,6 +33,7 @@ type RunRequest struct {
 	MaxTokens        int             `json:"max_tokens"`
 }
 type Call struct {
+	Failed bool    `json:"failed,omitempty"`
 	Role   string  `json:"role,omitempty"`
 	Model  string  `json:"model"`
 	Input  int     `json:"input_tokens"`
@@ -58,6 +59,7 @@ type Review struct {
 	After     map[string]any  `json:"after"`
 }
 type Run struct {
+	Tools            map[string]int           `json:"tool_calls_by_name,omitempty"`
 	Lineage          map[string]SourceLineage `json:"lineage,omitempty"`
 	Import           *ImportPageRef           `json:"import,omitempty"`
 	ImportProblems   []ImportProblem          `json:"import_problems,omitempty"`
@@ -272,6 +274,7 @@ func (m *measured) Generate(req models.Request) (*models.Response, error) {
 	}
 	resp, err := m.gateway.Generate(req)
 	if err != nil {
+		m.calls = append(m.calls, Call{Role: req.CallerRole, Failed: true})
 		return nil, err
 	}
 	c := Call{Role: req.CallerRole, Model: resp.Model, Input: resp.Usage["prompt_tokens"], Output: resp.Usage["completion_tokens"], Total: resp.Usage["total_tokens"]}
@@ -299,13 +302,15 @@ func (w *Workspace) Execute(id string) error {
 		return err
 	}
 	meter := measured{gateway: w.Gateway, prices: w.Prices, remaining: r.Settings.MaxTokens, deadline: r.CreatedAt.Add(time.Duration(r.Settings.MaxMinutes) * time.Minute)}
+	r.Tools = map[string]int{}
 	var goalEvidence artifact.Evidence
 	if r.Plan.UseGoalArtifacts {
+		r.Tools["read_goal_artifacts"]++
 		goalEvidence, err = artifact.Read(w.Store, r.Plan.Spec.Artifacts)
 		if err != nil {
 			r.Status = "failed"
 			r.Error = err.Error()
-			return w.write(&r)
+			return w.checkpointEvaluation(&r)
 		}
 	}
 	for i, e := range r.Records {
@@ -313,21 +318,13 @@ func (w *Workspace) Execute(id string) error {
 		if lineage, ok := r.Lineage[e.ID]; ok {
 			origin = &lineage
 		}
-		mut, decision, evalErr := r.Plan.evaluate(&meter, r.Description, e, origin, goalEvidence)
-		// A cancellation wins even while a provider request is outstanding.
-		latest, err := w.Get(id)
-		if err != nil {
-			return err
-		}
-		if latest.Status == "cancelled" {
-			return nil
-		}
+		mut, decision, evalErr := r.Plan.evaluate(&meter, r.Description, e, origin, goalEvidence, r.Tools)
 		r.Calls = append(r.Calls, meter.calls...)
 		meter.calls = nil
 		if evalErr != nil {
 			r.Status = "failed"
 			r.Error = evalErr.Error()
-			return w.write(&r)
+			return w.checkpointEvaluation(&r)
 		}
 		d := newReview(r.ID, i, e, mut, decision)
 		d.Lineage = origin
@@ -335,10 +332,32 @@ func (w *Workspace) Execute(id string) error {
 		if i+1 == len(r.Records) {
 			r.Status = reviewStatus(r.Decisions)
 		}
-		if err = w.write(&r); err != nil {
+		if err = w.checkpointEvaluation(&r); err != nil || r.Status == "cancelled" {
 			return err
 		}
 	}
+	return nil
+}
+
+// Cancellation wins the status race, while work already performed remains metered.
+func (w *Workspace) checkpointEvaluation(r *Run) error {
+	err := w.write(r)
+	if !errors.Is(err, revision.ErrConflict) {
+		return err
+	}
+	latest, err := w.Get(r.ID)
+	if err != nil {
+		return err
+	}
+	if latest.Status != "cancelled" {
+		return revision.ErrConflict
+	}
+	latest.Calls = r.Calls
+	latest.Tools = r.Tools
+	if err = w.write(&latest); err != nil {
+		return err
+	}
+	*r = latest
 	return nil
 }
 func newReview(id string, index int, e schema.Entity, m *graph.Mutation, d agents.Decision) Review {

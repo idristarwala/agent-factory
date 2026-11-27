@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import {parseSample, runSource} from './sourceInput'
 import GoalProposal from './GoalProposal'
 import ChatAttachments from './ChatAttachments'
+import {costLabel} from './RunUsage'
 import Settings from './Settings'
 import Definitions from './Definitions'
 import Runs from './Runs'
@@ -44,7 +45,7 @@ export default function App(){
       setMessage('')
     } catch(error){setMessage(error.message)} finally {setSending(false)}
   }
-  return <div className="app"><header><h1>Agent Factory</h1><span>{usage.tokens_used} tokens · {usage.model_calls || 0} run model calls</span></header>
+  return <div className="app"><header><h1>Agent Factory</h1><span>{usage.run_tokens || 0} run tokens · {usage.model_calls || 0} model calls · {usage.tool_calls || 0} tool calls · {costLabel(usage.estimated_usd,usage.unpriced_calls)}</span></header>
     <div className="layout"><main><nav aria-label="Workspace navigation">{['Workspace',...(draft?['Goal proposal']:[]),'Goal builder','Decisions','Graph','Rules','Agents','Settings'].map(n=>
       <button key={n} aria-pressed={n===page} onClick={()=>{setPage(n);setMessage('')}}>{n}</button>)}</nav>
     {page==='Goal proposal'&&draft?<GoalProposal request={request} draft={draft} busy={sending||uploading} approve={()=>review()} revise={review}/>:page==='Settings'?<Settings api={API}/>:['Rules','Agents'].includes(page)?<Definitions api={API} kind={page.toLowerCase()} key={page}/>:

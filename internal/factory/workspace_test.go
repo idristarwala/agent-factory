@@ -99,3 +99,25 @@ func TestSelectedRulesPinnedAtStart(t *testing.T) {
 		t.Fatal(run.Plan.Rules, err)
 	}
 }
+
+func TestCancelledEvaluationRetainsUsage(t *testing.T) {
+	w := Workspace{Store: revision.NewMemory()}
+	r, err := w.Start(RunRequest{Description: "review"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = w.Cancel(r.ID); err != nil {
+		t.Fatal(err)
+	}
+	r.Tools = map[string]int{"read_goal_artifacts": 1}
+	r.Calls = []Call{{Role: "worker", Total: 12}}
+	r.Status = "in_review"
+	r.Decisions = []Review{{Status: "pending"}}
+	if err = w.checkpointEvaluation(&r); err != nil {
+		t.Fatal(err)
+	}
+	stored, err := w.Get(r.ID)
+	if err != nil || stored.Status != "cancelled" || len(stored.Decisions) != 0 || len(stored.Calls) != 1 || stored.Tools["read_goal_artifacts"] != 1 {
+		t.Fatal(stored, err)
+	}
+}
