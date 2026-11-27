@@ -15,7 +15,7 @@ GitHub Actions and GitLab CI examples that invoke `factory validate` and `factor
 
 ## Pack format
 
-See `schemas/pack.schema.json` for the full contract. A minimal pack looks like:
+Pack rules default to active when `active` is omitted. Set `active: false` to keep a rule disabled. See `schemas/pack.schema.json` for the full contract. A minimal pack looks like:
 
 ```yaml
 name: catalog

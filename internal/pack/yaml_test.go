@@ -55,3 +55,20 @@ tools:
 		t.Errorf("tools = %v", p.Tools)
 	}
 }
+
+func TestPackRuleActiveDefault(t *testing.T) {
+	for path, source := range map[string]string{
+		"pack.yaml": "name: support\nworker_roles: [triage]\nrules:\n  - {id: first, text: first rule}\n  - {id: second, text: second rule, active: false}\n  - {id: third, text: third rule, active: true}",
+		"pack.json": `{"name":"support","worker_roles":["triage"],"rules":[{"id":"first","text":"first rule"},{"id":"second","text":"second rule","active":false},{"id":"third","text":"third rule","active":true}]}`,
+	} {
+		t.Run(path, func(t *testing.T) {
+			p, err := Parse(path, []byte(source))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(p.Rules) != 3 || !p.Rules[0].Active || p.Rules[1].Active || !p.Rules[2].Active {
+				t.Fatalf("wrong active flags: %+v", p.Rules)
+			}
+		})
+	}
+}
