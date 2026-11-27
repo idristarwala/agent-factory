@@ -72,11 +72,14 @@ func main() {
 			log.Fatal(err)
 		}
 	}
-	ruleEngine.Propose(rules.VersionedRule{
+	if err := ruleEngine.Install(rules.VersionedRule{
+		ID: "catalog/operator/title-description", Active: true,
 		Description: "Titles should include brand and key attributes. Descriptions should be specific.",
 		Source:      "human",
 		CreatedBy:   "operator",
-	})
+	}); err != nil {
+		log.Fatal(err)
+	}
 
 	fmt.Println("=== Agent Factory (domain-agnostic core, catalog pack) ===")
 	fmt.Println(agentReg.Summary())
