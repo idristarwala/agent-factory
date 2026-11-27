@@ -24,15 +24,16 @@ Remaining for full close:
 
 Present:
 - `cmd/factory` CLI with import / validate / test / readiness / up / publish
-- `internal/pack.Load` (JSON + simple YAML converter)
+- `internal/pack.Load` (JSON + full yaml.v3 for nested packs)
+- Richer Pack type with RuleSpec (id/text/active) and tools alias
+- Published JSON Schema at schemas/pack.schema.json
 - Tool model with side-effect classes and grants check in ContinuousRunner
 - Observe mode
 - docker-compose, Helm chart, starter template, digest-pinned release workflow
 - Multi-binary Dockerfile and optional Postgres wiring
 
 Remaining:
-- Optional full yaml.v3 for deeply nested packs
-- Fuller learning-loop end-to-end tests with scripted failure patterns
+- Optional fuller learning-loop end-to-end tests with scripted failure patterns
 - Live field-test re-run to confirm #10 accuracy items
 
-The core factory loop is functional and the packaging surface is usable for local and CI/CD use.
+The core factory loop is functional and the packaging surface is usable for local and CI/CD use. Packs can now express nested rules that the starter template already uses.

@@ -41,7 +41,8 @@
 - Fuller factory CLI: validate loads packs via pack.Load, checks go.sum and out-of-tree example; readiness checks SECRETS_DIR and DATABASE_URL; test points at contract / conformance packages
 - Multi-binary Dockerfile (goal, factory, api)
 - Optional Postgres wiring in `cmd/api` via `store.NewFromEnv()` when `DATABASE_URL` is set
-- Improved YAML pack loader: SimpleYAMLToJSON converts common pack.yaml (maps + lists) to JSON so Load works for both formats
+- Full nested YAML pack loader using gopkg.in/yaml.v3 (rules as objects with id/text/active, tools alias)
+- Published JSON Schema for packs at schemas/pack.schema.json
 
 ### LLM foundation (#1–#8)
 - Client types, adapter registry, typed errors
@@ -75,10 +76,10 @@
 
 ## Remaining (minor)
 
-- Optional: full YAML library (gopkg.in/yaml.v3) for nested structures beyond the simple converter
-- Optional: further learning-loop end-to-end tests with scripted failure patterns
+- Optional: further learning-loop end-to-end tests with additional scripted failure patterns
+- Live field-test re-run to confirm #10 accuracy items on a fresh sample
 
-All high-impact correctness, config seams, POST adapters, packaging, HTTP tools, tool-call round-trips across protocols, auth refresh with key injection, refined streaming parsers, release automation, context-recipe prompt injection, labelled grouping demo, durable Postgres store (now wired into the API), fuller CLI, Helm chart, multi-binary image, concrete out-of-tree conformance test, and improved YAML pack loading are in place.
+All high-impact correctness, config seams, POST adapters, packaging, HTTP tools, tool-call round-trips across protocols, auth refresh with key injection, refined streaming parsers, release automation, context-recipe prompt injection, labelled grouping demo, durable Postgres store (now wired into the API), fuller CLI, Helm chart, multi-binary image, concrete out-of-tree conformance test, and proper nested YAML pack loading with published schema are in place.
 
 ## Conformance hardening (2026-11-27)
 
@@ -100,3 +101,9 @@ All high-impact correctness, config seams, POST adapters, packaging, HTTP tools,
 - Expanded `examples/starter` with a concrete catalog pack.yaml so `factory validate` succeeds out of the box.
 - Added `docs/GETTING_STARTED.md` covering the 15-minute path from clone to first validation.
 - Learning-loop tests already cover replay-gate and same-cause deduplication; further scripted round-improvement cases can be added in internal/swarm/learning_e2e_test.go.
+
+## Nested pack YAML (2026-11-27)
+
+- Pack loader now uses yaml.v3 for full nested support (rules as objects, tools alias).
+- Published schemas/pack.schema.json as the pack contract.
+- Starter pack.yaml loads cleanly and validates the richer format.
