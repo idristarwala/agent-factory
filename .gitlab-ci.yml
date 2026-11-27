@@ -1,4 +1,5 @@
-# Example GitLab CI pipeline for an Agent Factory user repo.
+# GitLab CI for an engine source checkout. For a consuming workspace, see
+# https://github.com/idristarwala/agent-factory-starter/blob/main/.gitlab-ci.yml
 # Runs validation and fixture tests without requiring live model keys.
 # See docs/GETTING_STARTED.md and issue #9.
 
@@ -21,5 +22,3 @@ test:
   image: golang:${GO_VERSION}
   script:
     - go run ./cmd/factory test
-  # For a pure user pack repo that vendors only the engine binary, replace with:
-  # - factory test
