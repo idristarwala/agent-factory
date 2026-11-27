@@ -28,6 +28,7 @@ type Criterion struct {
 	Citations []artifact.Citation `json:"citations"`
 }
 type Spec struct {
+	PackPromotion   *ObservationRef   `json:"pack_promotion,omitempty"`
 	PackRelease     *PackRef          `json:"pack_release,omitempty"`
 	BrowserTool     string            `json:"browser_tool,omitempty"`
 	ProposeTool     string            `json:"propose_tool,omitempty"`
@@ -94,9 +95,17 @@ func Prepare(st revision.Store, name string, number int) (Plan, error) {
 	}
 	registry := agents.NewStoredRegistry(st)
 	plan := Plan{Factory: name, Revision: number, Spec: def}
+	if def.PackPromotion != nil && def.PackRelease == nil {
+		return Plan{}, errors.New("pack_promotion requires a pinned pack release")
+	}
 	if def.PackRelease != nil {
 		plan.ApprovedPack, err = pinApprovedPack(st, def)
 		if err != nil {
+			return Plan{}, err
+		}
+	}
+	if def.PackPromotion != nil {
+		if err := verifyPackObservation(st, plan); err != nil {
 			return Plan{}, err
 		}
 	}

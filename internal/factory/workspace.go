@@ -249,6 +249,9 @@ func (w *Workspace) Start(req RunRequest) (Run, error) {
 			}
 			plan.UseGoalArtifacts = true
 		}
+		if plan.ApprovedPack != nil && plan.Spec.PackPromotion == nil {
+			r.Settings.Observe = true
+		}
 		r.Plan = plan
 		seen := map[string]bool{}
 		for _, e := range r.Records {
