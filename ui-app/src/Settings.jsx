@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 
-export default function Settings({ api }) {
+export default function Settings({ fetchAPI }) {
   const [state, setState] = useState(null)
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
-  const url = api + '/api/settings'
+  const url = '/api/settings'
   async function read() {
-    const r = await fetch(url)
+    const r = await fetchAPI(url)
     if (!r.ok) throw new Error('Could not load settings')
     return await r.json()
   }
@@ -14,13 +14,13 @@ export default function Settings({ api }) {
     let live = true
     read().then(data => { if (live) setState(data) }).catch(e => { if (live) setMessage(e.message) })
     return () => { live = false }
-  }, [url])
+  }, [url,fetchAPI])
   function change(key, value) { setState(s => ({...s, settings: {...s.settings, [key]: value}})) }
   async function save(event) {
     event.preventDefault()
     setBusy(true)
     try {
-      const r = await fetch(url, {method: 'POST', headers: {'Content-Type':'application/json'},
+      const r = await fetchAPI(url, {method: 'POST', headers: {'Content-Type':'application/json'},
         body:JSON.stringify({Expected: state.version, Settings:state.settings})})
       if (r.status === 409) { setState(await read()); setMessage('Settings changed in another session. Review the latest revision before saving.'); return }
       if (!r.ok) throw new Error((await r.text()).trim())

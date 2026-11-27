@@ -1,8 +1,10 @@
 # Operator workspace
 
-The workspace provides goals, chat, an agent editor and a rule manager. The Figma file also contains designs for the remaining operator screens and configurable experiences. [Design file](https://www.figma.com/design/jPNDukgzOzcM6n1e6UpV9R/Agent-Factory?node-id=28-2)
+Use the workspace to define a factory in chat, start a goal, track run usage, inspect records and decisions, and approve or reject a change with feedback. The rule manager lets a reviewer activate feedback for a later run. Agents and Settings provide versioned definition and budget controls. The Figma file covers the operator screens and configurable experiences. [Design file](https://www.figma.com/design/jPNDukgzOzcM6n1e6UpV9R/Agent-Factory?node-id=28-2)
 
 Run `npm ci` and `npm run dev` in `ui-app`. Configure `VITE_API_URL` for the API and `CORS_ORIGIN` on the server for the browser origin.
+
+When the API requires a bearer token, enter the workspace API token on the connection screen. The browser keeps it in memory for the current page. Reloading the page or choosing **Disconnect** clears it.
 
 ## Definition history
 

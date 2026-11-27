@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 const blankRule = { Description: '', Condition: '', Action: '' }
 const blankAgent = { Name: '', Role: 'worker', ModelTier: 'cheap', Version: '', instructions: '', Retired: false }
 
-export default function Definitions({ api, kind }) {
+export default function Definitions({ fetchAPI, kind }) {
   const isRule = kind === 'rules'
   const idOf = row => isRule ? row.ID : row.Name
   const versionOf = row => isRule ? row.Version : row.Revision
@@ -14,10 +14,10 @@ export default function Definitions({ api, kind }) {
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
   const [ready, setReady] = useState(false)
-  const url = api + '/api/' + kind
+  const url = '/api/' + kind
 
   async function read() {
-    const response = await fetch(url + '?history=true')
+    const response = await fetchAPI(url + '?history=true')
     if (!response.ok) throw new Error('Could not load revision history')
     return await response.json()
   }
@@ -26,7 +26,7 @@ export default function Definitions({ api, kind }) {
     read().then(data => { if (live) { setRows(data); setReady(true) } })
       .catch(err => { if (live) setMessage(err.message) })
     return () => { live = false }
-  }, [url])
+  }, [url,fetchAPI])
 
   const heads = new Map(rows.map(row => [idOf(row), row]))
   const history = rows.filter(row => idOf(row) === selected).slice().reverse()
@@ -49,7 +49,7 @@ export default function Definitions({ api, kind }) {
         Config: { ...draft.Config, instructions: draft.instructions }, Tools: draft.Tools, Retired: draft.Retired }
     }
     try {
-      const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      const response = await fetchAPI(url, { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...body, Expected: base }) })
       if (response.status === 409) {
         setRows(await read())
