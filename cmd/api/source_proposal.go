@@ -29,6 +29,7 @@ func sourceProposalRoutes(mux *http.ServeMux, store revision.Store, gateway mode
 			return
 		}
 		var req struct {
+			OpenAPI    *mapping.APIResponse `json:"openapi"`
 			Sample     any
 			Goal       string
 			RecordType string `json:"record_type"`
@@ -67,6 +68,14 @@ func sourceProposalRoutes(mux *http.ServeMux, store revision.Store, gateway mode
 				return
 			}
 		}
+		var declared []mapping.DeclaredField
+		if req.OpenAPI != nil {
+			declared, err = req.OpenAPI.Fields(selected.Path)
+			if err != nil {
+				http.Error(w, err.Error(), 422)
+				return
+			}
+		}
 		paths := map[string]bool{}
 		var candidates []string
 		for _, f := range selected.Fields {
@@ -78,7 +87,7 @@ func sourceProposalRoutes(mux *http.ServeMux, store revision.Store, gateway mode
 		identity := req.Identity
 		if len(identity) == 0 {
 			if len(candidates) != 1 {
-				sendJSON(w, map[string]any{"status": "choose_identity", "collection": selected, "unique_paths": candidates}, nil)
+				sendJSON(w, map[string]any{"status": "choose_identity", "collection": selected, "declared_fields": declared, "unique_paths": candidates}, nil)
 				return
 			}
 			identity = candidates
@@ -97,7 +106,7 @@ func sourceProposalRoutes(mux *http.ServeMux, store revision.Store, gateway mode
 		}
 		for _, row := range preview {
 			if row.Problem != "" {
-				sendJSON(w, map[string]any{"status": "choose_identity", "collection": selected, "problem": row.Problem, "row": row.Index}, nil)
+				sendJSON(w, map[string]any{"status": "choose_identity", "collection": selected, "declared_fields": declared, "problem": row.Problem, "row": row.Index}, nil)
 				return
 			}
 		}
@@ -110,7 +119,7 @@ func sourceProposalRoutes(mux *http.ServeMux, store revision.Store, gateway mode
 			sendJSON(w, nil, revision.ErrConflict)
 			return
 		}
-		prompt, err := json.Marshal(map[string]any{"goal": req.Goal, "record_type": m.RecordType, "fields": selected.Fields, "identity": identity})
+		prompt, err := json.Marshal(map[string]any{"goal": req.Goal, "record_type": m.RecordType, "fields": selected.Fields, "declared_fields": declared, "identity": identity})
 		if err != nil || len(prompt) > 48<<10 {
 			http.Error(w, "profile too large for a mapping proposal", 422)
 			return
@@ -148,6 +157,6 @@ func sourceProposalRoutes(mux *http.ServeMux, store revision.Store, gateway mode
 			return
 		}
 		doc, err := revision.SaveDocument(store, key, *req.Expected, "steward", data)
-		sendJSON(w, map[string]any{"status": "review", "proposal": doc, "rows": rows}, err)
+		sendJSON(w, map[string]any{"status": "review", "proposal": doc, "declared_fields": declared, "observed_fields": selected.Fields, "rows": rows}, err)
 	}, "GET", "POST"))
 }
