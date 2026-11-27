@@ -4,9 +4,9 @@ import (
 	"fmt"
 )
 
-// ActionableRule builds a rule text that a worker can actually use.
+// BuildActionableRule builds a rule text from a structured failure signal.
 // Includes the failure cause and a concrete instruction instead of only a theme name.
-func ActionableRule(signal FailureSignal) string {
+func BuildActionableRule(signal FailureSignal) string {
 	switch signal.Cause {
 	case "format":
 		return fmt.Sprintf("Return only the allowed fields as flat JSON. Previous failure: %s", signal.Detail)
