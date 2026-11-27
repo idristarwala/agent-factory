@@ -1,5 +1,7 @@
 package graph
 
+import "github.com/idristarwala/agent-factory/internal/llm"
+
 // Central Graph is the single source of truth.
 // All agents propose mutations; Judge evaluates them before commit.
 
@@ -38,4 +40,5 @@ type Mutation struct {
 	Edges         []Edge
 	Deletes       []NodeID
 	Evidence      []string
+	Images        []llm.ImagePart `json:"-"`
 }

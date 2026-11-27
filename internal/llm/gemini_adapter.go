@@ -31,6 +31,10 @@ func geminiBody(req ChatRequest) ([]byte, error) {
 	var system []map[string]string
 	functions := map[string]string{}
 	for _, message := range req.Messages {
+		images, err := message.imageBlocks("gemini")
+		if err != nil {
+			return nil, err
+		}
 		role := message.Role
 		var parts []map[string]any
 		switch role {
@@ -53,6 +57,7 @@ func geminiBody(req ChatRequest) ([]byte, error) {
 		if message.Role != "tool" && message.Content != "" {
 			parts = append(parts, map[string]any{"text": message.Content})
 		}
+		parts = append(parts, images...)
 		for _, call := range message.ToolCalls {
 			var args map[string]any
 			if err := json.Unmarshal([]byte(call.Arguments), &args); err != nil || args == nil {

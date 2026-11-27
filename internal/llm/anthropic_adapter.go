@@ -28,6 +28,10 @@ func anthropicBody(req ChatRequest) (map[string]any, error) {
 	messages := make([]map[string]any, 0, len(req.Messages))
 	var system []map[string]string
 	for _, msg := range req.Messages {
+		images, err := msg.imageBlocks("anthropic")
+		if err != nil {
+			return nil, err
+		}
 		switch msg.Role {
 		case "system":
 			system = append(system, map[string]string{"type": "text", "text": msg.Content})
@@ -38,11 +42,12 @@ func anthropicBody(req ChatRequest) (map[string]any, error) {
 			messages = append(messages, map[string]any{"role": "user", "content": []map[string]string{{"type": "tool_result", "tool_use_id": msg.ToolCallID, "content": msg.Content}}})
 		default:
 			var content any = msg.Content
-			if len(msg.ToolCalls) > 0 {
+			if len(msg.ToolCalls) > 0 || len(images) > 0 {
 				var parts []map[string]any
 				if msg.Content != "" {
 					parts = append(parts, map[string]any{"type": "text", "text": msg.Content})
 				}
+				parts = append(parts, images...)
 				for _, call := range msg.ToolCalls {
 					var args map[string]any
 					if err := json.Unmarshal([]byte(call.Arguments), &args); err != nil || args == nil {

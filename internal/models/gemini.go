@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/idristarwala/agent-factory/internal/llm"
 	"io"
 	"net/http"
 	"os"
@@ -49,8 +50,8 @@ type geminiPart struct {
 }
 
 type geminiContent struct {
-	Parts []geminiPart `json:"parts"`
-	Role  string       `json:"role,omitempty"`
+	Parts any    `json:"parts"`
+	Role  string `json:"role,omitempty"`
 }
 
 type geminiRequest struct {
@@ -107,9 +108,13 @@ func (g *GeminiGateway) Generate(req Request) (*Response, error) {
 			Parts: []geminiPart{{Text: "Understood."}},
 		})
 	}
+	parts, err := (llm.Message{Role: "user", Content: req.User, Images: req.Images}).UserParts("gemini")
+	if err != nil {
+		return nil, err
+	}
 	contents = append(contents, geminiContent{
 		Role:  "user",
-		Parts: []geminiPart{{Text: req.User}},
+		Parts: parts,
 	})
 
 	body := geminiRequest{Contents: contents}

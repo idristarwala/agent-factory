@@ -1,5 +1,7 @@
 package models
 
+import "github.com/idristarwala/agent-factory/internal/llm"
+
 // ModelGateway is the single entry point for all LLM calls.
 // Workers are restricted to cheap models; Steward and Judge may use frontier or council.
 
@@ -16,6 +18,7 @@ type Request struct {
 	Tier        Tier
 	System      string
 	User        string
+	Images      []llm.ImagePart
 	Temperature float64
 	MaxTokens   int
 	Tools       []string

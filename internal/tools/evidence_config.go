@@ -48,8 +48,8 @@ func LoadEvidenceConfig(path, pack string) (*EvidenceConfig, error) {
 	if config.Context.Entity == "" && config.Context.Neighbours == "" {
 		return nil, fmt.Errorf("missing entity or neighbours evidence source")
 	}
-	if config.Context.Media != "" {
-		return nil, fmt.Errorf("media evidence is not supported by this configuration yet")
+	if config.Context.Media != "" && config.Context.Entity == "" {
+		return nil, fmt.Errorf("media requires an entity evidence tool")
 	}
 	if err := config.Context.Authorize(pack, config.Grants); err != nil {
 		return nil, err
@@ -99,9 +99,14 @@ func RecordParams(id string, props map[string]any) map[string]string {
 }
 
 func (c *EvidenceConfig) Gather(ctx context.Context, id string, props map[string]any) ([]string, error) {
+	record, err := c.GatherRecord(ctx, id, props)
+	return record.Text, err
+}
+
+func (c *EvidenceConfig) GatherRecord(ctx context.Context, id string, props map[string]any) (RecordEvidence, error) {
 	result, err := ExecuteRecipe(ctx, c.recipe, c.registry, RecordParams(id, props))
 	if err != nil {
-		return nil, err
+		return RecordEvidence{}, err
 	}
-	return c.recipe.Evidence(result), nil
+	return c.recipe.Collect(ctx, result)
 }

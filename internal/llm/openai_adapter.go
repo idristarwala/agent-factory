@@ -199,6 +199,13 @@ func buildOpenAIBody(req ChatRequest, stream bool) ([]byte, error) {
 	msgs := make([]map[string]any, len(req.Messages))
 	for i, msg := range req.Messages {
 		m := map[string]any{"role": msg.Role, "content": msg.Content}
+		if len(msg.Images) > 0 {
+			parts, err := msg.UserParts("openai")
+			if err != nil {
+				return nil, err
+			}
+			m["content"] = parts
+		}
 		if len(msg.ToolCalls) > 0 {
 			calls := make([]map[string]any, 0, len(msg.ToolCalls))
 			for _, call := range msg.ToolCalls {

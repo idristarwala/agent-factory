@@ -1,5 +1,7 @@
 package unitofwork
 
+import "github.com/idristarwala/agent-factory/internal/llm"
+
 import "github.com/idristarwala/agent-factory/internal/graph"
 
 type Status string
@@ -25,7 +27,8 @@ type UnitOfWork struct {
 	ClaimedBy      string
 	Proposal       *graph.Mutation
 	Evidence       []string
-	AllowedFields  []string // fields the worker may change; schema is built from these
+	Images         []llm.ImagePart `json:"-"`
+	AllowedFields  []string        // fields the worker may change; schema is built from these
 	RequiredFields []string
 	FieldTypes     map[string]string
 	PreserveStatus bool

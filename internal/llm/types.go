@@ -27,6 +27,7 @@ const (
 type Message struct {
 	Role       string // "system", "user", "assistant", "tool"
 	Content    string
+	Images     []ImagePart
 	ToolCalls  []ToolCall
 	ToolCallID string
 }
