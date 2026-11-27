@@ -1,6 +1,6 @@
 # Contributing
 
-This repository is proprietary. See LICENSE.
+This repository is public and proprietary. For permission to contribute, contact the copyright holder through the repository. [License](../LICENSE) · [Permission inquiries](https://github.com/idristarwala/agent-factory/issues/new)
 
 If you have been granted permission to contribute:
 
