@@ -53,9 +53,8 @@ func (g *MemoryGraph) Apply(proposal *Mutation) error {
 	for _, update := range proposal.Updates {
 		existing, ok := g.nodes[update.ID]
 		if !ok {
-			nCopy := update
-			g.nodes[update.ID] = &nCopy
-			continue
+			existing = &Node{ID: update.ID, Type: update.Type}
+			g.nodes[update.ID] = existing
 		}
 		// Merge props
 		if existing.Props == nil {
@@ -63,6 +62,9 @@ func (g *MemoryGraph) Apply(proposal *Mutation) error {
 		}
 		for k, v := range update.Props {
 			existing.Props[k] = v
+		}
+		if proposal.CompleteOnApply != "" && proposal.CompleteOnApply == update.ID {
+			existing.Props["status"] = "fixed"
 		}
 		if update.Type != "" {
 			existing.Type = update.Type

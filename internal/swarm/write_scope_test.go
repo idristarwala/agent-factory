@@ -1,6 +1,8 @@
 package swarm
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/idristarwala/agent-factory/internal/agents"
 	"github.com/idristarwala/agent-factory/internal/graph"
 	"github.com/idristarwala/agent-factory/internal/models"
@@ -13,12 +15,16 @@ import (
 type scopeGateway struct {
 	field, reply    string
 	workers, judges int
+	reject          bool
 	t               *testing.T
 }
 
 func (g *scopeGateway) Generate(req models.Request) (*models.Response, error) {
 	if req.CallerRole == "judge" {
 		g.judges++
+		if g.reject {
+			return &models.Response{Content: "REJECT: unsupported"}, nil
+		}
 		return &models.Response{Content: "APPROVE: fixture"}, nil
 	}
 	g.workers++
@@ -54,6 +60,17 @@ func TestContinuousWriteScope(t *testing.T) {
 			if (err == nil) != (tc.judges == 1) || gw.workers != tc.workers || gw.judges != tc.judges {
 				t.Fatal(err, gw)
 			}
+			for _, entry := range r.Audit.All() {
+				if entry.Action == "proposed" {
+					var m graph.Mutation
+					if err := json.Unmarshal(entry.Proposal, &m); err != nil {
+						t.Fatal(err)
+					}
+					if m.CompleteOnApply != "record" || len(m.Updates) != 1 || len(m.Updates[0].Props) != 1 || m.Updates[0].Props[tc.field] == nil {
+						t.Fatal("audit contains a different patch", m)
+					}
+				}
+			}
 			n, err := g.GetNode("record")
 			if err != nil {
 				t.Fatal(err)
@@ -66,6 +83,46 @@ func TestContinuousWriteScope(t *testing.T) {
 			}
 			if tc.judges == 1 && (n.Props["assigned_team"] != "IT" || n.Props["status"] != "fixed") {
 				t.Fatal(n)
+			}
+		})
+	}
+}
+
+func TestCompletionRequiresAppliedApproval(t *testing.T) {
+	for _, tc := range []struct {
+		name, field     string
+		reject, observe bool
+	}{
+		{"approved_asset", "condition", false, false},
+		{"observed_asset", "condition", false, true},
+		{"rejected_ticket", "priority", true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			g := graph.NewMemoryGraph()
+			g.AddNode(graph.Node{ID: "case", Props: map[string]any{tc.field: "old", "source_note": "unchanged", "status": "open"}})
+			gw := &scopeGateway{field: tc.field, reply: fmt.Sprintf(`{"%s":"new"}`, tc.field), reject: tc.reject, t: t}
+			steward := agents.NewSmartSteward(unitofwork.NewMemoryStore())
+			steward.AllowedFields = []string{tc.field}
+			steward.SetRuntime(gw, g, nil)
+			r := NewContinuousRunner(steward, agents.NewLLMJudge(gw, g), queue.NewMemoryQueue(), g, rules.NewEngine(), nil)
+			r.Workers = 1
+			r.Budget.MaxRounds = 1
+			r.SetObserve(tc.observe)
+			err := r.Run(t.Context(), "Correct the field using the source")
+			applied := !tc.reject && !tc.observe
+			if (err == nil) != applied || gw.judges != 1 {
+				t.Fatal(err, gw.judges)
+			}
+			node, err := g.GetNode("case")
+			if err != nil {
+				t.Fatal(err)
+			}
+			value, status := "old", "open"
+			if applied {
+				value, status = "new", "fixed"
+			}
+			if node.Props[tc.field] != value || node.Props["status"] != status || node.Props["source_note"] != "unchanged" {
+				t.Fatal(node)
 			}
 		})
 	}

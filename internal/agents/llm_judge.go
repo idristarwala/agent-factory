@@ -55,6 +55,7 @@ Proposed mutation (JSON):
 %s
 
 Assess the requested goal, the proposed field changes in Updates[].Props, and their supporting evidence.
+Updates[].Props is a partial update. Omitted properties retain their original values. The optional complete_on_apply marker tells the runtime to mark the record fixed after approval. Evaluate the worker-authored fields in Props.
 The mutation envelope records identifiers and provenance. Worker output-format rules apply to the proposed fields.
 Check that the proposal does not invent facts or violate rules.
 Reply with exactly one line:

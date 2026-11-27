@@ -41,16 +41,18 @@ type ToolProposal struct {
 }
 
 type Mutation struct {
-	ToolProposal  *ToolProposal  `json:"tool_proposal,omitempty"`
-	Goal          string         `json:",omitempty"`
-	AgentName     string         `json:",omitempty"`
-	AgentRevision int            `json:",omitempty"`
-	RuleRevisions map[string]int `json:",omitempty"`
-	UnitOfWorkID  string
-	Adds          []Node
-	Updates       []Node
-	Edges         []Edge
-	Deletes       []NodeID
-	Evidence      []string
-	Images        []llm.ImagePart `json:"-"`
+	// CompleteOnApply identifies the updated record whose workflow completes on approval.
+	CompleteOnApply NodeID         `json:"complete_on_apply,omitempty"`
+	ToolProposal    *ToolProposal  `json:"tool_proposal,omitempty"`
+	Goal            string         `json:",omitempty"`
+	AgentName       string         `json:",omitempty"`
+	AgentRevision   int            `json:",omitempty"`
+	RuleRevisions   map[string]int `json:",omitempty"`
+	UnitOfWorkID    string
+	Adds            []Node
+	Updates         []Node
+	Edges           []Edge
+	Deletes         []NodeID
+	Evidence        []string
+	Images          []llm.ImagePart `json:"-"`
 }
