@@ -43,3 +43,15 @@ The repository Compose project starts the API and PostgreSQL and checks `/health
 Run `factory test` alongside your `factory.yaml`, or pass pack files, directories or manifests explicitly, for example `factory test examples/service-desk`. Each pack needs at least one `fixtures/*.json` file. A compiled CLI is sufficient in your repository. In an engine checkout the no-argument command also runs the Go contract suites.
 
 A fixture supplies a goal, a single source record, and a `definition` path relative to the pack directory. The definition selects a declared worker role and defines editable fields. The runner loads the pack rules and executes the workspace using an isolated in-process store. `worker_reply` and `judge_reply` are scripted model outputs. Author the expected field changes in `expected_patch` and the expected judge verdict in `expected_approved`. Invalid fixtures, missing fixtures, wrong verdicts, and mismatched patches return a nonzero exit status. These checks need no provider credentials and exercise the worker schema, judge and review path. Live-model behavior is tested separately. [Service-desk fixture](../examples/service-desk/fixtures/routing.json) · [Factory definition](../examples/service-desk/factory.json)
+
+## Validate rule files
+
+Run `factory validate --rule rules/*.yaml` to check individual rules in CI. The command accepts YAML and JSON. Each file contains one rule, for example:
+
+```yaml
+id: preserve-source
+text: Keep the exact identifier supplied by the source.
+active: true
+```
+
+The CLI embeds the same schema used for entries in a pack’s `rules` array. Validation works offline and exits nonzero on the first invalid file. To use a validated rule in a pack, include its object in the pack’s `rules` array. [Rule schema](../schemas/rule.schema.json)

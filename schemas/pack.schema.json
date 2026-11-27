@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/idristarwala/agent-factory/schemas/pack.schema.json",
+  "$id": "https://raw.githubusercontent.com/idristarwala/agent-factory/main/schemas/pack.schema.json",
   "title": "Agent Factory Domain Pack",
   "description": "Published schema for file-based domain packs (pack.yaml / pack.json).",
   "type": "object",
@@ -19,15 +19,7 @@
     },
     "rules": {
       "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["id", "text"],
-        "properties": {
-          "id": {"type": "string"},
-          "text": {"type": "string"},
-          "active": {"type": "boolean", "default": true}
-        }
-      }
+      "items": {"$ref": "rule.schema.json"}
     },
     "tools_allowed": {
       "type": "array",
