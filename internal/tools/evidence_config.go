@@ -23,6 +23,11 @@ import (
 
 var envName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
+// ValidCredentialEnvName checks a key_env reference without reading the environment.
+func ValidCredentialEnvName(name string) bool {
+	return envName.MatchString(name)
+}
+
 // EvidenceConfig is an operator-supplied recipe for the pack selected by the caller.
 type EvidenceConfig struct {
 	Recipe ContextRecipe
@@ -232,7 +237,7 @@ func parseHTTPConfig(path string, data []byte, deployed bool) (*EvidenceConfig, 
 			t.AuthType, t.AuthHeader, t.Username = def.Auth.Type, def.Auth.Name, def.Auth.Username
 			if def.Auth.KeyEnv != nil {
 				t.KeyEnv = *def.Auth.KeyEnv
-				if !envName.MatchString(t.KeyEnv) {
+				if !ValidCredentialEnvName(t.KeyEnv) {
 					return nil, fmt.Errorf("invalid key_env name for tool %q", name)
 				}
 			} else {

@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/idristarwala/agent-factory/internal/tools"
 	"gopkg.in/yaml.v3"
 )
 
@@ -32,12 +33,26 @@ func importTools(args []string, out, diagnostics io.Writer) error {
 	flags.SetOutput(diagnostics)
 	selected := flags.String("operation", "", "import a single operationId")
 	base := flags.String("server", "", "fixed HTTP(S) server base URL")
-	key := flags.String("key-file", "", "credential file reference for one selected operation")
+	keyEnv := flags.String("key-env", "", "credential environment variable name for one selected operation")
+	keyFile := flags.String("key-file", "", "credential file reference for one selected operation")
 	if err := flags.Parse(args[1:]); err != nil {
 		return err
 	}
-	if flags.NArg() != 1 || (*key != "" && *selected == "") {
-		return fmt.Errorf("supply one OpenAPI file; -key-file requires -operation")
+	if flags.NArg() != 1 {
+		return fmt.Errorf("supply one OpenAPI file")
+	}
+	if *keyEnv != "" && *keyFile != "" {
+		return fmt.Errorf("choose one of -key-file and -key-env")
+	}
+	keyField, key := "key_file", *keyFile
+	if *keyEnv != "" {
+		if !tools.ValidCredentialEnvName(*keyEnv) {
+			return fmt.Errorf("-key-env requires an environment variable name")
+		}
+		keyField, key = "key_env", *keyEnv
+	}
+	if key != "" && *selected == "" {
+		return fmt.Errorf("credential references require -operation")
 	}
 	data, err := os.ReadFile(flags.Arg(0))
 	if err != nil {
@@ -76,7 +91,7 @@ func importTools(args []string, out, diagnostics io.Writer) error {
 			if _, duplicate := defs[name]; duplicate {
 				return fmt.Errorf("duplicate tool name %q", name)
 			}
-			def, err := convertOperation(doc, item, op, path, *base, *key)
+			def, err := convertOperation(doc, item, op, path, *base, keyField, key)
 			if err != nil {
 				return fmt.Errorf("%s: %w", name, err)
 			}
@@ -94,7 +109,7 @@ func importTools(args []string, out, diagnostics io.Writer) error {
 	return err
 }
 
-func convertOperation(doc *openapi3.T, item *openapi3.PathItem, op *openapi3.Operation, path, base, key string) (importedTool, error) {
+func convertOperation(doc *openapi3.T, item *openapi3.PathItem, op *openapi3.Operation, path, base, keyField, key string) (importedTool, error) {
 	var tool importedTool
 	if base == "" {
 		servers := doc.Servers
@@ -155,12 +170,12 @@ func convertOperation(doc *openapi3.T, item *openapi3.PathItem, op *openapi3.Ope
 	}
 	if len(security) == 0 || len(security) == 1 && len(security[0]) == 0 {
 		if key != "" {
-			return tool, fmt.Errorf("credential file supplied for an operation without authentication")
+			return tool, fmt.Errorf("credential reference supplied for an operation without authentication")
 		}
 		return tool, nil
 	}
 	if len(security) != 1 || len(security[0]) != 1 || key == "" {
-		return tool, fmt.Errorf("select one operation using bearer or header API-key authentication and supply -key-file")
+		return tool, fmt.Errorf("select one operation using bearer or header API-key authentication and supply -key-file or -key-env")
 	}
 	for name := range security[0] {
 		if doc.Components == nil {
@@ -173,9 +188,9 @@ func convertOperation(doc *openapi3.T, item *openapi3.PathItem, op *openapi3.Ope
 		scheme := ref.Value
 		switch {
 		case scheme.Type == "http" && strings.EqualFold(scheme.Scheme, "bearer"):
-			tool.Auth = map[string]string{"type": "bearer", "key_file": key}
+			tool.Auth = map[string]string{"type": "bearer", keyField: key}
 		case scheme.Type == "apiKey" && scheme.In == "header":
-			tool.Auth = map[string]string{"type": "header", "name": scheme.Name, "key_file": key}
+			tool.Auth = map[string]string{"type": "header", "name": scheme.Name, keyField: key}
 		default:
 			return tool, fmt.Errorf("unsupported security scheme %q", name)
 		}

@@ -72,7 +72,7 @@ Options below apply to a single invocation. Place named flags before positional 
 | `factory up` | `-f` | Optional Compose file path. Overrides `COMPOSE_FILE` and project discovery. |
 | `factory validate` | `--rule`, `--tools` | Select one mode and provide one or more files. Default mode validates packs from named paths or local discovery. |
 | `factory test` | `--receipt` | Default mode tests working-tree fixtures. Receipt mode takes one pack file, tests the committed snapshot and prints JSON. |
-| `factory tools import` | `-operation`, `-server`, `-key-file` | Optional strings. Select one operation ID or import eligible GET operations. A fixed HTTP(S) base overrides the document's server selection. A credential file reference requires one selected operation. |
+| `factory tools import` | `-operation`, `-server`, `-key-file`, `-key-env` | Optional strings. Select one operation ID or import eligible GET operations. A fixed HTTP(S) base overrides the document's server selection. For one authenticated operation, choose a mounted file path or a process environment variable name. |
 | `factory publish` | `-pack`, `-evidence`, `-expected` | All required. Supply the committed pack path, passing JSON receipt path and expected integer revision. Use 0 for an initial proposal. |
 | `factory readiness` | `--gateway` | Default mode checks the store and configured evidence tools and sources. The switch adds local model route and credential checks. |
 
