@@ -60,7 +60,11 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		if err = json.NewEncoder(os.Stdout).Encode(map[string]any{"entity_id": e.ID, "factory_revision": plan.Revision, "proposal": m, "decision": d}); err != nil {
+		result := map[string]any{"entity_id": e.ID, "factory_revision": plan.Revision, "proposal": m, "decision": d}
+		if plan.ApprovedPack != nil {
+			result["approved_pack"] = plan.ApprovedPack
+		}
+		if err = json.NewEncoder(os.Stdout).Encode(result); err != nil {
 			log.Fatal(err)
 		}
 	}
