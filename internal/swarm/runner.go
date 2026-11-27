@@ -11,6 +11,7 @@ import (
 	"github.com/idristarwala/agent-factory/internal/learning"
 	"github.com/idristarwala/agent-factory/internal/queue"
 	"github.com/idristarwala/agent-factory/internal/rules"
+	"github.com/idristarwala/agent-factory/internal/tools"
 )
 
 // ContinuousRunner runs the factory until problems are resolved or max rounds hit.
@@ -23,6 +24,11 @@ type ContinuousRunner struct {
 	Learning  *learning.LearningLoop
 	Workers   int
 	MaxRounds int
+	Observe   bool
+	Grants    []tools.Grant
+	Pack      string
+	Tools     *tools.Registry
+	Recipe    tools.ContextRecipe
 }
 
 func NewContinuousRunner(s agents.Steward, j agents.Judge, q queue.WorkQueue, g graph.Graph, re *rules.Engine, ll *learning.LearningLoop) *ContinuousRunner {
@@ -38,7 +44,18 @@ func NewContinuousRunner(s agents.Steward, j agents.Judge, q queue.WorkQueue, g 
 	}
 }
 
-// Run executes the continuous loop for a goal.
+func (r *ContinuousRunner) SetObserve(enabled bool) { r.Observe = enabled }
+
+func (r *ContinuousRunner) SetGrants(pack string, grants []tools.Grant) {
+	r.Pack = pack
+	r.Grants = grants
+}
+
+func (r *ContinuousRunner) SetTools(reg *tools.Registry, recipe tools.ContextRecipe) {
+	r.Tools = reg
+	r.Recipe = recipe
+}
+
 func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 	for round := 1; round <= r.MaxRounds; round++ {
 		fmt.Printf("===== Round %d =====\n", round)
@@ -71,6 +88,26 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 					if err != nil || uow == nil {
 						return
 					}
+
+					// Grants check
+					if len(r.Grants) > 0 && r.Pack != "" {
+						if err := tools.CheckGrant(r.Grants, r.Pack, "propose"); err != nil {
+							r.Queue.Fail(ctx, uow.ID, "grant denied: "+err.Error())
+							continue
+						}
+					}
+
+					// Gather context if recipe is set
+					var evidence []string
+					if r.Tools != nil && (r.Recipe.Entity != "" || r.Recipe.Neighbours != "") {
+						args := map[string]string{"id": uow.InputSubgraph}
+						ctxResult, err := tools.GatherContext(ctx, r.Tools, r.Recipe, args)
+						if err == nil && ctxResult != nil {
+							evidence = ctxResult.Evidence
+							fmt.Printf("context gathered: %v\n", evidence)
+						}
+					}
+
 					worker, err := r.Steward.CreateWorker(agents.WorkerSpec{Name: "generic", Role: "worker", ModelTier: "cheap"})
 					if err != nil {
 						r.Queue.Fail(ctx, uow.ID, "create worker: "+err.Error())
@@ -81,12 +118,15 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 						r.Queue.Fail(ctx, uow.ID, err.Error())
 						continue
 					}
+					if mutation != nil {
+						mutation.Evidence = append(mutation.Evidence, evidence...)
+					}
 					decision, err := r.Judge.Evaluate(mutation, r.Rules.ToAgentsRules())
 					if err != nil {
 						r.Queue.Fail(ctx, uow.ID, err.Error())
 						continue
 					}
-					if decision.Approved {
+					if decision.Approved && !r.Observe {
 						r.Graph.Apply(mutation)
 					}
 					r.Queue.Complete(ctx, uow.ID)
