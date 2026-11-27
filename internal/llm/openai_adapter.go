@@ -13,10 +13,11 @@ import (
 // OpenAIAdapter implements Client for OpenAI-compatible endpoints.
 // Constructs and POSTs the request body without os.Setenv.
 type OpenAIAdapter struct {
-	BaseURL string
-	APIKey  string
-	Client  *http.Client
-	Headers map[string]string
+	Envelope *OpenAIEnvelope
+	BaseURL  string
+	APIKey   string
+	Client   *http.Client
+	Headers  map[string]string
 }
 
 func NewOpenAIAdapter(baseURL, apiKey string, headers map[string]string) *OpenAIAdapter {
@@ -34,7 +35,7 @@ func (a *OpenAIAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatRespons
 		return nil, err
 	}
 
-	body, err := BuildOpenAIBody(req)
+	body, err := a.requestBody(req, false)
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +114,7 @@ func (a *OpenAIAdapter) Stream(ctx context.Context, req ChatRequest) (Stream, er
 
 	// Basic SSE streaming support for OpenAI-compatible endpoints.
 	// Falls back to ErrStreamingUnsupported only if the request cannot be built.
-	body, err := buildOpenAIBody(req, true)
+	body, err := a.requestBody(req, true)
 	if err != nil {
 		return nil, err
 	}

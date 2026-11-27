@@ -150,7 +150,7 @@ func RunConformance(t *testing.T, h ConformanceHarness) {
 	})
 
 	t.Run("concurrency", func(t *testing.T) {
-		const n = 20
+		const n = 50
 		var wg sync.WaitGroup
 		errs := make(chan error, n)
 		for i := 0; i < n; i++ {
@@ -174,18 +174,6 @@ func RunConformance(t *testing.T, h ConformanceHarness) {
 		}
 	})
 
-	t.Run("error_typed", func(t *testing.T) {
-		// Protocol-specific typed error mapping is covered in conformance_full_test.go
-		// and conformance_extended_test.go. This subtest documents the contract:
-		// 429 → RATE_LIMITED (retryable), 401 → AUTH (not retryable).
-		t.Log("typed error contract: 429=RATE_LIMITED/retryable, 401=AUTH/not-retryable (see conformance_*_test.go)")
-	})
-
-	t.Run("model_mapping", func(t *testing.T) {
-		// Logical model names are resolved by the router before the adapter sees them.
-		// Adapters receive the concrete gateway model ID.
-		t.Log("model mapping is handled by the router and config; see router_test.go")
-	})
 }
 
 // RunBasicConformance is kept for compatibility.

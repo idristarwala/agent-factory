@@ -28,6 +28,7 @@ type gatewayConfig struct {
 	Proxy string
 }
 type modelConfig struct {
+	Envelope                 *llm.OpenAIEnvelope `yaml:"envelope"`
 	Gateway, Protocol, Model string
 	Headers                  map[string]string
 	ReasoningBudget          *int   `yaml:"reasoning_budget"`
@@ -125,9 +126,18 @@ func load(path string) (*Router, error) {
 		headers := llm.ApplyExtraHeaders(g.Headers, m.Headers)
 		base := strings.TrimRight(g.BaseURL, "/")
 		var adapter llm.Client
+		if m.Envelope != nil && m.Protocol != "openai-envelope" {
+			return nil, fmt.Errorf("envelope provided for %q protocol", m.Protocol)
+		}
 		switch m.Protocol {
-		case "openai":
+		case "openai", "openai-envelope":
 			a := llm.NewOpenAIAdapter(base, "", headers)
+			if m.Protocol == "openai-envelope" {
+				if err := m.Envelope.Validate(); err != nil {
+					return nil, fmt.Errorf("model %q: %w", name, err)
+				}
+				a.Envelope = m.Envelope
+			}
 			a.Client = clients[m.Gateway]
 			adapter = a
 		case "anthropic":
@@ -141,7 +151,7 @@ func load(path string) (*Router, error) {
 		default:
 			return nil, fmt.Errorf("unknown protocol %q", m.Protocol)
 		}
-		if m.TokenParam != "" && (m.Protocol != "openai" || (m.TokenParam != "max_tokens" && m.TokenParam != "max_completion_tokens")) {
+		if m.TokenParam != "" && ((m.Protocol != "openai" && m.Protocol != "openai-envelope") || (m.TokenParam != "max_tokens" && m.TokenParam != "max_completion_tokens")) {
 			return nil, fmt.Errorf("invalid token_param for model %q", name)
 		}
 		if m.ReasoningBudget != nil && (m.Protocol != "gemini" || *m.ReasoningBudget < 0) {

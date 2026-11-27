@@ -36,8 +36,11 @@ func RunStructuredConformance(t *testing.T, protocol string, newClient func(stri
 				var path []string
 				var reply any
 				switch protocol {
-				case "openai":
+				case "openai", "openai-envelope":
 					path = []string{"response_format", "json_schema", "schema"}
+					if protocol == "openai-envelope" {
+						path = append([]string{"params"}, path...)
+					}
 					reply = map[string]any{"choices": []any{map[string]any{"message": map[string]string{"content": tc.text}}}}
 				case "anthropic":
 					path = []string{"output_config", "format", "schema"}

@@ -23,7 +23,7 @@ test-gemini:
 
 .PHONY: conformance
 conformance:
-	go test -race ./internal/llm/...
+	go test -race ./internal/llm/... ./internal/configuredgateway
 	cd examples/out-of-tree-gateway && go test -race ./...
 
 .PHONY: test-mixed-judges

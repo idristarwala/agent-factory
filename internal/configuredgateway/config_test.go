@@ -104,3 +104,64 @@ models:
 		t.Fatalf("unexpected requests %d", calls.Load())
 	}
 }
+
+func TestConfiguredEnvelope(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var outer struct {
+			Operation string
+			Routing   struct{ Model string }
+			Params    struct {
+				Model    string
+				Stream   bool
+				Messages []map[string]string
+			}
+		}
+		if err := json.NewDecoder(r.Body).Decode(&outer); err != nil {
+			t.Error(err)
+			return
+		}
+		if outer.Operation != "chat" || outer.Routing.Model != "wire-123" || outer.Params.Model != "wire-123" || len(outer.Params.Messages) != 1 || outer.Params.Messages[0]["content"] != "hello" {
+			t.Errorf("unexpected envelope %+v", outer)
+		}
+		if outer.Params.Stream {
+			fmt.Fprintln(w, `data: {"choices":[{"delta":{"content":"ok"},"finish_reason":"stop"}],"usage":{"total_tokens":3}}`)
+			fmt.Fprintln(w, "\ndata: [DONE]")
+		} else {
+			fmt.Fprint(w, `{"choices":[{"message":{"content":"ok"}}],"usage":{"prompt_tokens":2,"completion_tokens":1}}`)
+		}
+	}))
+	defer srv.Close()
+	path := filepath.Join(t.TempDir(), "config.yml")
+	text := fmt.Sprintf(`gateways:
+  corp: {base_url: "%s", auth: {type: none}}
+models:
+  cheap:
+    gateway: corp
+    protocol: openai-envelope
+    model: wire-123
+    envelope:
+      params_key: params
+      template: {operation: chat, routing: {model: "{model}"}}
+`, srv.URL)
+	if err := os.WriteFile(path, []byte(text), 0600); err != nil {
+		t.Fatal(err)
+	}
+	router, err := load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := llm.ChatRequest{Messages: []llm.Message{{Role: "user", Content: "hello"}}}
+	resp, err := router.Chat(t.Context(), req)
+	if err != nil || resp.Content != "ok" || resp.Usage.Total != 3 {
+		t.Fatal(resp, err)
+	}
+	stream, err := router.Stream(t.Context(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stream.Close()
+	collected, err := llm.CollectStream(stream)
+	if err != nil || collected.Content != resp.Content || collected.Usage.Total != 3 {
+		t.Fatal(collected, err)
+	}
+}
