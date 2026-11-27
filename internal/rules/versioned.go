@@ -16,19 +16,18 @@ type VersionedRule struct {
 	Description string
 	Condition   string
 	Action      string
-	Source      string // "human", "feedback", "agent", "domain-pack"
+	Source      string
 	Active      bool
 	CreatedAt   time.Time
 	CreatedBy   string
-	ParentID    string // previous version
+	ParentID    string
 }
 
 // Engine is a versioned rule store.
-// Rules are immutable once written. New versions supersede old ones.
 type Engine struct {
 	mu     sync.RWMutex
-	rules  map[string][]VersionedRule // id -> versions (newest last)
-	active map[string]int             // id -> active version number
+	rules  map[string][]VersionedRule
+	active map[string]int
 }
 
 func NewEngine() *Engine {
@@ -38,7 +37,7 @@ func NewEngine() *Engine {
 	}
 }
 
-// Propose creates a new version of a rule (or a new rule if ID is empty).
+// Propose creates a new version of a rule. Respects the Active flag passed in.
 func (e *Engine) Propose(r VersionedRule) VersionedRule {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -54,10 +53,12 @@ func (e *Engine) Propose(r VersionedRule) VersionedRule {
 		}
 	}
 	r.CreatedAt = time.Now()
-	r.Active = true
+	// Respect the caller's Active flag instead of forcing true
 
 	e.rules[r.ID] = append(e.rules[r.ID], r)
-	e.active[r.ID] = r.Version
+	if r.Active {
+		e.active[r.ID] = r.Version
+	}
 	return r
 }
 
@@ -116,11 +117,11 @@ func (e *Engine) FromFeedback(feedback, context, createdBy string) VersionedRule
 		Action:      "constrain future proposals",
 		Source:      "feedback",
 		CreatedBy:   createdBy,
+		Active:      true,
 	})
 }
 
-// ToAgentsRules converts active rules to the simple agents.Rule slice
-// for existing Judge code.
+// ToAgentsRules converts active rules to the simple agents.Rule slice.
 func (e *Engine) ToAgentsRules() []agents.Rule {
 	active := e.Active()
 	out := make([]agents.Rule, len(active))
