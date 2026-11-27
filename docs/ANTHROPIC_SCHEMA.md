@@ -1,13 +1,5 @@
-# Anthropic Schema Enforcement
+# Anthropic structured responses
 
-Anthropic has no native response_schema mode.
+The environment-only Anthropic client requests a forced tool call whose input schema is the worker’s reply schema. It extracts the returned tool input as structured content. [Environment gateway](../internal/models/anthropic.go)
 
-`AnthropicForcedTool` builds a forced tool call whose `input_schema` is the reply schema.
-
-The Anthropic client should:
-1. Call `AnthropicForcedTool(req.Schema)` when schema is present.
-2. Add the tool to the request `tools` array.
-3. Set `tool_choice` to force the tool.
-4. Extract the tool input from the response as the structured content.
-
-This closes the remaining #14 adapter gap.
+A logical route configured with `LLM_GATEWAY_CONFIG` and `protocol: anthropic` uses the shared Messages adapter. It sends `output_config.format` with a JSON Schema and validates the returned text against that schema. Select an endpoint and model that support the configured request format. [Configured adapter](../internal/llm/anthropic_adapter.go) · [Gateway configuration](ENTERPRISE_GATEWAY.md)

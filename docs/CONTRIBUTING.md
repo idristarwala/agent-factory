@@ -11,3 +11,5 @@ If you have been granted permission to contribute:
 
 Use Go 1.26 and Node.js 24 for the checks. To run them automatically
 before each push from this clone, run `git config core.hooksPath .githooks`.
+
+When changing a CLI, API or setting, update its guide and the configuration reference. `make docs-check` checks local Markdown links, Go command paths and documentation for literal Go environment lookups. Verify any changed workflow through its public entry point.

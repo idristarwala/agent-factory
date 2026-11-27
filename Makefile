@@ -11,7 +11,7 @@ ui-build:
 	npm --prefix ui-app test
 	npm --prefix ui-app run build
 
-ci: test build ui-build conformance
+ci: test build ui-build conformance docs-check
 	go vet ./...
 
 release:
@@ -29,3 +29,7 @@ conformance:
 .PHONY: test-mixed-judges
 test-mixed-judges:
 	go test -v -tags openrouter_live -run '^TestLiveOpenRouter' -count=1 ./internal/factory ./internal/llm
+
+.PHONY: docs-check
+docs-check:
+	python3 scripts/check-docs.py

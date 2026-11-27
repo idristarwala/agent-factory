@@ -1,37 +1,19 @@
 # Packaging
 
-## Local Docker
+## Run the container
 
-```bash
-mkdir -p secrets
-echo -n "$GEMINI_API_KEY" > secrets/gemini-api-key
+From the repository root, build the image and create a volume for a disposable example workspace. Export `GEMINI_API_KEY` in the launching shell. These commands import a definition and run its first revision against a mounted fixture.
+
+```sh
 docker build -t agent-factory .
-docker run --rm -v $(pwd)/secrets:/etc/secrets:ro agent-factory "Fix catalog titles"
+state=$(docker volume create)
+docker run --rm -v "$state:/state" -v "$PWD/examples/service-desk:/input:ro" -e FACTORY_DB_PATH=/state/factory.sqlite --entrypoint factory agent-factory import factory desk 0 /input/factory.json
+docker run --rm -v "$state:/state" -v "$PWD/examples/service-desk:/input:ro" -e FACTORY_DB_PATH=/state/factory.sqlite -e LLM_PROVIDER=gemini -e GEMINI_API_KEY agent-factory -factory desk -revision 1 -records /input/records.json 'Assign the support team from the routing guide'
 ```
 
-## Docker Compose
+Compose starts the API and PostgreSQL. Supply a model route in the API service environment, either by forwarding its provider credential or by mounting a gateway config and setting `LLM_GATEWAY_CONFIG` in the service. The supplied Compose file mounts the secrets directory. The environment-only Gemini route reads `GEMINI_API_KEY` from the process environment. [Configuration](docs/CONFIGURATION.md)
 
-```bash
-mkdir -p secrets
-echo -n "$GEMINI_API_KEY" > secrets/gemini-api-key
-docker compose up --build
-```
-
-Brings up the factory + Postgres. Secrets mounted at `/etc/secrets`.
-
-## Kubernetes
-
-```bash
-kubectl apply -f deploy/k8s/deployment.yaml
-kubectl apply -f deploy/k8s/job.yaml
-```
-
-Replace the placeholder secret values before applying.
-
-## Secrets
-
-All environments use the same contract: `SECRETS_DIR` (default `/etc/secrets`).
-See `SECRETS.md` and `AUTH.md`.
+The Kubernetes Job expects a pre-imported definition, `factory-run` and `factory-records` ConfigMaps, database credentials and a configured model route. Inspect the manifest before deploying it with site-specific resources. [Job manifest](deploy/k8s/job.yaml)
 
 ## CI and Release
 
@@ -59,7 +41,7 @@ Shared contract tests live in `internal/store/contract_test.go` and run against 
 ## Out-of-tree gateway conformance
 
 ```bash
-go test ./examples/out-of-tree-gateway/ -v
+(cd examples/out-of-tree-gateway && go test -v ./...)
 ```
 
 The example adapter reuses the in-repo OpenAI adapter and passes `llm.RunConformance`.
@@ -84,7 +66,7 @@ go run ./cmd/api
 # GET /health reports {"status":"ok","store":"postgres"}
 ```
 
-Requires the `github.com/lib/pq` driver (blank-imported in `cmd/api`). Run `go mod tidy` after clone if go.sum is incomplete.
+Requires the `github.com/lib/pq` driver (blank-imported in `cmd/api`). The module checksums are committed.
 
 ## Factory CLI
 
@@ -92,7 +74,7 @@ Requires the `github.com/lib/pq` driver (blank-imported in `cmd/api`). Run `go m
 
 ```bash
 factory test
-# executes: go test -count=1 ./internal/llm/... ./internal/store/... ./internal/grouping/... ./examples/out-of-tree-gateway/...
+
 ```
 
 Exits non-zero if any package fails, so it is usable in CI.

@@ -15,6 +15,7 @@ The API and CLI read deployment configuration from their process environment. Re
 | `CORS_ORIGIN` | Origin string, unset | Permits the configured browser origin or an explicit wildcard. |
 | `VITE_API_URL` | URL, `http://localhost:8080` | Operator UI’s API base URL. |
 | `FACTORY_DEFINITION`, `FACTORY_RECORDS` | ID and JSON file path, unset | Defaults for goal CLI flags `-factory` and `-records`. `-revision` defaults to 0, selecting the latest revision. |
+| `FACTORY_HTTP_ALLOWED_HOSTS` | Comma-separated hostnames, unset | Restricts outbound tool destinations by exact hostname. An explicitly empty value allows no hosts. Other destination checks still apply. |
 | `FACTORY_SOURCE_CONFIG` | YAML path, unset | Enables named read-only source sampling in the API. [Source mapping](MAPPING.md) |
 | `FACTORY_EVIDENCE_CONFIG`, `FACTORY_PACK` | YAML path and pack name, both unset | Set both to enable a continuous runner evidence recipe and its pack grants. [Tools](HTTP_TOOLS.md) |
 | `FACTORY_MODEL_PRICES` | JSON object, empty | Per-model USD per million input and output tokens. Applied when a call is recorded. |

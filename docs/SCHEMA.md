@@ -1,13 +1,7 @@
-# Provider-Enforced Schema (#14)
+# Worker output schema
 
-## Added
-- `models.ResponseSchema` type
-- `BuildResponseSchema` now takes allowed and required fields separately and sets `additionalProperties: false`
+A factory definition specifies a record type, editable fields and their JSON types. Its optional `required` list identifies fields that must appear in a proposal. The worker constructs a JSON Schema for each unit, attaches it to the model request, then parses and validates the returned values. Properties outside the editable set fail validation. [Example factory definition](../examples/service-desk/factory.json)
 
-## Next
-- Add the schema field to `models.Request`
-- Worker builds and attaches the schema on every call
-- OpenAI and Gemini clients send it in native form
-- Anthropic uses a forced tool call
+OpenAI-compatible gateways receive a JSON Schema response format. Gemini receives a structured JSON response configuration. For Anthropic, the request format depends on the selected adapter. [Anthropic schema handling](ANTHROPIC_SCHEMA.md)
 
-The helper exists. Wiring into the request path is the remaining step.
+The shared store uses versioned records for factory definitions, rules, agents, runs and memory. Adding an application field to a factory’s record type changes its definition revision. [Storage contract](CONFIGURATION.md#storage-contract-for-api-changes)
