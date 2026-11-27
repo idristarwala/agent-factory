@@ -1,5 +1,7 @@
 # Getting started (15 minutes)
 
+For a standalone workspace, start with the public Agent Factory starter. It pins the engine to a reviewed commit and includes a sample pack, fixture tests and a local SQLite API. Its README lists the prerequisites and setup commands. [Agent Factory starter](https://github.com/idristarwala/agent-factory-starter)
+
 Run [the service-desk example](RUNNING.md) from a checkout to evaluate a real record. A model gateway is required for evaluation. To inspect the sample pack and run fixture tests without provider credentials, run these commands from the repository root.
 
 ```sh
@@ -7,7 +9,7 @@ go run ./cmd/factory validate examples/starter/factory.yaml
 go run ./cmd/factory test
 ```
 
-Pass pack files, pack directories or a `factory.yaml` manifest. Manifest pack paths are relative to that manifest. A missing file, malformed pack or schema violation returns a nonzero exit code. With no arguments the CLI discovers local manifests and pack files, falling back to the repository starter. Copy the contents of `examples/starter/` to your own repository and run `factory validate` and `factory test` there with the compiled CLI. The manifest supplies pack paths. To configure model routes, point `LLM_GATEWAY_CONFIG` at the gateway YAML. For continuous-run evidence tools, set `FACTORY_EVIDENCE_CONFIG` and `FACTORY_PACK`. Configure the engine image in Compose or Helm. [Deployment settings](CONFIGURATION.md#deployment-settings) · [Helm deployment](DEPLOYMENT.md) [Pack schema](../schemas/pack.schema.json) · [Releases](RELEASE.md)
+Pass pack files, pack directories or a `factory.yaml` manifest. Manifest pack paths are relative to that manifest. A missing file, malformed pack or schema violation returns a nonzero exit code. With no arguments the CLI discovers local manifests and pack files, falling back to the repository starter. Copy the contents of `examples/starter/` to your own repository and run `factory validate` and `factory test` there with the compiled CLI. The manifest supplies pack paths. To configure model routes, point `LLM_GATEWAY_CONFIG` at the gateway YAML. For continuous-run evidence tools, set `FACTORY_EVIDENCE_CONFIG` and `FACTORY_PACK`. Configure the engine image in Compose or Helm. [Deployment settings](CONFIGURATION.md#deployment-settings) · [Helm deployment](DEPLOYMENT.md) · [Pack schema](../schemas/pack.schema.json) · [Releases](RELEASE.md)
 
 ## CI examples
 
