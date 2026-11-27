@@ -2,6 +2,8 @@ package llm
 
 import (
 	"context"
+	"errors"
+	"net/http"
 	"sync"
 	"time"
 )
@@ -14,9 +16,9 @@ type TokenRefresher struct {
 	Refresh  func(ctx context.Context) (string, error)
 	Interval time.Duration
 
-	mu        sync.Mutex
-	key       string
-	expiresAt time.Time
+	mu         sync.RWMutex
+	generation uint64
+	expiresAt  time.Time
 }
 
 // APIKeySetter is implemented by adapters that can accept a rotated key.
@@ -33,34 +35,59 @@ func NewTokenRefresher(inner Client, refresh func(ctx context.Context) (string, 
 	}
 }
 
-func (t *TokenRefresher) ensure(ctx context.Context) error {
+// acquire holds a read lock while the adapter builds and sends the request.
+// A rotation waits for existing calls before mutating a shared adapter key.
+func (t *TokenRefresher) acquire(ctx context.Context, rejected uint64) (uint64, error) {
+	t.mu.RLock()
+	if t.generation != rejected && time.Now().Before(t.expiresAt) {
+		return t.generation, nil
+	}
+	t.mu.RUnlock()
 	t.mu.Lock()
-	defer t.mu.Unlock()
-	if t.key != "" && time.Now().Before(t.expiresAt) {
-		return nil
+	if t.generation == rejected || !time.Now().Before(t.expiresAt) {
+		key, err := t.Refresh(ctx)
+		if err != nil {
+			t.mu.Unlock()
+			return 0, err
+		}
+		if setter, ok := t.Inner.(APIKeySetter); ok {
+			setter.SetAPIKey(key)
+		}
+		t.generation++
+		t.expiresAt = time.Now().Add(t.Interval)
 	}
-	key, err := t.Refresh(ctx)
-	if err != nil {
-		return err
+	t.mu.Unlock()
+	t.mu.RLock()
+	return t.generation, nil
+}
+
+func withRefresh[T any](ctx context.Context, t *TokenRefresher, call func() (T, error)) (T, error) {
+	var zero T
+	var rejected uint64
+	for attempt := 0; ; attempt++ {
+		if err := ctx.Err(); err != nil {
+			return zero, err
+		}
+		generation, err := t.acquire(ctx, rejected)
+		if err != nil {
+			return zero, err
+		}
+		value, err := func() (T, error) {
+			defer t.mu.RUnlock()
+			return call()
+		}()
+		var failure *Error
+		if attempt != 0 || !errors.As(err, &failure) || failure.Status != http.StatusUnauthorized {
+			return value, err
+		}
+		rejected = generation
 	}
-	t.key = key
-	t.expiresAt = time.Now().Add(t.Interval)
-	if setter, ok := t.Inner.(APIKeySetter); ok {
-		setter.SetAPIKey(key)
-	}
-	return nil
 }
 
 func (t *TokenRefresher) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
-	if err := t.ensure(ctx); err != nil {
-		return nil, err
-	}
-	return t.Inner.Chat(ctx, req)
+	return withRefresh(ctx, t, func() (*ChatResponse, error) { return t.Inner.Chat(ctx, req) })
 }
 
 func (t *TokenRefresher) Stream(ctx context.Context, req ChatRequest) (Stream, error) {
-	if err := t.ensure(ctx); err != nil {
-		return nil, err
-	}
-	return t.Inner.Stream(ctx, req)
+	return withRefresh(ctx, t, func() (Stream, error) { return t.Inner.Stream(ctx, req) })
 }

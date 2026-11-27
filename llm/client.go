@@ -1,7 +1,11 @@
 // Package llm exposes the gateway client contract for external adapters.
 package llm
 
-import core "github.com/idristarwala/agent-factory/internal/llm"
+import (
+	"context"
+	core "github.com/idristarwala/agent-factory/internal/llm"
+	"time"
+)
 
 type (
 	Client         = core.Client
@@ -38,3 +42,9 @@ func NewOpenAIAdapter(baseURL, key string, headers map[string]string) *OpenAIAda
 func Register(name string, factory AdapterFactory) { core.Register(name, factory) }
 
 func New(name string, config map[string]string) (Client, error) { return core.New(name, config) }
+
+// NewTokenRefresher wraps a gateway with cached credential rotation.
+// The supplied client can implement SetAPIKey(string) to install a new key.
+func NewTokenRefresher(client Client, refresh func(context.Context) (string, error), interval time.Duration) Client {
+	return core.NewTokenRefresher(client, refresh, interval)
+}
