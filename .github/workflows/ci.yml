@@ -33,4 +33,5 @@ jobs:
         run: |
           mkdir -p dist
           GOOS=linux GOARCH=amd64 go build -o dist/agent-factory-linux-amd64 ./cmd/factory
-          echo "Release skeleton: binaries built. Digest pinning would follow docker build + inspect."
+          echo "Release skeleton: binaries built."
+          echo "Next: docker build + docker inspect for digest pinning (see deploy/release.sh and docs/RELEASE.md)."

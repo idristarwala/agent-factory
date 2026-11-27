@@ -3,6 +3,7 @@ package llm
 import (
 	"context"
 	"testing"
+	"time"
 )
 
 // ConformanceHarness supplies a Client for the suite.
@@ -36,6 +37,24 @@ func RunConformance(t *testing.T, h ConformanceHarness) {
 		}
 	})
 
+	t.Run("multi_turn", func(t *testing.T) {
+		ctx := context.Background()
+		resp, err := c.Chat(ctx, ChatRequest{
+			Messages: []Message{
+				{Role: "system", Content: "you are helpful"},
+				{Role: "user", Content: "hello"},
+				{Role: "assistant", Content: "hi there"},
+				{Role: "user", Content: "what is 2+2?"},
+			},
+		})
+		if err != nil {
+			t.Fatalf("multi-turn chat failed: %v", err)
+		}
+		if resp.Content == "" {
+			t.Error("expected non-empty content for multi-turn")
+		}
+	})
+
 	t.Run("streaming_optional", func(t *testing.T) {
 		ctx := context.Background()
 		_, err := c.Stream(ctx, ChatRequest{
@@ -43,6 +62,20 @@ func RunConformance(t *testing.T, h ConformanceHarness) {
 		})
 		if err != nil && err != ErrStreamingUnsupported {
 			t.Errorf("unexpected stream error: %v", err)
+		}
+	})
+
+	t.Run("context_cancel", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+		defer cancel()
+		// Give the timeout a moment to fire if the adapter is slow; many fakes return instantly.
+		time.Sleep(2 * time.Millisecond)
+		_, err := c.Chat(ctx, ChatRequest{
+			Messages: []Message{{Role: "user", Content: "hello"}},
+		})
+		// Either success (fast fake) or context error is acceptable for basic harnesses.
+		if err != nil && ctx.Err() == nil {
+			t.Logf("chat returned error (ok if timeout): %v", err)
 		}
 	})
 

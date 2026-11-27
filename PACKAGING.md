@@ -33,7 +33,9 @@ Replace the placeholder secret values before applying.
 All environments use the same contract: `SECRETS_DIR` (default `/etc/secrets`).
 See `SECRETS.md` and `AUTH.md`.
 
-## CI
+## CI and Release
 
-`.github/workflows/ci.yml` runs `go vet` and `go test -race` on every PR.
+`.github/workflows/ci.yml` runs `go vet`, `go test -race`, and `go build` on every PR.
 `go.sum` is committed so clean clones build.
+
+`deploy/release.sh` produces a sample release manifest. Full digest-pinned automation (docker build + inspect) is the remaining packaging step. See `docs/RELEASE.md`.

@@ -20,12 +20,13 @@ cat > "${MANIFEST}" << MANIFEST_EOF
 {
   "version": "${VERSION}",
   "engine_digest": "sha256:replace-after-docker-push",
+  "worker_digest": "sha256:replace-after-docker-push",
   "pack_spec_version": "1",
   "schema_version": "1",
   "binaries": [
     "dist/agent-factory-linux-amd64"
   ],
-  "notes": "Pin this digest in factory.yaml. See docs/RELEASE.md."
+  "notes": "Pin this digest in factory.yaml. See docs/RELEASE.md for the docker build + inspect steps."
 }
 MANIFEST_EOF
 
@@ -35,6 +36,6 @@ echo "To complete a digest-pinned release:"
 echo "1. docker build -t agent-factory:${VERSION} ."
 echo "2. docker push agent-factory:${VERSION}"
 echo "3. DIGEST=\$(docker inspect --format='{{index .RepoDigests 0}}' agent-factory:${VERSION})"
-echo "4. Update the manifest and commit it with the tag."
+echo "4. Update the manifest engine_digest and commit it with the tag."
 echo ""
 echo "Release skeleton complete for ${VERSION}."

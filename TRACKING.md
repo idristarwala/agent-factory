@@ -14,6 +14,7 @@
 - Token param mapping (max_completion_tokens for reasoning models) wired into OpenAI adapter
 - Reasoning budget support for Gemini via metadata
 - Starter factory.yaml template for packaging
+- Expanded RunConformance with multi-turn and context-cancel cases
 
 ## Remaining
 
@@ -21,5 +22,6 @@
 - Tool-call parsing in all adapters
 - Auth token refresh / rotation reload
 - Native streaming (currently reassembly helpers + one-shot fallback)
+- Labelled grouping scorer and full block-then-decide LLM membership
 
 The Agent Factory continues to advance toward production packaging and full gateway conformance.

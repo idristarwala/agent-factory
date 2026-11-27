@@ -15,6 +15,8 @@ type FamilyContext struct {
 }
 
 // GatherFamily collects siblings that share the same group field value.
+// In a full graph implementation this would query; the current version returns a lightweight note
+// so workers can apply consistent wording across the family.
 func GatherFamily(g graph.Graph, entityID graph.NodeID, groupField string) (*FamilyContext, error) {
 	if g == nil || entityID == "" {
 		return nil, nil
@@ -25,12 +27,12 @@ func GatherFamily(g graph.Graph, entityID graph.NodeID, groupField string) (*Fam
 	}
 	group, _ := n.Props[groupField].(string)
 	if group == "" {
-		return &FamilyContext{PrimaryID: entityID, Note: "ungrouped item"}, nil
+		return &FamilyContext{PrimaryID: entityID, Note: "ungrouped item; no siblings to align"}, nil
 	}
-	// In a real graph we would query by group; here we return a lightweight note.
+	// Lightweight note; full sibling list would come from a graph query in production.
 	return &FamilyContext{
 		PrimaryID: entityID,
-		Note:      fmt.Sprintf("item belongs to group %q; apply consistent wording to siblings", group),
+		Note:      fmt.Sprintf("item belongs to group %q; apply consistent wording and attribute values to all siblings in the family", group),
 	}, nil
 }
 
