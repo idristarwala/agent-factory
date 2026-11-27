@@ -12,10 +12,10 @@ export default function Runs({runs, source, setSource, request, refresh, setMess
   const [definition,setDefinition]=useState(''), [expected,setExpected]=useState(0)
   const [selected,setSelected] = useState('')
   const [record,setRecord] = useState('')
-  const [note,setNote] = useState('')
+  const [notes,setNotes] = useState({})
   const [busy,setBusy] = useState(false)
   const run = runs.find(item=>item.id===selected) || runs[0]
-  const selectRun = <label>Run <select value={run?.id || ''} onChange={e=>{setSelected(e.target.value);setRecord('');setNote('')}}>
+  const selectRun = <label>Run <select value={run?.id || ''} onChange={e=>{setSelected(e.target.value);setRecord('')}}>
     {runs.map(r=><option key={r.id} value={r.id}>{r.description} · {r.id.slice(0,8)}</option>)}</select></label>
   async function action(fn) { setBusy(true); try { await fn(); await refresh() } catch(e) {setMessage(e.message)} finally {setBusy(false)} }
   if(page==='Goal builder') return <form className="definitions" onSubmit={e=>{e.preventDefault();action(async()=>{
@@ -44,10 +44,16 @@ export default function Runs({runs, source, setSource, request, refresh, setMess
   if(page==='Decisions') return <section className="definitions"><h2>Decision review</h2>{selectRun}
     {!run?.decisions?.length && <p>No decisions for this run.</p>}
     {run?.decisions?.map(d=><article key={d.id}><h3>{d.entity_id} · {d.status}</h3><p>{d.reason}</p>
-      <table><thead><tr><th>Field</th><th>Before</th><th>Proposed</th></tr></thead><tbody>{Object.entries(d.after).map(([k,v])=><tr key={k}><td>{k}</td><td>{JSON.stringify(d.before?.[k]) ?? 'Unset'}</td><td>{JSON.stringify(v)}</td></tr>)}</tbody></table>
-      <details><summary>Evidence and revisions</summary><pre>{JSON.stringify(d.proposal,null,2)}</pre></details>
-      {d.status==='pending' && run.status==='in_review' && <><label>Reviewer note<input value={note} onChange={e=>setNote(e.target.value)}/></label>
-        {['approved','rejected'].map(s=><button disabled={busy} key={s} onClick={()=>action(async()=>{await request('/api/decisions',{Run:run.id,ID:d.id,Expected:run.version,Status:s,Feedback:note});setNote('')})}>{s==='approved'?'Approve':'Reject'}</button>)}</>}</article>)}</section>
+      <div className="decision-layout"><div><table><thead><tr><th>Field</th><th>Before</th><th>Proposed</th></tr></thead><tbody>{Object.entries(d.after).map(([k,v])=><tr key={k}><td>{k}</td><td>{JSON.stringify(d.before?.[k]) ?? 'Unset'}</td><td>{JSON.stringify(v)}</td></tr>)}</tbody></table></div>
+      <aside aria-label="Decision evidence"><h4>Evidence</h4>
+        <details><summary>Source record</summary><pre>{JSON.stringify(d.before,null,2)}</pre></details>
+        <ul>{d.proposal?.Evidence?.map((item,i)=><li key={i}>{item}</li>)}</ul>
+        {d.proposal?.AgentName && <p>{d.proposal.AgentName} · r{d.proposal.AgentRevision}</p>}
+        {Object.entries(d.proposal?.RuleRevisions || {}).map(([id,version])=><p key={id}>{id} · r{version}</p>)}
+        {d.feedback && <p>Reviewer feedback · {d.feedback}</p>}
+      </aside></div>
+      {d.status==='pending' && run.status==='in_review' && <><label>Reviewer note<input value={notes[d.id] || ''} onChange={e=>setNotes({...notes,[d.id]:e.target.value})}/></label>
+        {['approved','rejected'].map(s=><button disabled={busy} key={s} onClick={()=>action(async()=>{await request('/api/decisions',{Run:run.id,ID:d.id,Expected:run.version,Status:s,Feedback:notes[d.id] || ''});setNotes(previous=>({...previous,[d.id]:''}))})}>{s==='approved'?'Approve':'Reject'}</button>)}</>}</article>)}</section>
   const recent = runs.flatMap(r => (r.decisions || []).map(d => ({ decision: d, run: r })))
     .sort((a,b) => decisionTime(b) - decisionTime(a)).slice(0,5)
   function decisionTime({decision,run}) {
