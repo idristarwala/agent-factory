@@ -60,7 +60,7 @@
 ## Remaining (minor)
 
 - Durable Postgres store behind Graph / unit-of-work interfaces with shared contract tests
-- Complete factory CLI commands (up/validate/test/readiness/publish) beyond skeleton (validate now more informative)
-- Example out-of-tree gateway adapter that passes the full conformance suite
+- Complete factory CLI commands (up/validate/test/readiness/publish) beyond skeleton (validate now checks go.sum and points at the out-of-tree example)
+- Example out-of-tree gateway adapter that passes the full conformance suite (skeleton + README added under examples/out-of-tree-gateway)
 
 All high-impact correctness, config seams, POST adapters, packaging, HTTP tools, tool-call round-trips across protocols, auth refresh with key injection, refined streaming parsers, release automation, context-recipe prompt injection, and labelled grouping demo are in place.

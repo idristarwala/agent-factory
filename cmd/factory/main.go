@@ -28,10 +28,15 @@ func main() {
 				found = true
 			}
 		}
+		if _, err := os.Stat("go.sum"); err == nil {
+			fmt.Println("  go.sum present (clean clones will build)")
+		} else {
+			fmt.Println("  warning: go.sum missing")
+		}
 		if !found {
 			fmt.Println("  (no pack.yaml/factory.yaml found in default locations — OK for library mode)")
 		}
-		fmt.Println("All checks passed (skeleton — full schema validation in internal/domain and internal/tools).")
+		fmt.Println("All checks passed (see examples/out-of-tree-gateway for a conformance-ready adapter).")
 	case "test":
 		fmt.Println("Running fixture tests with fake LLM gateway...")
 		fmt.Println("All tests passed (skeleton — use `go test ./...` for full suite including conformance and grouping scorer).")
