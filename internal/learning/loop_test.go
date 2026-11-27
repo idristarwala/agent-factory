@@ -31,7 +31,10 @@ func TestCrossRoundRejectionBecomesRule(t *testing.T) {
 		t.Fatal("expected an update")
 	}
 
-	applied := ll.Apply(updates)
+	applied, err := ll.Apply(updates)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(applied) == 0 {
 		t.Fatal("expected a rule to be applied")
 	}
@@ -57,7 +60,10 @@ func TestReplayGateHolds(t *testing.T) {
 		t.Fatal("expected gaps")
 	}
 	updates := ll.ProposeUpdates(gaps)
-	applied := ll.Apply(updates)
+	applied, err := ll.Apply(updates)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(applied) == 0 {
 		t.Fatal("expected applied entry")
 	}
@@ -65,5 +71,31 @@ func TestReplayGateHolds(t *testing.T) {
 	active := re.Active()
 	if len(active) != 0 {
 		t.Fatal("ReplayGate should hold the rule")
+	}
+}
+
+func TestWorkerFailuresUseSeparateCausesAndKeepHumanRevisions(t *testing.T) {
+	re := rules.NewEngine()
+	loop := learning.NewLearningLoop(re, agents.NewRegistry())
+	failures := []string{"worker validation: invalid field x", "worker validation: invalid field y", "timeout", "json: unexpected EOF"}
+	updates := loop.ProposeUpdates(loop.Review(nil, failures))
+	applied, err := loop.Apply(updates)
+	if err != nil || len(applied) != 3 {
+		t.Fatal(applied, err)
+	}
+	original := re.Active()[0]
+	human := original
+	human.CreatedBy = "human"
+	human.Description = "operator's revised guidance"
+	if _, err = re.Save(human, 1); err != nil {
+		t.Fatal(err)
+	}
+	repeated, err := loop.Apply(updates)
+	if err != nil || len(repeated) != 0 {
+		t.Fatal(repeated, err)
+	}
+	history, err := re.List(original.ID)
+	if err != nil || len(history) != 2 || history[1].Description != human.Description {
+		t.Fatal(history, err)
 	}
 }

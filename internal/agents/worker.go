@@ -139,7 +139,7 @@ Respond ONLY with valid JSON of the allowed fields.`, uow.Description, ruleText.
 		}
 
 		return &graph.Mutation{
-			UnitOfWorkID: uow.ID, Images: uow.Images,
+			Goal: uow.Description, UnitOfWorkID: uow.ID, Images: uow.Images,
 			AgentName: w.Definition.Name, AgentRevision: w.Definition.Revision, RuleRevisions: ruleRevisions(w.Rules),
 			Updates: []graph.Node{{
 				ID:    uow.InputSubgraph,

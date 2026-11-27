@@ -53,6 +53,8 @@ Original entity (JSON):
 Proposed mutation (JSON):
 %s
 
+Assess the requested goal, the proposed field changes in Updates[].Props, and their supporting evidence.
+The mutation envelope records identifiers and provenance. Worker output-format rules apply to the proposed fields.
 Check that the proposal does not invent facts or violate rules.
 Reply with exactly one line:
 APPROVE: <reason>
