@@ -8,18 +8,20 @@ import (
 )
 
 func TestProtocolConformance(t *testing.T) {
-	for name, makeClient := range map[string]func(string) llm.Client{
-		"openai": func(url string) llm.Client { return llm.NewOpenAIAdapter(url, "test", nil) },
-		"openai-envelope": func(url string) llm.Client {
-			a := llm.NewOpenAIAdapter(url, "test", nil)
-			a.Envelope = &llm.OpenAIEnvelope{ParamsKey: "params", Template: map[string]any{"operation": "chat"}}
-			return a
-		},
-		"anthropic": func(url string) llm.Client { return llm.NewAnthropicAdapter(url, "test", nil) },
-		"gemini":    func(url string) llm.Client { return llm.NewGeminiAdapter(url, "test", nil) },
-	} {
+	for _, name := range []string{"openai", "openai-envelope", "anthropic", "gemini"} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
+			makeClient := func(url string) llm.Client {
+				cfg := map[string]string{"base_url": url, "api_key": "test", "cheap_model": "fixture"}
+				if name == "openai-envelope" {
+					cfg["envelope"] = `{"params_key":"params","template":{"operation":"chat"}}`
+				}
+				client, err := llm.New(name, cfg)
+				if err != nil {
+					t.Fatal(err)
+				}
+				return client
+			}
 			llmtest.RunConformance(t, llmtest.NewProtocolHarness(t, name, makeClient))
 		})
 	}

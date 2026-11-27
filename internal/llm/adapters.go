@@ -2,99 +2,114 @@ package llm
 
 import (
 	"context"
-
-	"github.com/idristarwala/agent-factory/internal/models"
+	"encoding/json"
+	"time"
 )
 
 func init() {
-	Register("gemini", newGeminiAdapter)
-	Register("openai", newOpenAIAdapter)
-	Register("groq", newOpenAIAdapter)
-	Register("openrouter", newOpenAIAdapter)
-}
-
-func newGeminiAdapter(cfg map[string]string) (Client, error) {
-	apiKey := cfg["api_key"]
-	if apiKey == "" {
-		return nil, &Error{Type: "AUTH", Message: "api_key required for gemini adapter", Retryable: false}
+	for _, name := range []string{"gemini", "anthropic", "openai", "groq", "openrouter", "openai-envelope"} {
+		Register(name, func(cfg map[string]string) (Client, error) { return registeredAdapter(name, cfg) })
 	}
-	cheap := cfg["cheap_model"]
-	frontier := cfg["frontier_model"]
-	gw := models.NewGemini(apiKey, cheap, frontier)
-	return &modelsAdapter{gw: gw}, nil
 }
 
-func newOpenAIAdapter(cfg map[string]string) (Client, error) {
-	baseURL := cfg["base_url"]
-	apiKey := cfg["api_key"]
-	if baseURL == "" || apiKey == "" {
-		return nil, &Error{Type: "AUTH", Message: "base_url and api_key required for openai-compat adapter", Retryable: false}
+// The registered entry point uses the same protocol implementations tested by
+// the public conformance suite, with defaults for callers requesting a tier.
+func registeredAdapter(name string, cfg map[string]string) (Client, error) {
+	key, base := cfg["api_key"], cfg["base_url"]
+	if key == "" {
+		return nil, &Error{Type: "AUTH", Message: "api_key is required"}
 	}
-	cheap := cfg["cheap_model"]
-	frontier := cfg["frontier_model"]
-	gw := models.NewOpenAICompat(baseURL, apiKey, cheap, frontier)
-	return &modelsAdapter{gw: gw}, nil
-}
-
-// modelsAdapter wraps the existing models.Gateway behind the new Client interface.
-type modelsAdapter struct {
-	gw models.Gateway
-}
-
-func (a *modelsAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
-	schema, err := compileOutputSchema(req.ResponseSchema)
-	if err != nil {
-		return nil, err
-	}
-
-	var system, user string
-	for _, m := range req.Messages {
-		if m.Role == "system" {
-			system = m.Content
-		} else if m.Role == "user" {
-			user = m.Content
+	cheap, frontier := cfg["cheap_model"], cfg["frontier_model"]
+	var client Client
+	switch name {
+	case "gemini":
+		if base == "" {
+			base = "https://generativelanguage.googleapis.com/v1beta"
 		}
+		if cheap == "" {
+			cheap = "gemini-3.5-flash-lite"
+		}
+		a := NewGeminiAdapter(base, key, nil)
+		a.Client.Timeout = 60 * time.Second
+		client = a
+	case "anthropic":
+		if base == "" {
+			base = "https://api.anthropic.com"
+		}
+		a := NewAnthropicAdapter(base, key, nil)
+		a.Client.Timeout = 60 * time.Second
+		client = a
+	default:
+		if base == "" && name == "openrouter" {
+			base = "https://openrouter.ai/api/v1"
+		}
+		if base == "" {
+			return nil, &Error{Type: "BAD_REQUEST", Message: "base_url is required"}
+		}
+		if cheap == "" {
+			cheap = "gpt-4o-mini"
+			if name == "openrouter" {
+				cheap = "openai/gpt-4o-mini"
+			}
+		}
+		a := NewOpenAIAdapter(base, key, nil)
+		a.Client.Timeout = 60 * time.Second
+		if name == "openai-envelope" {
+			var envelope OpenAIEnvelope
+			if err := json.Unmarshal([]byte(cfg["envelope"]), &envelope); err != nil {
+				return nil, &Error{Type: "BAD_REQUEST", Message: "invalid envelope JSON"}
+			}
+			if err := envelope.Validate(); err != nil {
+				return nil, &Error{Type: "BAD_REQUEST", Message: err.Error()}
+			}
+			a.Envelope = &envelope
+		}
+		client = a
 	}
-	if user == "" && system != "" {
-		user = system
-		system = ""
+	if frontier == "" {
+		frontier = cheap
 	}
+	return &tierDefaults{Client: client, cheap: cheap, frontier: frontier}, nil
+}
 
-	temp := 0.0
-	if req.Temperature != nil {
-		temp = *req.Temperature
-	}
+type tierDefaults struct {
+	Client
+	cheap, frontier string
+}
 
-	oldReq := models.Request{
-		Schema:      req.ResponseSchema,
-		Tier:        models.Tier(req.Tier),
-		System:      system,
-		User:        user,
-		Temperature: temp,
-		MaxTokens:   req.MaxTokens,
+func (d *tierDefaults) model(req ChatRequest) (ChatRequest, error) {
+	if err := enforceTier(req); err != nil {
+		return req, err
 	}
-
-	resp, err := a.gw.Generate(oldReq)
+	switch req.Tier {
+	case "", TierCheap:
+		if req.Model == "" {
+			req.Model = d.cheap
+		}
+	case TierFrontier, TierCouncil:
+		if req.Model == "" {
+			req.Model = d.frontier
+		}
+	default:
+		return req, &Error{Type: "BAD_REQUEST", Message: "unknown model tier"}
+	}
+	if req.Model == "" {
+		return req, &Error{Type: "BAD_REQUEST", Message: "supply a model or configure a tier default"}
+	}
+	return req, nil
+}
+func (d *tierDefaults) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
+	wire, err := d.model(req)
 	if err != nil {
-		return nil, &Error{Type: "TRANSPORT", Message: err.Error(), Retryable: true, Cause: err}
-	}
-
-	if err := validateOutput(schema, resp.Content); err != nil {
 		return nil, err
 	}
-	return &ChatResponse{
-		Content:      resp.Content,
-		Model:        resp.Model,
-		LogicalModel: req.Model,
-		Usage: Usage{
-			Input:  resp.Usage["prompt_tokens"],
-			Output: resp.Usage["completion_tokens"],
-			Total:  resp.Usage["total_tokens"],
-		},
-	}, nil
+	return d.Client.Chat(ctx, wire)
 }
-
-func (a *modelsAdapter) Stream(ctx context.Context, req ChatRequest) (Stream, error) {
-
-	return nil, ErrStreamingUnsupported
+func (d *tierDefaults) Stream(ctx context.Context, req ChatRequest) (Stream, error) {
+	wire, err := d.model(req)
+	if err != nil {
+		return nil, err
+	}
+	return d.Client.Stream(ctx, wire)
 }
+func (d *tierDefaults) SetAPIKey(key string) { d.Client.(APIKeySetter).SetAPIKey(key) }

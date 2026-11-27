@@ -24,14 +24,21 @@ func NewFromEnv() (*Router, error) {
 		}
 	}
 
-	key, _ := sec.Get("gemini-api-key")
+	secretName := "llm-api-key"
+	switch provider {
+	case "gemini", "openrouter", "anthropic":
+		secretName = provider + "-api-key"
+	}
+	key, _ := sec.Get(secretName)
 	if key == "" {
 		key, _ = sec.Get("llm-api-key")
 	}
 
 	cfg := map[string]string{
-		"api_key":  key,
-		"base_url": os.Getenv("LLM_BASE_URL"),
+		"api_key":        key,
+		"base_url":       os.Getenv("LLM_BASE_URL"),
+		"cheap_model":    os.Getenv("LLM_CHEAP_MODEL"),
+		"frontier_model": os.Getenv("LLM_FRONTIER_MODEL"),
 	}
 
 	c, err := New(provider, cfg)
