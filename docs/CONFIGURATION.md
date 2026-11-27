@@ -122,3 +122,9 @@ For example, `{"max_output_tokens":"1024","max_attempts":"1"}` requests a single
 The continuous CLI accepts repeated `-field FIELD` arguments before its goal. They select existing editable record properties for this invocation. A narrow literal task can only select a field within the supplied list. The runner owns `status` for continuous completion tracking. [Write scope and examples](CONTINUOUS.md#choose-editable-fields)
 
 Gateway retry settings resolve at process startup. With `LLM_GATEWAY_CONFIG`, each model route reads its YAML retry policy and defaults. Without that file, all model routes use the environment policy. [Per-route example](ENTERPRISE_GATEWAY.md#retry-policy)
+
+## Check deployment readiness
+
+Run `factory readiness` with the same environment and mounted files as the deployment. It opens the workspace store and checks any configured continuous evidence recipe, pack grants (including `propose`), API source configuration and referenced tool credential files. A failed check exits nonzero. Both a missing and an empty tool key fail the check. The CLI reports the tool name without printing credential values. Runtime calls reread the file so rotation takes effect.
+
+With tool and source configuration unset, readiness checks the store alone. To validate model credentials or upstream permissions, run a representative goal against that deployment. The readiness command makes no tool or model requests.

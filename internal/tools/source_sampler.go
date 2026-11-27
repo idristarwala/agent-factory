@@ -29,6 +29,8 @@ func LoadSourceSampler(path string) (*SourceSampler, error) {
 	}
 	return &SourceSampler{config: config}, nil
 }
+func (s *SourceSampler) CheckCredentials() error { return s.config.CheckCredentials() }
+
 func (s *SourceSampler) Sample(ctx context.Context, factory, name string, query map[string]string) (json.RawMessage, error) {
 	tool := s.config.Tools[name]
 	if tool == nil || factory == "" || !CheckGrant(s.config.Grants, factory, name, "read-only") {

@@ -14,7 +14,7 @@ validate:
   image: golang:${GO_VERSION}
   script:
     - go run ./cmd/factory validate examples/starter/factory.yaml
-    - go run ./cmd/factory readiness || true   # readiness may warn on missing secrets in CI
+    - go run ./cmd/factory readiness
 
 test:
   stage: test

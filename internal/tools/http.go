@@ -196,16 +196,27 @@ func (t *HTTPTool) Call(ctx context.Context, params map[string]string) (string, 
 	return "", lastErr
 }
 
+func (t *HTTPTool) credential() (string, error) {
+	data, err := os.ReadFile(t.KeyFile)
+	if err != nil {
+		return "", fmt.Errorf("read key file: %w", err)
+	}
+	value := strings.TrimSpace(string(data))
+	if value == "" {
+		return "", fmt.Errorf("empty tool credential")
+	}
+	return value, nil
+}
+
 func (t *HTTPTool) applyHeaders(req *http.Request) error {
 	for k, v := range t.Headers {
 		req.Header.Set(k, v)
 	}
 	if t.AuthType != "" {
-		key, err := os.ReadFile(t.KeyFile)
+		value, err := t.credential()
 		if err != nil {
-			return fmt.Errorf("read key file: %w", err)
+			return err
 		}
-		value := strings.TrimSpace(string(key))
 		switch t.AuthType {
 		case "bearer":
 			req.Header.Set("Authorization", "Bearer "+value)

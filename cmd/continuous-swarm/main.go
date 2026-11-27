@@ -190,22 +190,12 @@ func continuousJudge(gw models.Gateway, meter *factory.ContinuousUsage, g graph.
 }
 
 func configureEvidence(runner *swarm.ContinuousRunner, path, pack string) error {
-	pack = strings.TrimSpace(pack)
-	if path == "" && pack == "" {
-		return nil
-	}
-	if pack == "" || path == "" {
-		return fmt.Errorf("set both FACTORY_EVIDENCE_CONFIG and FACTORY_PACK to use continuous runner grants")
-	}
-	cfg, err := tools.LoadEvidenceConfig(path, pack)
-	if err != nil {
+	cfg, err := tools.LoadContinuousEvidence(path, pack)
+	if err != nil || cfg == nil {
 		return err
 	}
-	if !tools.CheckGrant(cfg.Grants, pack, "propose", "read-only") {
-		return fmt.Errorf("pack %q has no read-only propose grant", pack)
-	}
 	runner.SetTools(cfg.Tools, cfg.Recipe)
-	runner.SetGrants(pack, cfg.Grants)
+	runner.SetGrants(strings.TrimSpace(pack), cfg.Grants)
 	return nil
 }
 
