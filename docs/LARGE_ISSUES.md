@@ -16,9 +16,7 @@ Foundation complete in `internal/llm`:
 - Concrete out-of-tree gateway example that runs the suite against an httptest server
 - Schema / response_format support on OpenAI and Gemini adapters; worker sets Schema
 
-Remaining for full close:
-- Additional protocol-specific error and auth cases inside the shared suite (many already exist as adapter tests)
-- Optional further streaming reassembly assertions for every protocol
+Issues #1–#8 are closed. The remaining enterprise qualification requires running the native adapter against the original enterprise endpoint. [Conformance suite](CONFORMANCE.md) · [Enterprise field test #11](https://github.com/idristarwala/agent-factory/issues/11)
 
 ## #9 Packaging as Installable Product
 
@@ -32,10 +30,7 @@ Present:
 - docker-compose, Helm chart, starter template, digest-pinned release workflow
 - Multi-binary Dockerfile and optional Postgres wiring
 
-Remaining (updated 2026-11-27):
-- Live field-test re-run to confirm #10 accuracy items
-
-The core factory loop is functional and the packaging surface is usable for local and CI/CD use. Packs can now express nested rules that the starter template already uses.
+The owner deferred the first production publication. Engine development continues in this repository. The starter repository pins a reviewed engine commit and builds the role images. When publication resumes, a reviewed starter tag publishes the images and release manifest. [Release guide](RELEASE.md) · [Packaging decision in #9](https://github.com/idristarwala/agent-factory/issues/9#issuecomment-7228446031)
 
 ## Learning-loop coverage
 
@@ -43,4 +38,12 @@ Added a scripted failure-pattern test (`internal/swarm/learning_improvement_test
 
 ## Accuracy wording follow-up (2026-11-27)
 
-Worker now detects "keep original wording" style rules and appends guidance to preserve the phrasing in the source record to the system prompt. Covered by unit test. Next live re-run can measure whether original-wording-kept crosses 0.90.
+The worker gives source-wording guidance when a customer rule requests it. In the reported 288-item field test at `8ef9ea5`, 281 items were approved with the customer policies active, and proposals stayed within the task’s field scope. [Field report](https://github.com/idristarwala/agent-factory/issues/16#issuecomment-7228494029)
+
+Issue #10 still requires three measurements on the field data:
+
+- Original wording kept above 0.90 with facts stated at or above 0.85.
+- Zero worker or judge JSON parse failures on a 300-item run.
+- Higher grouping F1 than the existing groups on blind human labels, with identical output on repeated runs.
+
+[Field acceptance criteria](https://github.com/idristarwala/agent-factory/issues/10)
