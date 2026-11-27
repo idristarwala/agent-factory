@@ -146,32 +146,7 @@ func main() {
 		json.NewEncoder(w).Encode(map[string]string{"reply": resp.Content})
 	}, "POST"))
 
-	mux.HandleFunc("/api/feedback", apiRoute(func(w http.ResponseWriter, r *http.Request) {
-		var body struct {
-			Note   string `json:"note"`
-			Entity string `json:"entity_id"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		if strings.TrimSpace(body.Note) == "" {
-			http.Error(w, "note is required", 400)
-			return
-		}
-		rule, err := ruleEngine.Save(rules.VersionedRule{Description: body.Note, Condition: body.Entity, Action: "constrain future proposals", Source: "feedback", CreatedBy: "customer", Active: true}, 0)
-		if err != nil {
-			sendJSON(w, nil, err)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]any{
-			"status":  "rule_created",
-			"rule_id": rule.ID,
-			"version": rule.Version,
-			"source":  "feedback",
-		})
-	}, "POST"))
+	feedbackRoute(mux, definitions, ruleEngine)
 
 	addr := os.Getenv("FACTORY_LISTEN_ADDR")
 	if addr == "" {

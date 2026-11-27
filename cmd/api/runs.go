@@ -30,6 +30,17 @@ func startRun(ws *factory.Workspace, req factory.RunRequest) (factory.Run, error
 	}
 	return run, err
 }
+func requestedRuns(ws *factory.Workspace, id string) ([]factory.Run, error) {
+	if id == "" {
+		return ws.List()
+	}
+	run, err := ws.Get(id)
+	if err != nil {
+		return nil, err
+	}
+	return []factory.Run{run}, nil
+}
+
 func runRoutes(mux *http.ServeMux, ws *factory.Workspace, engine *rules.Engine) {
 	mux.HandleFunc("/api/goals", apiRoute(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" {
@@ -60,16 +71,14 @@ func runRoutes(mux *http.ServeMux, ws *factory.Workspace, engine *rules.Engine) 
 	}, "GET", "DELETE"))
 	mux.HandleFunc("/api/decisions", apiRoute(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" {
-			list, err := ws.List()
+			list, err := requestedRuns(ws, r.URL.Query().Get("run"))
 			if err != nil {
 				runResponse(w, nil, err)
 				return
 			}
 			out := []factory.Review{}
 			for _, run := range list {
-				if id := r.URL.Query().Get("run"); id == "" || run.ID == id {
-					out = append(out, run.Decisions...)
-				}
+				out = append(out, run.Decisions...)
 			}
 			runResponse(w, out, nil)
 			return
@@ -93,16 +102,7 @@ func runRoutes(mux *http.ServeMux, ws *factory.Workspace, engine *rules.Engine) 
 		runResponse(w, run, err)
 	}, "GET", "POST"))
 	mux.HandleFunc("/api/decisions/{id...}", apiRoute(func(w http.ResponseWriter, r *http.Request) {
-		runID := r.URL.Query().Get("run")
-		var runs []factory.Run
-		var err error
-		if runID != "" {
-			var run factory.Run
-			run, err = ws.Get(runID)
-			runs = []factory.Run{run}
-		} else {
-			runs, err = ws.List()
-		}
+		runs, err := requestedRuns(ws, r.URL.Query().Get("run"))
 		if err != nil {
 			runResponse(w, nil, err)
 			return
@@ -118,7 +118,7 @@ func runRoutes(mux *http.ServeMux, ws *factory.Workspace, engine *rules.Engine) 
 		runResponse(w, nil, factory.ErrNotFound)
 	}, "GET"))
 	mux.HandleFunc("/api/graph", apiRoute(func(w http.ResponseWriter, r *http.Request) {
-		list, err := ws.List()
+		list, err := requestedRuns(ws, r.URL.Query().Get("run"))
 		if err != nil {
 			runResponse(w, nil, err)
 			return
@@ -136,9 +136,6 @@ func runRoutes(mux *http.ServeMux, ws *factory.Workspace, engine *rules.Engine) 
 		edges := []any{}
 		total := 0
 		for _, run := range list {
-			if id := r.URL.Query().Get("run"); id != "" && run.ID != id {
-				continue
-			}
 			for _, e := range run.Records {
 				total++
 				if total <= offset || len(nodes) >= limit {
@@ -159,7 +156,7 @@ func runRoutes(mux *http.ServeMux, ws *factory.Workspace, engine *rules.Engine) 
 		runResponse(w, map[string]any{"nodes": nodes, "edges": edges, "total": total}, nil)
 	}, "GET"))
 	mux.HandleFunc("/api/usage", apiRoute(func(w http.ResponseWriter, r *http.Request) {
-		list, err := ws.List()
+		list, err := requestedRuns(ws, r.URL.Query().Get("run"))
 		if err != nil {
 			runResponse(w, nil, err)
 			return
