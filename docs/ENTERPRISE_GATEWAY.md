@@ -29,11 +29,11 @@ Example gateway.json:
 - Tool-call parsing and round-trip tests for all three protocols
 - TokenRefresher with API key injection into adapters
 - Basic SSE streaming for OpenAI, Gemini (`streamGenerateContent`), and Anthropic
+- Multi-protocol SSE text delta extraction (`extractTextDelta`) covering OpenAI deltas, Anthropic `content_block_delta`, and Gemini `candidates[].content.parts[].text`
 
 ## Remaining for full native support
 
 - Full parameter mapping (max_completion_tokens, reasoning_budget) wired end-to-end in all paths
-- Streaming event parsing refined for Gemini/Anthropic content blocks (OpenAI delta parsing is solid)
 - Usage recording into `internal/obs` on every call (RecordingClient exists)
 
 See TRACKING.md for status.
@@ -43,3 +43,4 @@ See TRACKING.md for status.
 - Anthropic and Gemini tool-call round-trip conformance tests.
 - TokenRefresher now injects the refreshed key via `SetAPIKey` on adapters.
 - Basic SSE streaming implemented for OpenAI, Gemini, and Anthropic adapters.
+- SSE parsers now handle Anthropic and Gemini event shapes in addition to OpenAI (tests added).
