@@ -67,6 +67,36 @@ data: [DONE]
 	}
 }
 
+func TestAnthropicStreamingReassembly(t *testing.T) {
+	sse := strings.NewReader(`data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"Hel"}}
+
+data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"lo"}}
+`)
+	deltas, err := DecodeSSE(sse)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := JoinDeltas(deltas)
+	if got != "Hello" {
+		t.Errorf("anthropic reassembly: got %q want Hello", got)
+	}
+}
+
+func TestGeminiStreamingReassembly(t *testing.T) {
+	sse := strings.NewReader(`data: {"candidates":[{"content":{"parts":[{"text":"Hel"}]}}]}
+
+data: {"candidates":[{"content":{"parts":[{"text":"lo"}]}}]}
+`)
+	deltas, err := DecodeSSE(sse)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := JoinDeltas(deltas)
+	if got != "Hello" {
+		t.Errorf("gemini reassembly: got %q want Hello", got)
+	}
+}
+
 func TestOpenAIAdapterAuthError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
