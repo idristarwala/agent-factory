@@ -11,6 +11,9 @@ The API and CLI read deployment configuration from their process environment. Re
 | `FACTORY_DB_PATH` | File path, user config directory plus `agent-factory/factory.sqlite` | Used whenever SQLite is selected. |
 | `FACTORY_ID` | String, unset | Workspace namespace for stored definitions and revisions. Use the same value in the API and CLI. |
 | `FACTORY_LISTEN_ADDR` | Host and port, `:8080` | API listener. Use `127.0.0.1:8080` for loopback only. |
+| `FACTORY_API_READ_TIMEOUT` | Go duration, `15s` | API server deadline for reading a request, including its body. Zero disables this deadline. |
+| `FACTORY_API_WRITE_TIMEOUT` | Go duration, `30s` | API server response write deadline. Allow time for synchronous model calls such as chat and source proposals. Zero disables this deadline. |
+| `FACTORY_API_IDLE_TIMEOUT` | Go duration, `60s` | Time to wait for the next request on a keep-alive connection. Zero inherits the read timeout. |
 | `COMPOSE_FILE` | Compose file path(s), unset | Used by Docker Compose for `factory up`. An explicit `-f FILE` takes precedence. |
 | `API_TOKEN` | Secret string, unset | Admin bearer token. Any configured role enables authentication. Tokens must be distinct. Health stays public. |
 | `FACTORY_OPERATOR_TOKEN` | Secret string, unset | Operator bearer token for running factories and reviewing work. |
