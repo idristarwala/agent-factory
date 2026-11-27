@@ -83,10 +83,9 @@ The [issue tracker](https://github.com/idristarwala/agent-factory/issues) record
 ## Conformance hardening (2026-11-27)
 
 - `RunConformance` now fails if an adapter ignores an already-cancelled context.
-- `RunConformance` concurrency subtest (20 parallel chats) added so every harness is race-checked.
+- `RunConformance` concurrency subtest (50 parallel chats) added so every harness is race-checked.
 - `factory test` now executes `go test` on llm, store, grouping and the out-of-tree example (exits non-zero on failure).
-- Added `llm.NewFakeServer` that records request bodies/headers and supports blocking handlers for cancel and error-injection tests.
-- Documented the contract and FakeServer usage in `docs/CONFORMANCE.md`.
+- The external adapter uses the shared protocol harness documented in `docs/CONFORMANCE.md`.
 - Factory CLI `test` command now points at the real conformance packages.
 
 ## Wiring pass (2026-11-27)
