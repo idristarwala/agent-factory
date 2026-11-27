@@ -10,6 +10,7 @@ import (
 	"github.com/idristarwala/agent-factory/internal/graph"
 	"github.com/idristarwala/agent-factory/internal/memory"
 	"github.com/idristarwala/agent-factory/internal/models"
+	"github.com/idristarwala/agent-factory/internal/obs"
 	"github.com/idristarwala/agent-factory/internal/revision"
 	"github.com/idristarwala/agent-factory/internal/schema"
 	"github.com/idristarwala/agent-factory/internal/settings"
@@ -33,6 +34,7 @@ type RunRequest struct {
 	MaxTokens        int             `json:"max_tokens"`
 }
 type Call struct {
+	UnitID string  `json:"unit_id,omitempty"`
 	Failed bool    `json:"failed,omitempty"`
 	Role   string  `json:"role,omitempty"`
 	Model  string  `json:"model"`
@@ -59,6 +61,7 @@ type Review struct {
 	After     map[string]any  `json:"after"`
 }
 type Run struct {
+	Audit            []obs.AuditEntry         `json:"audit,omitempty"`
 	Runner           string                   `json:"runner,omitempty"`
 	Tools            map[string]int           `json:"tool_calls_by_name,omitempty"`
 	Lineage          map[string]SourceLineage `json:"lineage,omitempty"`

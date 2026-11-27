@@ -108,7 +108,7 @@ func main() {
 	started := time.Now()
 	runErr := runner.Run(context.Background(), goal)
 	ws := factory.Workspace{Store: definitions}
-	run, err := ws.FinishContinuous(goal, started, cfg, version, meter, runErr)
+	run, err := ws.FinishContinuous(goal, started, cfg, version, meter, runner.Audit.All(), runErr)
 	if err != nil {
 		log.Fatal(err)
 	}

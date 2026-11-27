@@ -14,6 +14,7 @@ const (
 )
 
 type Request struct {
+	UnitID      string // Local audit correlation, never sent to a provider.
 	CallerRole  string
 	Tier        Tier
 	System      string
