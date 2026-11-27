@@ -12,13 +12,14 @@ import (
 
 // StubSteward is a minimal Steward. CreateWorker returns a real LLMWorker.
 type StubSteward struct {
-	store   unitofwork.Store
-	gateway models.Gateway
-	graph   graph.Graph
+	Registry *Registry
+	store    unitofwork.Store
+	gateway  models.Gateway
+	graph    graph.Graph
 }
 
 func NewStubSteward(store unitofwork.Store) *StubSteward {
-	return &StubSteward{store: store}
+	return &StubSteward{Registry: NewRegistry(), store: store}
 }
 
 func (s *StubSteward) SetDependencies(gw models.Gateway, g graph.Graph) {
@@ -46,7 +47,16 @@ func (s *StubSteward) CreateWorker(spec WorkerSpec) (Worker, error) {
 	if s.gateway == nil || s.graph == nil {
 		return nil, fmt.Errorf("steward dependencies not set; call SetDependencies")
 	}
-	return NewLLMWorker(spec.Name, spec.Role, s.gateway, s.graph, nil), nil
+	def, err := s.Registry.Resolve(AgentVersion{Name: spec.Name, Role: spec.Role, ModelTier: spec.ModelTier, Tools: spec.Tools, CreatedBy: "steward"})
+	if err != nil {
+		return nil, err
+	}
+	if def.ModelTier != "" && def.ModelTier != "cheap" {
+		return nil, fmt.Errorf("unsupported worker model tier %q", def.ModelTier)
+	}
+	worker := NewLLMWorker(def.Name, def.Role, s.gateway, s.graph, nil)
+	worker.Definition = def
+	return worker, nil
 }
 
 func (s *StubSteward) SetAutonomyMode(mode string) error {

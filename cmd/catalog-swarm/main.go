@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	factoryStore "github.com/idristarwala/agent-factory/internal/store"
+	"log"
 	"os"
 	"time"
 
@@ -31,6 +33,14 @@ func needsWork(n graph.Node) bool {
 }
 
 func main() {
+	database, err := factoryStore.NewFromEnv()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer database.Close()
+	definitions := factoryStore.FactoryDefinitions(database, "catalog-swarm")
+	registry := agents.NewStoredRegistry(definitions)
+
 	gw, err := models.NewGatewayFromEnv()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "gateway: %v\n", err)
@@ -43,16 +53,14 @@ func main() {
 	}
 
 	store := unitofwork.NewMemoryStore()
-	ruleEngine := rules.NewEngine()
+	ruleEngine := rules.NewStoredEngine(definitions)
 	mem := memory.NewStore()
-	agentReg := agents.NewRegistry()
+	agentReg := registry
 
-	agentReg.Register(agents.AgentVersion{Name: "steward", Role: "steward", Version: "0.1.0", ModelTier: "frontier"})
-	agentReg.Register(agents.AgentVersion{Name: "worker-1", Role: "worker", Version: "0.1.0", ModelTier: "cheap"})
-	agentReg.Register(agents.AgentVersion{Name: "judge", Role: "judge", Version: "0.1.0", ModelTier: "frontier"})
-
-	for _, r := range domain.CatalogPack().DefaultRules {
-		ruleEngine.Propose(rules.VersionedRule{Description: r, Source: "domain-pack", CreatedBy: "system"})
+	for i, r := range domain.CatalogPack().DefaultRules {
+		if err := ruleEngine.Install(rules.VersionedRule{ID: fmt.Sprintf("catalog/default/%d", i+1), Description: r, Active: true, Source: "domain-pack", CreatedBy: "system"}); err != nil {
+			log.Fatal(err)
+		}
 	}
 	ruleEngine.Propose(rules.VersionedRule{
 		Description: "Titles should include brand and key attributes. Descriptions should be specific.",
@@ -69,12 +77,22 @@ func main() {
 	}
 	fmt.Println()
 
-	steward := agents.NewSmartSteward(store)
-	var activeRules []agents.Rule
-	for _, vr := range ruleEngine.Active() {
-		activeRules = append(activeRules, agents.Rule{Description: vr.Description})
+	if _, err := registry.Resolve(agents.AgentVersion{Name: "steward", Role: "steward", ModelTier: "frontier", CreatedBy: "system"}); err != nil {
+		log.Fatal(err)
 	}
-	worker := agents.NewLLMWorker("worker-1", "catalog-corrector", gw, g, activeRules)
+	steward := agents.NewSmartSteward(store)
+	steward.Registry = registry
+	activeRules := ruleEngine.ToAgentsRules()
+	steward.SetRuntime(gw, g, activeRules)
+	def, err := registry.Resolve(agents.AgentVersion{Name: "worker-1", Role: "catalog-corrector", ModelTier: "cheap", CreatedBy: "steward"})
+	if err != nil {
+		log.Fatal(err)
+	}
+	worker := agents.NewLLMWorker(def.Name, def.Role, gw, g, activeRules)
+	worker.Definition = def
+	if _, err := registry.Resolve(agents.AgentVersion{Name: "judge", Role: "judge", ModelTier: "frontier", CreatedBy: "system"}); err != nil {
+		log.Fatal(err)
+	}
 	judge := agents.NewLLMJudge(gw, g)
 
 	nodes := catalog.Seed()

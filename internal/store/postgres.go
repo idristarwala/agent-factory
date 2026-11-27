@@ -3,6 +3,7 @@ package store
 import (
 	"database/sql"
 	"fmt"
+	"github.com/idristarwala/agent-factory/internal/revision"
 
 	"github.com/idristarwala/agent-factory/internal/graph"
 	"github.com/idristarwala/agent-factory/internal/unitofwork"
@@ -62,7 +63,9 @@ func (s *PostgresStore) migrate() error {
 		status TEXT,
 		proposal TEXT
 	);
-	CREATE TABLE IF NOT EXISTS rule_versions (
+	CREATE TABLE IF NOT EXISTS config_versions (id TEXT, version INTEGER, data TEXT, PRIMARY KEY(id,version));
+ CREATE TABLE IF NOT EXISTS agent_versions (id TEXT, version INTEGER, data TEXT, PRIMARY KEY(id,version));
+ CREATE TABLE IF NOT EXISTS rule_versions (
 		id TEXT,
 		version INTEGER,
 		data TEXT,
@@ -143,31 +146,11 @@ func (s *PostgresStore) AttachProposal(id string, m *graph.Mutation) error {
 	return err
 }
 
-func (s *PostgresStore) SaveRuleVersion(id string, version int, data []byte) error {
-	_, err := s.db.Exec(`
-		INSERT INTO rule_versions (id, version, data) VALUES ($1, $2, $3)
-		ON CONFLICT (id, version) DO UPDATE SET data = EXCLUDED.data
-	`, id, version, string(data))
-	return err
+func (s *PostgresStore) Definitions() revision.Store { return revision.SQL{DB: s.db} }
+func (s *PostgresStore) SaveRuleVersion(id string, v int, data []byte) error {
+	return s.Definitions().Insert(revision.Rule, revision.Snapshot{ID: id, Version: v, Data: data})
 }
-
-func (s *PostgresStore) ActiveRules() ([][]byte, error) {
-	rows, err := s.db.Query("SELECT data FROM rule_versions")
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out [][]byte
-	for rows.Next() {
-		var d string
-		if err := rows.Scan(&d); err != nil {
-			return nil, err
-		}
-		out = append(out, []byte(d))
-	}
-	return out, nil
-}
-
+func (s *PostgresStore) ActiveRules() ([][]byte, error) { return latestRuleData(s.Definitions()) }
 func (s *PostgresStore) SaveEntry(kind, content, source string, meta []byte) error {
 	_, err := s.db.Exec(
 		"INSERT INTO entries (kind, content, source, meta) VALUES ($1, $2, $3, $4)",

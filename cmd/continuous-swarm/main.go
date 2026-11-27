@@ -3,6 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/idristarwala/agent-factory/internal/settings"
+	factoryStore "github.com/idristarwala/agent-factory/internal/store"
+	"log"
 	"os"
 	"time"
 
@@ -17,16 +20,28 @@ import (
 )
 
 func main() {
+	database, err := factoryStore.NewFromEnv()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer database.Close()
+	definitions := factoryStore.FactoryDefinitions(database, "")
+	registry := agents.NewStoredRegistry(definitions)
+
 	g := graph.NewMemoryGraph()
 	g.AddNode(graph.Node{ID: "item-1", Type: "item", Props: map[string]any{"status": "needs_fix", "title": "bad title"}})
 
 	q := queue.NewMemoryQueue()
-	re := rules.NewEngine()
-	reg := agents.NewRegistry()
+	re := rules.NewStoredEngine(definitions)
+	reg := registry
 	ll := learning.NewLearningLoop(re, reg)
 
 	store := unitofwork.NewMemoryStore()
+	if _, err := registry.Resolve(agents.AgentVersion{Name: "steward", Role: "steward", ModelTier: "frontier", CreatedBy: "system"}); err != nil {
+		log.Fatal(err)
+	}
 	steward := agents.NewSmartSteward(store)
+	steward.Registry = registry
 
 	// Real or noop gateway so CreateWorker succeeds
 	var gw models.Gateway = &noopGateway{}
@@ -35,6 +50,9 @@ func main() {
 	}
 	steward.SetRuntime(gw, g, nil)
 
+	if _, err := registry.Resolve(agents.AgentVersion{Name: "judge", Role: "judge", ModelTier: "frontier", CreatedBy: "system"}); err != nil {
+		log.Fatal(err)
+	}
 	var judge agents.Judge = &demoJudge{}
 	if _, ok := gw.(*noopGateway); !ok {
 		// Prefer real LLM judge when a real gateway is available
@@ -45,11 +63,18 @@ func main() {
 
 	runner := swarm.NewContinuousRunner(steward, judge, q, g, re, ll)
 	runner.Workers = 2
-	runner.SetBudget(swarm.Budget{
-		MaxRounds:    5,
-		MaxWallClock: 10 * time.Minute,
-		MaxFailures:  20,
-	})
+	cfg, version, err := settings.Current(definitions)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if version == 0 {
+		cfg.MaxRounds = 5
+		cfg.MaxMinutes = 10
+	}
+	ll.ReplayGate = cfg.ReplayGate
+	runner.SetObserve(cfg.Observe)
+	runner.SetBudget(swarm.Budget{MaxRounds: cfg.MaxRounds, MaxWallClock: time.Duration(cfg.MaxMinutes) * time.Minute, MaxTokens: cfg.MaxTokens, MaxFailures: 20})
+	fmt.Printf("Settings revision %d\n", version)
 
 	goal := "Fix all entities until clean"
 	if len(os.Args) > 1 {

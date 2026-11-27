@@ -3,6 +3,7 @@ package store
 import (
 	"database/sql"
 	"fmt"
+	"github.com/idristarwala/agent-factory/internal/revision"
 
 	"github.com/idristarwala/agent-factory/internal/graph"
 	"github.com/idristarwala/agent-factory/internal/unitofwork"
@@ -19,6 +20,11 @@ type SQLStore struct {
 func NewSQLStore(dsn string) (*SQLStore, error) {
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
+		return nil, err
+	}
+	db.SetMaxOpenConns(1)
+	if _, err = db.Exec("PRAGMA busy_timeout=5000"); err != nil {
+		db.Close()
 		return nil, err
 	}
 	s := &SQLStore{db: db}
@@ -43,7 +49,9 @@ func (s *SQLStore) migrate() error {
 		status TEXT,
 		proposal TEXT
 	);
-	CREATE TABLE IF NOT EXISTS rule_versions (
+	CREATE TABLE IF NOT EXISTS config_versions (id TEXT, version INTEGER, data TEXT, PRIMARY KEY(id,version));
+ CREATE TABLE IF NOT EXISTS agent_versions (id TEXT, version INTEGER, data TEXT, PRIMARY KEY(id,version));
+ CREATE TABLE IF NOT EXISTS rule_versions (
 		id TEXT,
 		version INTEGER,
 		data TEXT,
@@ -120,28 +128,11 @@ func (s *SQLStore) AttachProposal(id string, m *graph.Mutation) error {
 	return err
 }
 
-func (s *SQLStore) SaveRuleVersion(id string, version int, data []byte) error {
-	_, err := s.db.Exec("INSERT OR REPLACE INTO rule_versions (id, version, data) VALUES (?, ?, ?)", id, version, string(data))
-	return err
+func (s *SQLStore) Definitions() revision.Store { return revision.SQL{DB: s.db} }
+func (s *SQLStore) SaveRuleVersion(id string, v int, data []byte) error {
+	return s.Definitions().Insert(revision.Rule, revision.Snapshot{ID: id, Version: v, Data: data})
 }
-
-func (s *SQLStore) ActiveRules() ([][]byte, error) {
-	rows, err := s.db.Query("SELECT data FROM rule_versions")
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out [][]byte
-	for rows.Next() {
-		var d string
-		if err := rows.Scan(&d); err != nil {
-			return nil, err
-		}
-		out = append(out, []byte(d))
-	}
-	return out, nil
-}
-
+func (s *SQLStore) ActiveRules() ([][]byte, error) { return latestRuleData(s.Definitions()) }
 func (s *SQLStore) SaveEntry(kind, content, source string, meta []byte) error {
 	_, err := s.db.Exec("INSERT INTO entries (kind, content, source, meta) VALUES (?, ?, ?, ?)", kind, content, source, string(meta))
 	return err

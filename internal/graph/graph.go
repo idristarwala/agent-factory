@@ -7,17 +7,17 @@ type NodeID string
 type EdgeID string
 
 type Node struct {
-	ID     NodeID
-	Type   string
-	Props  map[string]any
+	ID    NodeID
+	Type  string
+	Props map[string]any
 }
 
 type Edge struct {
-	ID     EdgeID
-	From   NodeID
-	To     NodeID
-	Type   string
-	Props  map[string]any
+	ID    EdgeID
+	From  NodeID
+	To    NodeID
+	Type  string
+	Props map[string]any
 }
 
 type Graph interface {
@@ -29,10 +29,13 @@ type Graph interface {
 }
 
 type Mutation struct {
-	UnitOfWorkID string
-	Adds         []Node
-	Updates      []Node
-	Edges        []Edge
-	Deletes      []NodeID
-	Evidence     []string
+	AgentName     string         `json:",omitempty"`
+	AgentRevision int            `json:",omitempty"`
+	RuleRevisions map[string]int `json:",omitempty"`
+	UnitOfWorkID  string
+	Adds          []Node
+	Updates       []Node
+	Edges         []Edge
+	Deletes       []NodeID
+	Evidence      []string
 }

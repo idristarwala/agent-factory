@@ -1,7 +1,9 @@
 package store
 
 import (
+	"encoding/json"
 	"github.com/idristarwala/agent-factory/internal/graph"
+	"github.com/idristarwala/agent-factory/internal/revision"
 	"github.com/idristarwala/agent-factory/internal/unitofwork"
 )
 
@@ -19,6 +21,8 @@ type Store interface {
 	GetUnit(id string) (*unitofwork.UnitOfWork, error)
 	UpdateUnitStatus(id string, status unitofwork.Status) error
 	AttachProposal(id string, m *graph.Mutation) error
+
+	Definitions() revision.Store
 
 	// Rules (versioned)
 	SaveRuleVersion(id string, version int, data []byte) error
@@ -38,3 +42,29 @@ const (
 	ModeMemory Mode = "memory"
 	ModeSQL    Mode = "sql"
 )
+
+func latestRuleData(s revision.Store) ([][]byte, error) {
+	rows, err := s.Read(revision.Rule, "")
+	if err != nil {
+		return nil, err
+	}
+	var out [][]byte
+	var last string
+	for _, row := range rows {
+		var snapshot struct {
+			ID      string
+			Version int
+			Active  bool
+		}
+		if json.Unmarshal(row.Data, &snapshot) == nil && snapshot.Version == row.Version && snapshot.ID == row.ID && !snapshot.Active {
+			continue
+		}
+		if len(out) > 0 && row.ID == last {
+			out[len(out)-1] = row.Data
+		} else {
+			out = append(out, row.Data)
+			last = row.ID
+		}
+	}
+	return out, nil
+}

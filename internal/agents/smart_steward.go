@@ -14,15 +14,16 @@ import (
 // SmartSteward uses domain packs to turn a goal into units of work
 // and can create workers when given a gateway and graph.
 type SmartSteward struct {
-	store   unitofwork.Store
-	packs   []domain.Pack
-	Gateway models.Gateway
-	Graph   graph.Graph
-	Rules   []Rule
+	Registry *Registry
+	store    unitofwork.Store
+	packs    []domain.Pack
+	Gateway  models.Gateway
+	Graph    graph.Graph
+	Rules    []Rule
 }
 
 func NewSmartSteward(store unitofwork.Store) *SmartSteward {
-	return &SmartSteward{
+	return &SmartSteward{Registry: NewRegistry(),
 		store: store,
 		packs: domain.All(),
 	}
@@ -121,7 +122,16 @@ func (s *SmartSteward) CreateWorker(spec WorkerSpec) (Worker, error) {
 	if s.Gateway == nil || s.Graph == nil {
 		return nil, fmt.Errorf("CreateWorker requires SetRuntime(gateway, graph, rules) first")
 	}
-	return NewLLMWorker(spec.Name, spec.Role, s.Gateway, s.Graph, s.Rules), nil
+	def, err := s.Registry.Resolve(AgentVersion{Name: spec.Name, Role: spec.Role, ModelTier: spec.ModelTier, Tools: spec.Tools, CreatedBy: "steward"})
+	if err != nil {
+		return nil, err
+	}
+	if def.ModelTier != "" && def.ModelTier != "cheap" {
+		return nil, fmt.Errorf("unsupported worker model tier %q", def.ModelTier)
+	}
+	worker := NewLLMWorker(def.Name, def.Role, s.Gateway, s.Graph, s.Rules)
+	worker.Definition = def
+	return worker, nil
 }
 
 func (s *SmartSteward) SetAutonomyMode(mode string) error {

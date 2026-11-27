@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react'
 import './App.css'
+import Settings from './Settings'
+import Definitions from './Definitions'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8080'
 
 export default function App() {
+  const [page, setPage] = useState("Workspace")
   const [goals, setGoals] = useState([])
   const [usage, setUsage] = useState({ tokens_used: 0, tool_calls: 0, estimated_usd: 0 })
   const [newGoal, setNewGoal] = useState('')
@@ -61,10 +64,12 @@ export default function App() {
       </header>
       <div className="layout">
         <main>
+          <nav aria-label="Factory navigation">{["Workspace","Rules","Agents","Settings"].map(name => <button aria-pressed={page===name} key={name} onClick={()=>setPage(name)}>{name}</button>)}</nav>
+          {page === "Settings" ? <Settings api={API} /> : page !== "Workspace" ? <Definitions api={API} kind={page.toLowerCase()} key={page} /> : <>
           <section className="card">
             <h2>Start a goal</h2>
             <div className="actions">
-              <input className="note" placeholder="Fix product titles and product types" value={newGoal} onChange={e => setNewGoal(e.target.value)} />
+              <input className="note" placeholder="Describe the outcome you want" value={newGoal} onChange={e => setNewGoal(e.target.value)} />
               <button className="ok" onClick={createGoal}>Start</button>
             </div>
           </section>
@@ -79,6 +84,7 @@ export default function App() {
               </article>
             ))}
           </section>
+        </>}
         </main>
         {chatOpen && (
           <aside className="chat">

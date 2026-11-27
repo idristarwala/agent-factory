@@ -37,3 +37,14 @@ button { border: 0; border-radius: 8px; padding: 8px 14px; font-size: 13px; curs
   .layout { grid-template-columns: 1fr; }
   .chat { height: 50vh; position: relative; }
 }
+main nav { display: flex; gap: 6px; margin-bottom: 20px; }
+button[aria-pressed=true] { background: var(--accent); color: var(--bg); }
+.definitions { padding: 20px; background: var(--card); border-radius: 12px; }
+.definition-layout { display: grid; grid-template-columns: minmax(150px, 1fr) 2fr; gap: 24px; }
+.definition-layout > div:first-child button { display: block; text-align: left; margin: 8px 0; width: 100%; }
+.definitions label { display: block; margin: 12px 0; font-size: 14px; }
+.definitions input:not([type=checkbox]) { display: block; width: 100%; padding: 8px; margin: 4px 0; color: inherit; background: var(--card); border: 1px solid #888; border-radius: 6px; }
+.definitions article { border-top: 1px solid #9996; padding: 12px 0; font-size: 14px; }
+.definitions pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+@media(max-width:650px) { .definition-layout { grid-template-columns: 1fr; } }
+@media(prefers-color-scheme:dark) { :root { color-scheme:dark; --bg:#15171c; --card:#202329; --text:#f5f5f6; --muted:#b9bdc8; --accent:#bdb4ff; } .msg.bot,.badge,.no { background:#333641; } .msg.user,.fab {color:#161622;} }
