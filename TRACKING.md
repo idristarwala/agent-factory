@@ -36,6 +36,7 @@
 - Observe mode, release pipeline, digest notes
 - Digest-pinned release CI workflow (.github/workflows/release.yml)
 - go.sum committed
+- Fuller factory CLI: validate loads packs via pack.Load, checks go.sum and out-of-tree example; readiness checks SECRETS_DIR and DATABASE_URL; test points at contract / conformance packages
 
 ### LLM foundation (#1–#8)
 - Client types, adapter registry, typed errors
@@ -47,6 +48,7 @@
 - Token refresh support (`TokenRefresher` decorator with key injection, exercised in tests)
 - Basic native SSE streaming for OpenAI-compatible, Gemini, and Anthropic endpoints
 - Multi-protocol SSE text delta extraction used by all stream implementations
+- Concrete out-of-tree gateway example that runs `llm.RunConformance` against an httptest server (`examples/out-of-tree-gateway/adapter_test.go`)
 
 ### HTTP tools (#12)
 - HTTPTool with path templating, auth, retries, cache, real key loading
@@ -57,10 +59,13 @@
 - Image URL fetcher and multimodal body builders
 - Context recipe fully wired: evidence gathered, attached to mutation, and injected into worker prompt
 
+### Persistence
+- MemoryStore and SQLite SQLStore
+- Durable PostgresStore (`store.NewPostgresStore` / `NewPostgresStoreFromDB`) with $n placeholders, ON CONFLICT upserts, and shared contract tests against Memory + SQLite
+
 ## Remaining (minor)
 
-- Durable Postgres store behind Graph / unit-of-work interfaces with shared contract tests
-- Complete factory CLI commands (up/validate/test/readiness/publish) beyond skeleton (validate now checks go.sum and points at the out-of-tree example)
-- Example out-of-tree gateway adapter that passes the full conformance suite (skeleton + README added under examples/out-of-tree-gateway)
+- Optional: wire PostgresStore into the API/cmd entrypoints when DATABASE_URL is set (currently available as a library constructor)
+- Optional: full YAML pack loader (JSON works today)
 
-All high-impact correctness, config seams, POST adapters, packaging, HTTP tools, tool-call round-trips across protocols, auth refresh with key injection, refined streaming parsers, release automation, context-recipe prompt injection, and labelled grouping demo are in place.
+All high-impact correctness, config seams, POST adapters, packaging, HTTP tools, tool-call round-trips across protocols, auth refresh with key injection, refined streaming parsers, release automation, context-recipe prompt injection, labelled grouping demo, durable Postgres store, fuller CLI, and concrete out-of-tree conformance test are in place.

@@ -7,5 +7,6 @@ These items are tracked for completeness but do not block the core factory:
 - MCP streamable HTTP has an interface and stub; full JSON-RPC session handling is incremental.
 - YAML (vs JSON) tool loader can be added with a YAML library if needed.
 - Native streaming for Anthropic and Gemini follows the OpenAI SSE pattern.
+- PostgresStore is available as a library constructor (`store.NewPostgresStore`); wiring it into cmd/api when DATABASE_URL is set is a small follow-up.
 
-The high-impact correctness, evidence path, retries/cache, and config loading are complete.
+The high-impact correctness, evidence path, retries/cache, config loading, durable store, fuller CLI, and out-of-tree conformance test are complete.
