@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -12,6 +13,19 @@ import (
 	"github.com/idristarwala/agent-factory/internal/models"
 	"github.com/idristarwala/agent-factory/internal/rules"
 	"github.com/idristarwala/agent-factory/internal/store"
+)
+
+type Goal struct {
+	ID          string    `json:"id"`
+	Description string    `json:"description"`
+	Status      string    `json:"status"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+var (
+	goalsMu sync.Mutex
+	goals   = map[string]*Goal{}
+	goalSeq int
 )
 
 func main() {
@@ -42,6 +56,49 @@ func main() {
 			"store":  storeKind,
 		})
 	})
+
+	mux.HandleFunc("/api/goals", auth(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", os.Getenv("CORS_ORIGIN"))
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		if r.Method == http.MethodPost {
+			var body struct {
+				Description string `json:"description"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			goalsMu.Lock()
+			goalSeq++
+			id := fmt.Sprintf("goal-%d", goalSeq)
+			g := &Goal{ID: id, Description: body.Description, Status: "created", CreatedAt: time.Now()}
+			goals[id] = g
+			goalsMu.Unlock()
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(g)
+			return
+		}
+		// GET
+		goalsMu.Lock()
+		list := make([]*Goal, 0, len(goals))
+		for _, g := range goals {
+			list = append(list, g)
+		}
+		goalsMu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(list)
+	}))
+
+	mux.HandleFunc("/api/rules", auth(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", os.Getenv("CORS_ORIGIN"))
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(ruleEngine.Active())
+	}))
 
 	mux.HandleFunc("/api/chat", auth(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", os.Getenv("CORS_ORIGIN"))
