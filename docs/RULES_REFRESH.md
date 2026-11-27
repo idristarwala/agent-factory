@@ -17,3 +17,5 @@ Replay calls count toward continuous usage. The runner checks remaining tokens a
 The continuous runner counts each recurring worker failure or judge rejection pattern across rounds. Once the pattern reaches the workspace's `specialist_after` threshold, the steward registers a versioned worker with the generic worker's current configuration and tool list. Configure the threshold under Settings or through the settings API.
 
 On the next round, a record that encountered that pattern can use the specialist if the associated rule is active. The worker receives the current rule revision as its focus. Unaffected records use the generic worker. A pending rule cannot trigger dispatch. Retiring the specialist restores generic routing. Later steward observations preserve existing human edits. The proposed mutation records the actual agent name, agent revision and active rule revisions.
+
+When reviewing a proposal, read `Updates[].Props` as a partial update. Omitted fields retain their values. A separate `complete_on_apply` marker tells the runtime to mark the record fixed when it applies an approved mutation. The audit preserves the worker's proposed fields.
