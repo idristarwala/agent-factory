@@ -1,9 +1,12 @@
 package grouping
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/idristarwala/agent-factory/internal/llm"
@@ -22,85 +25,101 @@ type MembershipDecision struct {
 // then asks the LLM to decide membership within each neighbourhood.
 // Falls back to SimpleDetector if the client is nil or the call fails.
 func BlockThenDecide(ctx context.Context, client llm.Client, entities []schema.Entity, groupField string) []Proposal {
-	if client == nil {
-		return (&SimpleDetector{}).Detect(entities, groupField)
-	}
+	proposals, _ := decideBuckets(ctx, client, entities, groupField, true)
+	return proposals
+}
 
-	// Build neighbourhoods by signature (same as SimpleDetector)
+// DecideMembership evaluates model decisions without substituting offline predictions on errors.
+func DecideMembership(ctx context.Context, client llm.Client, entities []schema.Entity, groupField string) ([]Proposal, error) {
+	if client == nil {
+		return nil, fmt.Errorf("live membership requires a gateway")
+	}
+	return decideBuckets(ctx, client, entities, groupField, false)
+}
+
+func decideBuckets(ctx context.Context, client llm.Client, entities []schema.Entity, groupField string, fallback bool) ([]Proposal, error) {
+	if client == nil {
+		return (&SimpleDetector{}).Detect(entities, groupField), nil
+	}
 	buckets := map[string][]schema.Entity{}
 	for _, e := range entities {
-		sig := signature(e)
-		buckets[sig] = append(buckets[sig], e)
+		key := signature(e)
+		buckets[key] = append(buckets[key], e)
 	}
-
 	var all []Proposal
-	for _, bucket := range buckets {
+	for _, key := range slices.Sorted(maps.Keys(buckets)) {
+		bucket := buckets[key]
 		if len(bucket) < 2 {
 			continue
 		}
-		// Ask the model which items belong together
-		decisions, err := askMembership(ctx, client, bucket)
-		if err != nil || len(decisions) == 0 {
-			// Fallback to signature majority
-			all = append(all, (&SimpleDetector{}).Detect(bucket, groupField)...)
-			continue
-		}
-		// Convert decisions into proposals (items that the model says should move)
-		for _, d := range decisions {
-			if !d.Same {
-				continue
+		slices.SortFunc(bucket, func(a, b schema.Entity) int { return cmp.Compare(a.ID, b.ID) })
+		proposals, err := askMembership(ctx, client, bucket, groupField)
+		if err != nil {
+			if !fallback {
+				return nil, fmt.Errorf("membership for bucket starting at %q: %w", bucket[0].ID, err)
 			}
-			for _, e := range bucket {
-				if e.ID == d.EntityID {
-					cur, _ := e.Attributes[groupField].(string)
-					if cur == "" {
-						cur = "__ungrouped__"
-					}
-					if cur != d.GroupID && d.GroupID != "" {
-						all = append(all, Proposal{
-							EntityID:   e.ID,
-							FromGroup:  cur,
-							ToGroup:    d.GroupID,
-							Reason:     d.Reason,
-							Confidence: 0.8,
-						})
-					}
-					break
-				}
-			}
+			proposals = (&SimpleDetector{}).Detect(bucket, groupField)
 		}
+		all = append(all, proposals...)
 	}
-	return all
+	slices.SortFunc(all, func(a, b Proposal) int { return cmp.Compare(a.EntityID, b.EntityID) })
+	return all, nil
 }
 
-func askMembership(ctx context.Context, client llm.Client, bucket []schema.Entity) ([]MembershipDecision, error) {
-	var lines []string
-	for _, e := range bucket {
-		brand, _ := e.Attributes["brand"].(string)
-		title, _ := e.Attributes["title"].(string)
-		lines = append(lines, fmt.Sprintf("- id=%s brand=%q title=%q", e.ID, brand, title))
-	}
-	prompt := fmt.Sprintf(`Given these candidate items that share a coarse signature, decide which belong to the same product variant group.
-Reply with a JSON array of objects: [{"entity_id":"...","group_id":"shared-id-or-new","same_product":true,"reason":"..."}]
-Items:
-%s`, strings.Join(lines, "\n"))
-
-	resp, err := client.Chat(ctx, llm.ChatRequest{
-		Model:    "cheap",
-		Messages: []llm.Message{{Role: "user", Content: prompt}},
-		MaxTokens: 800,
-	})
+func askMembership(ctx context.Context, client llm.Client, bucket []schema.Entity, groupField string) ([]Proposal, error) {
+	data, err := json.Marshal(bucket)
 	if err != nil {
 		return nil, err
 	}
-	var decisions []MembershipDecision
-	if err := json.Unmarshal([]byte(resp.Content), &decisions); err != nil {
-		// Try to extract a JSON array from the reply
-		start := strings.Index(resp.Content, "[")
-		end := strings.LastIndex(resp.Content, "]")
-		if start >= 0 && end > start {
-			_ = json.Unmarshal([]byte(resp.Content[start:end+1]), &decisions)
+	prompt := fmt.Sprintf("Decide membership within these candidate records using their source attributes. Current groups are in %q. Return one decision per ID. Reuse an existing group ID when it fits; use a distinct ID for a new group. For a record with no suitable assignment set same_product to false. JSON records:\n%s", groupField, data)
+	fields := map[string]any{"entity_id": map[string]any{"type": "string"}, "group_id": map[string]any{"type": "string"}, "same_product": map[string]any{"type": "boolean"}, "reason": map[string]any{"type": "string"}}
+	item := map[string]any{"type": "object", "properties": fields, "required": []string{"entity_id", "group_id", "same_product", "reason"}, "additionalProperties": false}
+	contract := map[string]any{"type": "object", "properties": map[string]any{"decisions": map[string]any{"type": "array", "items": item}}, "required": []string{"decisions"}, "additionalProperties": false}
+	zero := 0.0
+	resp, err := client.Chat(ctx, llm.ChatRequest{Model: "cheap", CallerRole: llm.RoleWorker, Messages: []llm.Message{{Role: "user", Content: prompt}}, Temperature: &zero, MaxTokens: 800, ResponseSchema: contract})
+	if err != nil {
+		return nil, err
+	}
+	if resp == nil {
+		return nil, fmt.Errorf("gateway returned no response")
+	}
+	var result struct {
+		Decisions []struct {
+			EntityID string  `json:"entity_id"`
+			GroupID  *string `json:"group_id"`
+			Same     *bool   `json:"same_product"`
+			Reason   *string `json:"reason"`
+		} `json:"decisions"`
+	}
+	if err := json.Unmarshal([]byte(resp.Content), &result); err != nil {
+		return nil, fmt.Errorf("invalid membership JSON: %w", err)
+	}
+	current := make(map[string]string, len(bucket))
+	for _, e := range bucket {
+		current[e.ID], _ = e.Attributes[groupField].(string)
+	}
+	var proposals []Proposal
+	for _, d := range result.Decisions {
+		old, ok := current[d.EntityID]
+		if !ok || d.Same == nil || d.GroupID == nil || d.Reason == nil {
+			return nil, fmt.Errorf("unknown, duplicate or incomplete decision for %q", d.EntityID)
+		}
+		delete(current, d.EntityID)
+		if !*d.Same {
+			continue
+		}
+		if strings.TrimSpace(*d.GroupID) == "" || *d.GroupID == "__ungrouped__" {
+			return nil, fmt.Errorf("missing assigned group for %q", d.EntityID)
+		}
+		if old == "" {
+			old = "__ungrouped__"
+		}
+		if old != *d.GroupID {
+			proposals = append(proposals, Proposal{EntityID: d.EntityID, FromGroup: old, ToGroup: *d.GroupID, Reason: *d.Reason, Confidence: 0.8})
 		}
 	}
-	return decisions, nil
+	if len(current) > 0 {
+		return nil, fmt.Errorf("missing decisions for %d records", len(current))
+	}
+	return proposals, nil
 }
