@@ -1,7 +1,9 @@
 package agents
 
 import (
+	"errors"
 	"fmt"
+	"github.com/idristarwala/agent-factory/internal/models"
 	"strings"
 
 	"github.com/idristarwala/agent-factory/internal/graph"
@@ -40,6 +42,9 @@ func (q *QuorumJudge) Evaluate(proposal *graph.Mutation, rules []Rule) (Decision
 
 	for i, j := range q.Judges {
 		dec, err := j.Evaluate(proposal, rules)
+		if errors.Is(err, models.ErrTokenBudget) {
+			return Decision{}, err
+		}
 		if err != nil {
 			reasons = append(reasons, fmt.Sprintf("judge-%d error: %v", i, err))
 			continue

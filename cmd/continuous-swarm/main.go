@@ -97,6 +97,7 @@ func main() {
 	if err := cfg.Validate(); err != nil {
 		log.Fatal(err)
 	}
+	meter.MaxTokens = cfg.MaxTokens
 	var judge agents.Judge = &demoJudge{}
 	if realGateway {
 		judge, err = continuousJudge(gw, meter, g, judgeDefinition, cfg, os.Getenv("FACTORY_JUDGE_ROUTES"))

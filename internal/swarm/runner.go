@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/idristarwala/agent-factory/internal/models"
 	"github.com/idristarwala/agent-factory/internal/obs"
 	"sync"
 	"time"
@@ -225,6 +226,11 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 						continue
 					}
 					mutation, err := worker.Execute(uow)
+					if errors.Is(err, models.ErrTokenBudget) {
+						audit("runner", "budget_exhausted", err.Error())
+						workerErrors[workerID] = errors.Join(err, r.Queue.Fail(ctx, uow.ID, err.Error()))
+						return
+					}
 					if err == nil && mutation == nil {
 						err = errors.New("worker returned an empty proposal")
 					}
@@ -250,6 +256,11 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 					}
 					r.Audit.Append(obs.AuditEntry{Actor: "worker", Action: "proposed", Reason: "submitted for judge review", TraceID: uow.ID, EntityID: string(uow.InputSubgraph), Proposal: snapshot})
 					decision, err := r.Judge.Evaluate(mutation, active)
+					if errors.Is(err, models.ErrTokenBudget) {
+						audit("runner", "budget_exhausted", err.Error())
+						workerErrors[workerID] = errors.Join(err, r.Queue.Fail(ctx, uow.ID, err.Error()))
+						return
+					}
 					if err != nil {
 						audit("judge", "failed", "judge evaluation failed")
 						r.Queue.Fail(ctx, uow.ID, err.Error())

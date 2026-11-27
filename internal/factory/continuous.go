@@ -31,20 +31,46 @@ func modelCall(req models.Request, resp *models.Response, err error, prices map[
 
 // ContinuousUsage records one invocation of the continuous runner, including concurrent workers.
 type ContinuousUsage struct {
-	Gateway models.Gateway
-	Prices  map[string]Price
-	mu      sync.Mutex
-	tokens  int
-	calls   []Call
-	tools   map[string]int
+	MaxTokens int // Total reported token allowance. Zero means unlimited.
+	reserved  int
+	available *sync.Cond
+	Gateway   models.Gateway
+	Prices    map[string]Price
+	mu        sync.Mutex
+	tokens    int
+	calls     []Call
+	tools     map[string]int
 }
 
 func (u *ContinuousUsage) Generate(req models.Request) (*models.Response, error) {
+	if u.MaxTokens > 0 {
+		u.mu.Lock()
+		if u.available == nil {
+			u.available = sync.NewCond(&u.mu)
+		}
+		for u.tokens < u.MaxTokens && u.MaxTokens-u.tokens <= u.reserved {
+			u.available.Wait()
+		}
+		if u.tokens >= u.MaxTokens {
+			u.mu.Unlock()
+			return nil, models.ErrTokenBudget
+		}
+		headroom := u.MaxTokens - u.tokens - u.reserved
+		if req.MaxTokens <= 0 || req.MaxTokens > headroom {
+			req.MaxTokens = headroom
+		}
+		u.reserved += req.MaxTokens
+		u.mu.Unlock()
+	}
 	resp, err := u.Gateway.Generate(req)
 	c := modelCall(req, resp, err, u.Prices)
 	u.mu.Lock()
 	u.tokens += c.Total
 	u.calls = append(u.calls, c)
+	if u.available != nil {
+		u.reserved -= req.MaxTokens
+		u.available.Broadcast()
+	}
 	u.mu.Unlock()
 	return resp, err
 }
