@@ -2,11 +2,13 @@ package agents
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/idristarwala/agent-factory/internal/graph"
+	"github.com/idristarwala/agent-factory/internal/llm"
 	"github.com/idristarwala/agent-factory/internal/models"
 	"github.com/idristarwala/agent-factory/internal/unitofwork"
 )
@@ -112,6 +114,11 @@ Respond ONLY with valid JSON of the allowed fields.`, uow.Description, ruleText.
 			Schema:      schema,
 		})
 		if err != nil {
+			// Configured protocol clients already apply their transport retry policy.
+			var failure *llm.Error
+			if errors.As(err, &failure) && failure.Type != "BAD_RESPONSE" {
+				return nil, err
+			}
 			lastErr = err
 			time.Sleep(time.Second)
 			continue

@@ -79,3 +79,9 @@ models:
       params_key: params
       template: {operation: chat, model: "{model}", version: "2025-01-01"}
 ```
+
+### Retry and usage reporting
+
+Configured routes emit a structured `gateway call` log record for each attempt, including the requested or served model, elapsed milliseconds, status, error type, and input, output and total tokens. Streaming usage is recorded when the stream ends or closes. Prompts, response text and credentials are excluded.
+
+An HTTP 429 or 5xx can trigger up to two retries with 250 ms and 500 ms backoff. A longer `Retry-After` takes precedence. Delays over five seconds return the typed provider error to the caller immediately. Cancellation interrupts the wait. Once streaming begins, an error ends that stream.
