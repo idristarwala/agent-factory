@@ -136,3 +136,16 @@ The [issue tracker](https://github.com/idristarwala/agent-factory/issues) record
 - When triggered, the worker now injects a strong "IMPORTANT" note into the user prompt in addition to the strengthened system prompt.
 - Updated TestPreserveOriginalWordingRuleStrengthensPrompt to assert the new user-prompt note.
 - Further advances the original-wording-kept criterion for the #10 field re-run without requiring a live gateway.
+
+## Two-word grouping stems (2026-11-27)
+
+- SimpleDetector `nameStem` now keeps the first two significant non-stop words (e.g. "super widget" instead of only "super"). This produces tighter, more accurate neighbourhoods for the block-then-decide path and reduces false merges on single common words.
+- Added `TestTwoWordStem` and updated the signature assertion. Determinism and ungrouped placement tests continue to pass.
+- Advances the grouping F1 criterion on the #10 labelled set without a live model.
+
+## Even stronger wording-preservation (2026-11-27)
+
+- Detection now also matches "do not change the wording".
+- System prompt insists on exact phrasing, sentence structure and vocabulary; user prompt says "Keep every existing phrase exactly as written".
+- Updated `TestPreserveOriginalWordingRuleStrengthensPrompt` to assert the new language.
+- Further advances the original-wording-kept > 0.90 gap reported in the field re-run.
