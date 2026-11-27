@@ -21,6 +21,17 @@ type RuleSpec struct {
 	Active bool   `json:"active" yaml:"active"`
 }
 
+// UnmarshalJSON applies the file schema default while retaining explicit false.
+func (r *RuleSpec) UnmarshalJSON(data []byte) error {
+	type wireRule RuleSpec
+	decoded := wireRule{Active: true}
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return err
+	}
+	*r = RuleSpec(decoded)
+	return nil
+}
+
 // Pack is the file-based domain pack format for issue #9.
 // Replaces hard-coded Go packs over time.
 type Pack struct {
