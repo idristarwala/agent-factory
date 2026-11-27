@@ -47,12 +47,10 @@ func main() {
 	mem := memory.NewStore()
 	agentReg := agents.NewRegistry()
 
-	// Register agents with versions
 	agentReg.Register(agents.AgentVersion{Name: "steward", Role: "steward", Version: "0.1.0", ModelTier: "frontier"})
 	agentReg.Register(agents.AgentVersion{Name: "worker-1", Role: "worker", Version: "0.1.0", ModelTier: "cheap"})
 	agentReg.Register(agents.AgentVersion{Name: "judge", Role: "judge", Version: "0.1.0", ModelTier: "frontier"})
 
-	// Load domain-pack rules as versioned
 	for _, r := range domain.CatalogPack().DefaultRules {
 		ruleEngine.Propose(rules.VersionedRule{Description: r, Source: "domain-pack", CreatedBy: "system"})
 	}
@@ -72,8 +70,8 @@ func main() {
 	fmt.Println()
 
 	steward := agents.NewSmartSteward(store)
-	worker := agents.NewLLMWorker("worker-1", "catalog-corrector", gw, g)
-	judge := agents.NewLLMJudge(gw)
+	worker := agents.NewLLMWorker("worker-1", "catalog-corrector", gw, g, ruleEngine.ToAgentsRules())
+	judge := agents.NewLLMJudge(gw, g)
 
 	nodes := catalog.Seed()
 	corrected := 0
