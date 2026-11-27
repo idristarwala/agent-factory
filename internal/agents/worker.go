@@ -34,6 +34,31 @@ func (w *LLMWorker) SetRefresher(fn RuleRefresher) { w.Refresh = fn }
 
 func (w *LLMWorker) Claim(uow *unitofwork.UnitOfWork) error { return nil }
 
+// allowedFieldsFromGoal derives the schema fields from the unit description / goal.
+// A title task only allows title/description. A broader task allows more.
+func allowedFieldsFromGoal(desc string) (allowed []string, required []string) {
+	lower := strings.ToLower(desc)
+	allowed = []string{"title", "description"}
+	required = []string{"title"}
+
+	if strings.Contains(lower, "brand") {
+		allowed = append(allowed, "brand")
+	}
+	if strings.Contains(lower, "product type") || strings.Contains(lower, "product_type") || strings.Contains(lower, "pt") {
+		allowed = append(allowed, "product_type")
+	}
+	if strings.Contains(lower, "color") {
+		allowed = append(allowed, "color")
+	}
+	if strings.Contains(lower, "size") {
+		allowed = append(allowed, "size")
+	}
+	if strings.Contains(lower, "attribute") {
+		allowed = append(allowed, "brand", "product_type", "color", "size")
+	}
+	return
+}
+
 func (w *LLMWorker) Execute(uow *unitofwork.UnitOfWork) (*graph.Mutation, error) {
 	if w.Refresh != nil {
 		w.Rules = w.Refresh()
@@ -94,8 +119,7 @@ Propose improvements as a JSON object of attribute key-value pairs.
 Respect the rules. Use the gathered evidence. Do not invent facts.
 Respond ONLY with valid JSON of the allowed fields.`, uow.Description, ruleText.String(), context, originalTitle, originalDesc, familyNote, evidenceNote)
 
-	allowed := []string{"title", "description", "brand", "product_type", "color", "size"}
-	required := []string{"title"}
+	allowed, required := allowedFieldsFromGoal(uow.Description)
 	schema := BuildResponseSchema(allowed, required)
 
 	var lastErr error
