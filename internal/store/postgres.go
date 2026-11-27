@@ -50,7 +50,19 @@ func NewPostgresStoreFromDB(db *sql.DB) (*PostgresStore, error) {
 }
 
 func (s *PostgresStore) migrate() error {
-	return migrateSchema(s.db, "SERIAL PRIMARY KEY")
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	// Serialize concurrent replica startup, including initialization of an empty schema.
+	if _, err = tx.Exec("SELECT pg_advisory_xact_lock(17012024, 1)"); err != nil {
+		return err
+	}
+	if err = migrateSchema(tx, "SERIAL PRIMARY KEY"); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (s *PostgresStore) GetNode(id graph.NodeID) (*graph.Node, error) { return readNode(s.db, id) }

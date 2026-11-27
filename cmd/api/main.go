@@ -46,7 +46,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	st, err := store.NewFromEnv()
+	st, storeKind, err := store.OpenFromEnv()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "store: %v\n", err)
 		os.Exit(1)
@@ -73,7 +73,6 @@ func main() {
 	chatArtifactRoute(mux, definitions)
 	goalApprovalRoute(mux, definitions)
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		storeKind := storeKindLabel()
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{
 			"status": "ok",
@@ -98,7 +97,7 @@ func main() {
 	if addr == "" {
 		addr = ":8080"
 	}
-	fmt.Println("API listening on", addr, "(store:", storeKindLabel(), ")")
+	fmt.Println("API listening on", addr, "(store:", storeKind, ")")
 	srv := &http.Server{
 		Addr:         addr,
 		Handler:      mux,
@@ -212,14 +211,4 @@ func roleRoute(writeRole apiRole, next http.HandlerFunc, methods ...string) http
 		}
 		next(w, r)
 	}
-}
-
-func storeKindLabel() string {
-	if os.Getenv("FACTORY_STORE_MODE") == "memory" {
-		return "memory"
-	}
-	if os.Getenv("DATABASE_URL") != "" {
-		return "postgres"
-	}
-	return "sqlite"
 }

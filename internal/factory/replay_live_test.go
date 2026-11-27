@@ -4,6 +4,10 @@ package factory
 
 import (
 	"fmt"
+	"github.com/google/uuid"
+	"github.com/idristarwala/agent-factory/internal/store"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/idristarwala/agent-factory/internal/agents"
@@ -20,7 +24,20 @@ func TestLiveReviewedReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	st := revision.NewMemory()
+	t.Setenv("FACTORY_DB_PATH", filepath.Join(t.TempDir(), "replay.sqlite"))
+	t.Setenv("FACTORY_ID", "live-replay-"+uuid.NewString())
+	if os.Getenv("TEST_POSTGRES_DSN") != "" {
+		t.Setenv("FACTORY_STORE_MODE", "postgres")
+		t.Setenv("DATABASE_URL", os.Getenv("TEST_POSTGRES_DSN"))
+	} else {
+		t.Setenv("FACTORY_STORE_MODE", "sqlite")
+	}
+	db, err := store.NewFromEnv()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	st := store.FactoryDefinitions(db, "")
 	_, err = revision.SaveDocument(st, "factory/desk", 0, "human", []byte(`{"record_type":"ticket","fields":{"team":"string"}}`))
 	if err != nil {
 		t.Fatal(err)
@@ -45,6 +62,15 @@ func TestLiveReviewedReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	reopened, err := store.NewFromEnv()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reopened.Close()
+	ws.Store = store.FactoryDefinitions(reopened, "")
 	usage := &ContinuousUsage{Gateway: gw}
 	ws.Gateway = usage
 	replay, err := ws.ReviewedReplay(fmt.Sprintf("%s@%d", run.ID, run.Version), graph.NewMemoryGraph(), nil)

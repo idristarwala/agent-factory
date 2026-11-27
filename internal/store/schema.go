@@ -5,7 +5,9 @@ import (
 	"fmt"
 )
 
-func migrateSchema(db *sql.DB, entryIDType string) error {
+func migrateSchema(db interface {
+	Exec(string, ...any) (sql.Result, error)
+}, entryIDType string) error {
 	_, err := db.Exec(fmt.Sprintf(`
 	CREATE TABLE IF NOT EXISTS nodes (
 		id TEXT PRIMARY KEY,
