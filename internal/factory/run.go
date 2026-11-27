@@ -91,6 +91,9 @@ func Prepare(st revision.Store, name string, number int) (Plan, error) {
 	return plan, err
 }
 func (p Plan) Evaluate(gw models.Gateway, goal string, e schema.Entity) (*graph.Mutation, agents.Decision, error) {
+	return p.evaluate(gw, goal, e, nil)
+}
+func (p Plan) evaluate(gw models.Gateway, goal string, e schema.Entity, origin *SourceLineage) (*graph.Mutation, agents.Decision, error) {
 	if e.ID == "" || e.Type != p.Spec.RecordType {
 		return nil, agents.Decision{}, fmt.Errorf("record %q must have type %q", e.ID, p.Spec.RecordType)
 	}
@@ -108,6 +111,13 @@ func (p Plan) Evaluate(gw models.Gateway, goal string, e schema.Entity) (*graph.
 	}
 	sort.Strings(fields)
 	var evidence []string
+	if origin != nil {
+		data, err := json.Marshal(origin)
+		if err != nil {
+			return nil, agents.Decision{}, err
+		}
+		evidence = append(evidence, "Source lineage: "+string(data))
+	}
 	for _, file := range p.Memory {
 		evidence = append(evidence, fmt.Sprintf("Factory memory %q revision %d (%s): %s", file.Path, file.Version, file.Author, file.Content))
 	}

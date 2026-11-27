@@ -29,12 +29,13 @@ type ImportSpec struct {
 	AllowPartial bool   `json:"allow_partial,omitempty"`
 }
 type ImportPage struct {
-	Number   int             `json:"page"`
-	Spec     ImportSpec      `json:"spec"`
-	Next     string          `json:"next,omitempty"`
-	Complete bool            `json:"complete"`
-	Records  []schema.Entity `json:"records"`
-	Problems []ImportProblem `json:"problems,omitempty"`
+	Lineage  map[string]SourceLineage `json:"lineage,omitempty"`
+	Number   int                      `json:"page"`
+	Spec     ImportSpec               `json:"spec"`
+	Next     string                   `json:"next,omitempty"`
+	Complete bool                     `json:"complete"`
+	Records  []schema.Entity          `json:"records"`
+	Problems []ImportProblem          `json:"problems,omitempty"`
 }
 
 func importKey(factory, id string) string {
@@ -127,7 +128,7 @@ func (w *Workspace) AdvanceImport(ctx context.Context, source PageSource, factor
 		if next != "" && cursors[next] {
 			return committed, fmt.Errorf("source repeated a pagination cursor")
 		}
-		page := ImportPage{Number: expected + 1, Spec: spec, Next: next, Complete: next == "", Records: []schema.Entity{}}
+		page := ImportPage{Lineage: map[string]SourceLineage{}, Number: expected + 1, Spec: spec, Next: next, Complete: next == "", Records: []schema.Entity{}}
 		data, ok, err := mapping.SourceValue(payload, approved.Collection)
 		if err != nil || !ok {
 			return committed, fmt.Errorf("source collection is missing")
@@ -150,6 +151,7 @@ func (w *Workspace) AdvanceImport(ctx context.Context, source PageSource, factor
 					continue
 				}
 				page.Records = append(page.Records, *row.Record)
+				page.Lineage[row.Record.ID] = SourceLineage{SourceRef: spec.SourceRef, RecordLocation: *row.Location, Feed: spec.Feed, Import: &ImportPageRef{ID: id, Page: page.Number}}
 				ids[row.Record.ID] = true
 			}
 		}

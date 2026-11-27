@@ -3,6 +3,7 @@ import {parseSample} from './sourceInput'
 
 export default function SourceMapping({factory, goal, approved, onApprove, request, setMessage}) {
   const [sample,setSample] = useState(approved?.sample || '')
+  const [receipt,setReceipt] = useState(approved?.receipt)
   const [mapping,setMapping] = useState(approved?.mapping || factory)
   const [feed,setFeed] = useState('')
   const [spec,setSpec] = useState({document:'',path:'',method:'GET',status:'200'})
@@ -51,7 +52,7 @@ export default function SourceMapping({factory, goal, approved, onApprove, reque
     const saved = await request(base + 'mappings/' + id, {
       sample: parseSample(sample), expected, proposal_revision: result.proposal.version
     })
-    onApprove({mapping, revision:saved.version, sample})
+    onApprove({mapping, revision:saved.version, sample, receipt})
     setMessage('Approved mapping revision ' + saved.version)
   }
 
@@ -61,9 +62,9 @@ export default function SourceMapping({factory, goal, approved, onApprove, reque
       <label>Source name<input value={feed} onChange={e=>setFeed(e.target.value)}/></label>
       <button type="button" disabled={!factory || !feed} onClick={()=>perform(async()=>{
         const response = await request(base+encodeURIComponent(factory)+'/'+encodeURIComponent(feed)+'/sample',{include_sample:true},undefined,true)
-        reset();setSample(JSON.stringify(response.sample,null,2))
+        reset();setReceipt(response.sample_receipt);setSample(JSON.stringify(response.sample,null,2))
       })}>Fetch sample</button></details>
-    <label>Source API response<textarea rows={6} value={sample} onChange={e=>{reset();setSample(e.target.value)}}/></label>
+    <label>Source API response<textarea rows={6} value={sample} onChange={e=>{reset();setReceipt(undefined);setSample(e.target.value)}}/></label>
     <details><summary>Compare with an OpenAPI response</summary>
       <label>OpenAPI document (JSON or YAML)<textarea rows={5} value={spec.document} onChange={e=>updateSpec('document',e.target.value)}/></label>
       <label>Operation path<input value={spec.path} onChange={e=>updateSpec('path',e.target.value)} placeholder="/records"/></label>

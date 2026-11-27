@@ -16,6 +16,7 @@ type SourceRef struct {
 }
 
 type SourceInput struct {
+	Receipt string `json:"sample_receipt,omitempty"`
 	SourceRef
 	AllowPartial bool            `json:"allow_partial,omitempty"`
 	Payload      json.RawMessage `json:"payload"`
@@ -26,50 +27,71 @@ type ImportProblem struct {
 	Reason string `json:"reason"`
 }
 
-func (w *Workspace) mappedRecords(input SourceInput) ([]schema.Entity, []ImportProblem, error) {
+type SourceLineage struct {
+	Receipt string `json:"sample_receipt,omitempty"`
+	SourceRef
+	mapping.RecordLocation
+	Feed   string         `json:"feed,omitempty"`
+	Import *ImportPageRef `json:"import,omitempty"`
+}
+
+type mappedBatch struct {
+	records  []schema.Entity
+	problems []ImportProblem
+	lineage  map[string]SourceLineage
+}
+
+func (w *Workspace) mappedRecords(factory string, input SourceInput) (mappedBatch, error) {
 	if input.Mapping == "" || input.Revision < 1 {
-		return nil, nil, fmt.Errorf("supply a mapping id and explicit positive revision")
+		return mappedBatch{}, fmt.Errorf("supply a mapping id and explicit positive revision")
 	}
 	docs, err := revision.Documents(w.Store, "source-mapping/"+input.Mapping)
 	if err != nil {
-		return nil, nil, err
+		return mappedBatch{}, err
 	}
 	if input.Revision > len(docs) {
-		return nil, nil, fmt.Errorf("source mapping revision not found")
+		return mappedBatch{}, fmt.Errorf("source mapping revision not found")
 	}
 	var m mapping.ApprovedMapping
 	if err := json.Unmarshal(docs[input.Revision-1].Data, &m); err != nil {
-		return nil, nil, err
+		return mappedBatch{}, err
 	}
 	if len(input.Payload) > 1<<20 || !json.Valid(input.Payload) {
-		return nil, nil, fmt.Errorf("supply a JSON payload up to 1 MiB")
+		return mappedBatch{}, fmt.Errorf("supply a JSON payload up to 1 MiB")
 	}
 	var payload any
 	dec := json.NewDecoder(bytes.NewReader(input.Payload))
 	dec.UseNumber()
 	if err := dec.Decode(&payload); err != nil {
-		return nil, nil, err
+		return mappedBatch{}, err
+	}
+	feed := ""
+	if input.Receipt != "" {
+		feed, err = w.verifiedFeed(factory, input.Receipt, payload)
+		if err != nil {
+			return mappedBatch{}, err
+		}
 	}
 	rows, err := m.ImportRows(payload)
 	if err != nil {
-		return nil, nil, err
+		return mappedBatch{}, err
 	}
-	var records []schema.Entity
-	var problems []ImportProblem
+	batch := mappedBatch{lineage: map[string]SourceLineage{}}
 	for _, row := range rows {
 		if row.Problem != "" {
 			if !input.AllowPartial {
-				return nil, nil, fmt.Errorf("source row %d: %s", row.Index, row.Problem)
+				return mappedBatch{}, fmt.Errorf("source row %d: %s", row.Index, row.Problem)
 			}
-			problems = append(problems, ImportProblem{Index: row.Index, Reason: row.Problem})
+			batch.problems = append(batch.problems, ImportProblem{Index: row.Index, Reason: row.Problem})
 			continue
 		}
-		records = append(records, *row.Record)
+		batch.records = append(batch.records, *row.Record)
+		batch.lineage[row.Record.ID] = SourceLineage{Feed: feed, Receipt: input.Receipt, SourceRef: input.SourceRef, RecordLocation: *row.Location}
 	}
-	if len(records) == 0 {
-		return nil, nil, fmt.Errorf("no importable records: source row %d: %s", problems[0].Index, problems[0].Reason)
+	if len(batch.records) == 0 {
+		return mappedBatch{}, fmt.Errorf("no importable records: source row %d: %s", batch.problems[0].Index, batch.problems[0].Reason)
 	}
-	return records, problems, nil
+	return batch, nil
 }
 
 // Preserve the legacy numeric representation for existing runs, and the source

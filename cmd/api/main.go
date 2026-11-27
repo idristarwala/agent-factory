@@ -58,7 +58,7 @@ func main() {
 			log.Fatal("could not load FACTORY_SOURCE_CONFIG")
 		}
 	}
-	remoteSourceRoutes(mux, sampler)
+	remoteSourceRoutes(mux, sampler, definitions)
 	sourceMappingRoutes(mux, definitions)
 	sourceProposalRoutes(mux, definitions, gw)
 	mux.HandleFunc("/api/sources/profile", apiRoute(profileSource, http.MethodPost))

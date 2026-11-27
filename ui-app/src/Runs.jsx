@@ -44,7 +44,13 @@ export default function Runs({runs, source, setSource, request, refresh, setMess
       <div className="decision-layout"><div><table><thead><tr><th>Field</th><th>Before</th><th>Proposed</th></tr></thead><tbody>{Object.entries(d.after).map(([k,v])=><tr key={k}><td>{k}</td><td>{JSON.stringify(d.before?.[k]) ?? 'Unset'}</td><td>{JSON.stringify(v)}</td></tr>)}</tbody></table></div>
       <aside aria-label="Decision evidence"><h4>Evidence</h4>
         <details><summary>Source record</summary><pre>{JSON.stringify(d.before,null,2)}</pre></details>
-        <ul>{d.proposal?.Evidence?.map((item,i)=><li key={i}>{item}</li>)}</ul>
+        {d.lineage && <details><summary>Source lineage</summary>
+          <p>Mapping {d.lineage.mapping} · revision {d.lineage.revision}</p>
+          <p>{d.lineage.feed ? 'Feed '+d.lineage.feed : 'Submitted payload'}{d.lineage.import && ' · import '+d.lineage.import.id+' · page '+d.lineage.import.page}</p>
+          <p>Record path <code>{d.lineage.pointer || '(root)'}</code></p>
+          <p>Source SHA-256 <code>{d.lineage.sha256}</code></p>
+        </details>}
+        <ul>{d.proposal?.Evidence?.filter(item=>!d.lineage || !item.startsWith('Source lineage: ')).map((item,i)=><li key={i}>{item}</li>)}</ul>
         {d.proposal?.AgentName && <p>{d.proposal.AgentName} · r{d.proposal.AgentRevision}</p>}
         {Object.entries(d.proposal?.RuleRevisions || {}).map(([id,version])=><p key={id}>{id} · r{version}</p>)}
         {d.feedback && <p>Reviewer feedback · {d.feedback}</p>}
