@@ -62,7 +62,7 @@ function Workspace({fetchAPI,disconnect}){
     if(!r.ok)throw new Error((await r.text()).trim() || 'Request failed')
     return lossless ? parseSample(await r.text()) : await r.json()
   },[fetchAPI])
-  const refresh=useCallback(async()=>{const [r,u]=await Promise.all([request('/api/goals'),request('/api/usage')]);setRuns(r);setUsage(u)},[request])
+  const refresh=useCallback(async()=>{const [r,u]=await Promise.all([request('/api/goals?view=review'),request('/api/usage')]);setRuns(r);setUsage(u)},[request])
   useEffect(()=>{refresh().catch(e=>setMessage(e.message));const id=setInterval(()=>refresh().catch(e=>setMessage(e.message)),5000);return ()=>clearInterval(id)},[refresh])
   async function send(e){e.preventDefault();if(!input.trim()||sending||uploading)return;setSending(true)
     try{const text=input.trim();const body={message:text,artifacts:files.map(file=>file.ref)}

@@ -52,7 +52,7 @@ export default function Runs({runs, source, setSource, request, refresh, setMess
           <h4>External change proposal</h4>
           <p>{d.proposal.tool_proposal.name} · r{d.proposal.tool_proposal.tool_revision} · {d.proposal.tool_proposal.side_effect}</p>
           <p>Pack {d.proposal.tool_proposal.pack} · r{d.proposal.tool_proposal.pack_revision}</p>
-          <pre>{JSON.stringify(d.proposal.tool_proposal.arguments,null,2)}</pre>
+          <pre>{d.argument_text ?? JSON.stringify(d.proposal.tool_proposal.arguments,null,2)}</pre>
           <p>Approval records your decision. External delivery is a separate operation.</p>
         </section>}
         <details><summary>Source record</summary><pre>{JSON.stringify(d.before,null,2)}</pre></details>

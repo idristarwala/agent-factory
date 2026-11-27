@@ -53,3 +53,5 @@ Upload a file to `POST /api/chat/artifacts` with `name` and base64-encoded `data
 ### Pack release review
 
 `GET /api/releases/{id}` reads ordered immutable history. `POST /api/releases/{id}/review` records an admin decision against the exact proposed revision. `GET /api/releases/{id}/active` resolves the approved snapshot for deployment. [Request and retry examples](RELEASE.md#review-a-workspace-pack)
+
+For browser decision review, `GET /api/goals?view=review` adds `argument_text` to each decision with a proposal tool call. This string contains formatted JSON from the stored arguments and preserves numeric precision for display. The structured arguments remain available under `proposal.tool_proposal.arguments`.

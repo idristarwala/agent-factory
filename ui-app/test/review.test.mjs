@@ -18,6 +18,10 @@ test('decision review displays typed values and actions only for pending changes
     assert.match(render(), /Rendered page capture/)
     decision.feedback = 'Use the source priority'
     decision.proposal = { Evidence: ['Source register'], AgentName: 'triage', AgentRevision: 2 }
+    decision.proposal.tool_proposal = { name: 'update', arguments: JSON.parse('{"account":9007199254740993}') }
+    decision.argument_text = '{"account":9007199254740993}'
+    assert.match(render(), /9007199254740993/)
+    assert.doesNotMatch(render(), /9007199254740992/)
     assert.match(render(), /Source register/)
     assert.match(render(), /triage · r2/)
     assert.match(render(), /Use the source priority/)
