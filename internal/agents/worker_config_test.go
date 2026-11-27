@@ -64,13 +64,13 @@ func TestPreserveOriginalWordingRuleStrengthensPrompt(t *testing.T) {
 		t.Fatal("no gateway call")
 	}
 	req := gw.calls[0]
-	if !strings.Contains(req.System, "phrasing in the source record") || strings.Contains(req.System, "seller") {
+	if !strings.Contains(req.System, "exact phrasing") || strings.Contains(req.System, "seller") {
 		t.Errorf("expected strengthened system prompt, got: %s", req.System)
 	}
 	if !strings.Contains(req.User, "Keep original wording") {
 		t.Error("rule text missing from user prompt")
 	}
-	if !strings.Contains(req.User, "IMPORTANT: A customer rule requires preserving original wording") {
+	if !strings.Contains(req.User, "IMPORTANT: A customer rule requires preserving original wording") || !strings.Contains(req.User, "Keep every existing phrase exactly as written") {
 		t.Error("strong preservation note missing from user prompt")
 	}
 }
