@@ -55,11 +55,25 @@ func TestSignatureIncludesTypeAndStem(t *testing.T) {
 		Attributes: map[string]any{
 			"brand":        "Acme",
 			"product_type": "Tool",
-			"title":        "The Super Widget",
+			"title":        "The Super Widget Pro",
 		},
 	}
 	sig := signature(e)
-	if sig != "acme|tool|super" {
+	if sig != "acme|tool|super widget" {
 		t.Errorf("unexpected signature %q", sig)
+	}
+}
+
+func TestTwoWordStem(t *testing.T) {
+	e := schema.Entity{
+		ID: "y",
+		Attributes: map[string]any{
+			"brand": "BrandX",
+			"title": "Amazing Super Widget Extra",
+		},
+	}
+	sig := signature(e)
+	if !strings.Contains(sig, "amazing super") {
+		t.Errorf("expected two-word stem in %q", sig)
 	}
 }
