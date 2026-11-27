@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/idristarwala/agent-factory/internal/configuredgateway"
 	"github.com/idristarwala/agent-factory/internal/models"
 )
 
 func main() {
-	gw, err := models.NewGatewayFromEnv()
+	gw, err := configuredgateway.NewFromEnv()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "config error: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Set LLM_PROVIDER=gemini|openai|groq|openrouter and the matching keys\n")

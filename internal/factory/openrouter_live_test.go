@@ -3,7 +3,9 @@
 package factory
 
 import (
+	"github.com/idristarwala/agent-factory/internal/configuredgateway"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -44,5 +46,42 @@ func TestLiveOpenRouterMixedJudges(t *testing.T) {
 				t.Logf("%s: %s (%d tokens)", role, call.Model, call.Total)
 			}
 		})
+	}
+}
+
+func TestLiveOpenRouterConfiguredJudge(t *testing.T) {
+	dir := t.TempDir()
+	for filename, env := range map[string]string{"google": "GEMINI_API_KEY", "router": "OPENROUTER_API_KEY"} {
+		key := os.Getenv(env)
+		if key == "" {
+			t.Fatalf("set %s", env)
+		}
+		if err := os.WriteFile(filepath.Join(dir, filename), []byte(key), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	path := filepath.Join(dir, "routing.yaml")
+	const config = `gateways:
+  google:
+    base_url: https://generativelanguage.googleapis.com/v1beta
+    auth: {type: google_api_key, key_file: google}
+  router:
+    base_url: https://openrouter.ai/api/v1
+    auth: {type: bearer, key_file: router}
+models:
+  cheap: {gateway: google, protocol: gemini, model: gemini-3.5-flash-lite}
+  judge: {gateway: router, protocol: openai, model: openai/gpt-4o}
+`
+	if err := os.WriteFile(path, []byte(config), 0600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("LLM_GATEWAY_CONFIG", path)
+	gateway, err := configuredgateway.NewFromEnv()
+	if err != nil {
+		t.Fatal(err)
+	}
+	run := testLiveFactoryRun(t, gateway)
+	if run.Calls[0].Role != "worker" || run.Calls[0].Model != "gemini-3.5-flash-lite" || run.Calls[1].Role != "judge" || run.Calls[1].Model != "openai/gpt-4o" {
+		t.Fatalf("incorrect model routing %+v", run.Calls)
 	}
 }

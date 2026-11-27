@@ -15,6 +15,7 @@ import (
 	_ "github.com/lib/pq"
 
 	"github.com/idristarwala/agent-factory/internal/agents"
+	"github.com/idristarwala/agent-factory/internal/configuredgateway"
 	"github.com/idristarwala/agent-factory/internal/models"
 	"github.com/idristarwala/agent-factory/internal/rules"
 	"github.com/idristarwala/agent-factory/internal/store"
@@ -32,7 +33,7 @@ var (
 )
 
 func main() {
-	gw, err := models.NewGatewayFromEnv()
+	gw, err := configuredgateway.NewFromEnv()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "gateway: %v\n", err)
 		os.Exit(1)

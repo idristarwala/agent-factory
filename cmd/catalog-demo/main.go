@@ -7,8 +7,8 @@ import (
 	"os"
 
 	"github.com/idristarwala/agent-factory/internal/agents"
+	"github.com/idristarwala/agent-factory/internal/configuredgateway"
 	"github.com/idristarwala/agent-factory/internal/graph"
-	"github.com/idristarwala/agent-factory/internal/models"
 	"github.com/idristarwala/agent-factory/internal/rules"
 	"github.com/idristarwala/agent-factory/internal/unitofwork"
 )
@@ -22,7 +22,7 @@ func main() {
 	definitions := factoryStore.FactoryDefinitions(database, "catalog-demo")
 	registry := agents.NewStoredRegistry(definitions)
 
-	gw, err := models.NewGatewayFromEnv()
+	gw, err := configuredgateway.NewFromEnv()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "gateway: %v\n", err)
 		os.Exit(1)

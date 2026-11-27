@@ -6,6 +6,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/lib/pq v1.12.3
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
+	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.63.0
 )
 
