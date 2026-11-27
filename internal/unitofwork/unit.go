@@ -20,11 +20,13 @@ type UnitOfWork struct {
 	InputSubgraph   graph.NodeID
 	ExpectedOutput  string
 	Budget          map[string]any
-	Mode            string // "deterministic" or "non_deterministic"
+	Mode            string
 	Status          Status
 	ClaimedBy       string
 	Proposal        *graph.Mutation
-	Evidence        []string // context recipe results injected by the runner
+	Evidence        []string
+	AllowedFields   []string // fields the worker may change; schema is built from these
+	RequiredFields  []string
 }
 
 type Store interface {
