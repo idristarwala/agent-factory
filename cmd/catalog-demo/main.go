@@ -22,7 +22,6 @@ func main() {
 	store := unitofwork.NewMemoryStore()
 	ruleEngine := rules.NewEngine()
 
-	// Seed a product
 	g.AddNode(graph.Node{
 		ID:   "sku-1001",
 		Type: "product",
@@ -32,17 +31,20 @@ func main() {
 		},
 	})
 
-	// Seed one human rule
-	ruleEngine.Add(agents.Rule{
+	ruleEngine.Propose(rules.VersionedRule{
 		Description: "Titles must be descriptive and include color and product type",
 		Source:      "human",
+		CreatedBy:   "operator",
 	})
 
 	steward := agents.NewStubSteward(store)
-	worker := agents.NewLLMWorker("worker-1", "catalog-enricher", gw, g)
-	judge := agents.NewLLMJudge(gw)
+	var activeRules []agents.Rule
+	for _, vr := range ruleEngine.Active() {
+		activeRules = append(activeRules, agents.Rule{Description: vr.Description})
+	}
+	worker := agents.NewLLMWorker("worker-1", "catalog-enricher", gw, g, activeRules)
+	judge := agents.NewLLMJudge(gw, g)
 
-	// 1. Steward creates unit of work
 	uows, err := steward.InterpretGoal("Enrich title and description for sku-1001", nil)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "steward: %v\n", err)
@@ -52,7 +54,6 @@ func main() {
 	uow.InputSubgraph = "sku-1001"
 	fmt.Printf("Created unit of work: %s\n", uow.ID)
 
-	// 2. Worker executes (calls real model)
 	proposal, err := worker.Execute(uow)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "worker: %v\n", err)
@@ -60,8 +61,7 @@ func main() {
 	}
 	fmt.Printf("Worker proposal: %+v\n", proposal.Updates[0].Props)
 
-	// 3. Judge evaluates against rules
-	decision, err := judge.Evaluate(proposal, ruleEngine.All())
+	decision, err := judge.Evaluate(proposal, ruleEngine.ToAgentsRules())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "judge: %v\n", err)
 		os.Exit(1)
@@ -77,8 +77,7 @@ func main() {
 		fmt.Printf("Graph updated: title=%v description=%v\n", n.Props["title"], n.Props["description"])
 	}
 
-	// 4. Human feedback becomes a rule
-	fb := ruleEngine.FromFeedback("Always mention material if known", "catalog titles")
+	fb := ruleEngine.FromFeedback("Always mention material if known", "catalog titles", "operator")
 	fmt.Printf("Feedback turned into rule: %s\n", fb.Description)
 	fmt.Printf("Current rules:\n%s", ruleEngine.Summary())
 }
