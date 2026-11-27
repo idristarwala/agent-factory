@@ -16,6 +16,8 @@ Run `go run ./cmd/api`. The default address is `:8080`. Send JSON request bodies
 | GET /api/graph?run={id}&offset=0&limit=100 | Page through source records, links to decisions and typed outgoing edges. Returns `nodes`, `edges` and total record count. |
 | GET /api/usage?run={id} | Read token totals, estimated USD, model calls, unpriced calls and tool calls. Named tool counts are returned in `tool_calls_by_name`. Completed and failed continuous CLI runs appear here when they share the API’s durable workspace. Omit the run filter for workspace totals including chat tokens. |
 
+A run filter on decisions, graph or usage returns HTTP 404 for an unknown run. For progress, compare the decision count with the source record count in the goal response. A decision ID contains a slash. Keep the full ID when constructing its lookup URL.
+
 ## Versioned definitions
 
 Edits append a revision. Send the last observed revision in `Expected`, or zero to create a definition. A stale edit returns HTTP 409. Fetch history before retrying a stale edit.
@@ -35,4 +37,4 @@ Edits append a revision. Send the last observed revision in `Expected`, or zero 
 
 `POST /api/chat` accepts `message`. “Create a factory to …” returns a new factory ID and definition. “Start a run to …” also accepts a `source` object with the same factory, records and budget fields as goal creation. “What is the status of the latest run?” reads the workspace. Status for a particular run can be requested with `Status <run ID>`.
 
-`POST /api/feedback` accepts a `note` and optional `entity_id` for standalone feedback. Use the decision endpoint when feedback belongs to a particular review.
+`POST /api/feedback` accepts a `note` and optional `entity_id` for standalone feedback. The response includes the new rule ID, revision and activation state. With the workspace replay gate enabled, feedback creates a proposal for review. With the gate disabled, the rule becomes active immediately. Use the decision endpoint when feedback belongs to a particular review.
