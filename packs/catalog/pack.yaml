@@ -1,0 +1,11 @@
+name: catalog
+description: "Product titles, descriptions, attributes, variants"
+node_types: ["product", "variant", "attribute"]
+worker_roles: ["title-enricher", "description-enricher", "attribute-filler"]
+rules:
+  - id: catalog/default/1
+    text: "Titles must be descriptive and include key attributes"
+  - id: catalog/default/2
+    text: "Descriptions must be factual and customer-friendly"
+  - id: catalog/default/3
+    text: "Do not invent attributes that are not supported by evidence"

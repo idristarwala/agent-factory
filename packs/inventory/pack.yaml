@@ -1,0 +1,9 @@
+name: inventory
+description: "Stock levels, replenishment, allocation"
+node_types: ["sku", "location", "stock"]
+worker_roles: ["replenishment-planner", "allocation-optimizer"]
+rules:
+  - id: inventory/default/1
+    text: "Do not allocate more than available stock"
+  - id: inventory/default/2
+    text: "Flag SKUs below safety stock"

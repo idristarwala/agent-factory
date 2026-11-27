@@ -1,0 +1,9 @@
+name: merchandising
+description: "Assortment, placement, visual merchandising"
+node_types: ["assortment", "placement", "display"]
+worker_roles: ["assortment-planner", "placement-optimizer"]
+rules:
+  - id: merchandising/default/1
+    text: "Keep core assortment in every store"
+  - id: merchandising/default/2
+    text: "Flag seasonal items outside their window"
