@@ -56,3 +56,7 @@ main nav { flex-wrap:wrap; }
 .decision-layout aside { border-inline-start:2px solid var(--muted); padding-inline-start:1rem; overflow-wrap:anywhere; }
 .decision-layout h4 { margin:0 0 .5rem; }
 @media(max-width:700px) { .decision-layout { grid-template-columns:1fr; } }
+.record-neighborhood { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1rem; align-items:center; padding:1rem 0; }
+.record-neighborhood > div { padding:.75rem; border:1px solid var(--muted); border-radius:8px; overflow-wrap:anywhere; }
+.record-neighborhood > div:nth-child(2) { border:2px solid var(--accent); text-align:center; }
+@media(max-width:650px) { .record-neighborhood { grid-template-columns:1fr; } }

@@ -1,3 +1,4 @@
+import RecordGraph from './RecordGraph'
 import { useEffect, useState } from 'react'
 
 export default function Runs({runs, source, setSource, request, refresh, setMessage, page}) {
@@ -11,11 +12,10 @@ export default function Runs({runs, source, setSource, request, refresh, setMess
   const [goal,setGoal] = useState('')
   const [definition,setDefinition]=useState(''), [expected,setExpected]=useState(0)
   const [selected,setSelected] = useState('')
-  const [record,setRecord] = useState('')
   const [notes,setNotes] = useState({})
   const [busy,setBusy] = useState(false)
   const run = runs.find(item=>item.id===selected) || runs[0]
-  const selectRun = <label>Run <select value={run?.id || ''} onChange={e=>{setSelected(e.target.value);setRecord('')}}>
+  const selectRun = <label>Run <select value={run?.id || ''} onChange={e=>{setSelected(e.target.value)}}>
     {runs.map(r=><option key={r.id} value={r.id}>{r.description} · {r.id.slice(0,8)}</option>)}</select></label>
   async function action(fn) { setBusy(true); try { await fn(); await refresh() } catch(e) {setMessage(e.message)} finally {setBusy(false)} }
   if(page==='Goal builder') return <form className="definitions" onSubmit={e=>{e.preventDefault();action(async()=>{
@@ -36,14 +36,7 @@ export default function Runs({runs, source, setSource, request, refresh, setMess
       {source.rules!==undefined && availableRules.map(r=><label key={r.ID}><input type="checkbox" checked={source.rules[r.ID]===r.Version}
         onChange={e=>{const rules={...source.rules};if(e.target.checked)rules[r.ID]=r.Version;else delete rules[r.ID];setSource({...source,rules})}}/> {r.Description} · r{r.Version}</label>)}</fieldset>
     <button className="ok" disabled={busy}>Start run</button></form>
-  if(page==='Graph') return <section className="definitions"><h2>Record graph</h2>{selectRun}
-    {run?.records?.map(e=><article key={e.id}><button onClick={()=>setRecord(e.id)}>{e.id}</button> <span>{e.type}</span>
-    {e.relations?.map((rel,i)=><p key={i}>↳ {rel.type} → <button onClick={()=>setRecord(rel.target)}>{rel.target}</button></p>)}</article>)}
-    {record && <aside><h3>{record}</h3><pre>{JSON.stringify(run?.records?.find(e=>e.id===record)?.attributes || {},null,2)}</pre>
-    {run?.decisions?.filter(d=>d.entity_id===record).map(d=><p key={d.id}>{d.status} · {d.reason}</p>)}</aside>}</section>
-  if(page==='Decisions') return <section className="definitions"><h2>Decision review</h2>{selectRun}
-    {!run?.decisions?.length && <p>No decisions for this run.</p>}
-    {run?.decisions?.map(d=><article key={d.id}><h3>{d.entity_id} · {d.status}</h3><p>{d.reason}</p>
+  const decisionCard = d => <article key={d.id}><h3>{d.entity_id} · {d.status}</h3><p>{d.reason}</p>
       <div className="decision-layout"><div><table><thead><tr><th>Field</th><th>Before</th><th>Proposed</th></tr></thead><tbody>{Object.entries(d.after).map(([k,v])=><tr key={k}><td>{k}</td><td>{JSON.stringify(d.before?.[k]) ?? 'Unset'}</td><td>{JSON.stringify(v)}</td></tr>)}</tbody></table></div>
       <aside aria-label="Decision evidence"><h4>Evidence</h4>
         <details><summary>Source record</summary><pre>{JSON.stringify(d.before,null,2)}</pre></details>
@@ -53,7 +46,13 @@ export default function Runs({runs, source, setSource, request, refresh, setMess
         {d.feedback && <p>Reviewer feedback · {d.feedback}</p>}
       </aside></div>
       {d.status==='pending' && run.status==='in_review' && <><label>Reviewer note<input value={notes[d.id] || ''} onChange={e=>setNotes({...notes,[d.id]:e.target.value})}/></label>
-        {['approved','rejected'].map(s=><button disabled={busy} key={s} onClick={()=>action(async()=>{await request('/api/decisions',{Run:run.id,ID:d.id,Expected:run.version,Status:s,Feedback:notes[d.id] || ''});setNotes(previous=>({...previous,[d.id]:''}))})}>{s==='approved'?'Approve':'Reject'}</button>)}</>}</article>)}</section>
+        {['approved','rejected'].map(s=><button disabled={busy} key={s} onClick={()=>action(async()=>{await request('/api/decisions',{Run:run.id,ID:d.id,Expected:run.version,Status:s,Feedback:notes[d.id] || ''});setNotes(previous=>({...previous,[d.id]:''}))})}>{s==='approved'?'Approve':'Reject'}</button>)}</>}</article>
+  if(page==='Graph') return <section className="definitions"><h2>Record graph</h2>{selectRun}
+    <RecordGraph key={run?.id} run={run} decisionCard={decisionCard}/>
+  </section>
+  if(page==='Decisions') return <section className="definitions"><h2>Decision review</h2>{selectRun}
+    {!run?.decisions?.length && <p>No decisions for this run.</p>}
+    {run?.decisions?.map(decisionCard)}</section>
   const recent = runs.flatMap(r => (r.decisions || []).map(d => ({ decision: d, run: r })))
     .sort((a,b) => decisionTime(b) - decisionTime(a)).slice(0,5)
   function decisionTime({decision,run}) {
