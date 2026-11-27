@@ -1,4 +1,4 @@
-//go:build gemini_live
+//go:build gemini_live || openrouter_live
 
 package factory
 
@@ -17,6 +17,11 @@ func TestLiveGeminiFactoryRun(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	testLiveFactoryRun(t, gateway)
+}
+
+func testLiveFactoryRun(t *testing.T, gateway models.Gateway) Run {
+	t.Helper()
 	def, err := os.ReadFile("../../examples/service-desk/factory.json")
 	if err != nil {
 		t.Fatal(err)
@@ -33,7 +38,7 @@ func TestLiveGeminiFactoryRun(t *testing.T) {
 	if _, err := revision.SaveDocument(ws.Store, "factory/desk", 0, "human", def); err != nil {
 		t.Fatal(err)
 	}
-	run, err := ws.Start(RunRequest{Description: "Assign the support team from the routing guide", Factory: "desk", Records: records})
+	run, err := ws.Start(RunRequest{MaxTokens: 1000, Description: "Assign the support team from the routing guide", Factory: "desk", Records: records})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +50,7 @@ func TestLiveGeminiFactoryRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	if run.Status != "in_review" || len(run.Decisions) != 1 || len(run.Calls) != 2 {
-		t.Fatalf("status %s, decisions %d, model calls %d", run.Status, len(run.Decisions), len(run.Calls))
+		t.Fatalf("status %s, decisions %d, model calls %d: %s", run.Status, len(run.Decisions), len(run.Calls), run.Error)
 	}
 	for _, call := range run.Calls {
 		if call.Model == "" || call.Total <= 0 {
@@ -59,4 +64,5 @@ func TestLiveGeminiFactoryRun(t *testing.T) {
 	if run.Status != "completed" || run.Records[0].Attributes["assigned_team"] != "Workplace IT" {
 		t.Fatalf("status %s, assigned team %v", run.Status, run.Records[0].Attributes["assigned_team"])
 	}
+	return run
 }

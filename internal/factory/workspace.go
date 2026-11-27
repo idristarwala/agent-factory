@@ -27,6 +27,7 @@ type RunRequest struct {
 	MaxTokens     int             `json:"max_tokens"`
 }
 type Call struct {
+	Role   string  `json:"role,omitempty"`
 	Model  string  `json:"model"`
 	Input  int     `json:"input_tokens"`
 	Output int     `json:"output_tokens"`
@@ -191,7 +192,7 @@ func (m *measured) Generate(req models.Request) (*models.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	c := Call{Model: resp.Model, Input: resp.Usage["prompt_tokens"], Output: resp.Usage["completion_tokens"], Total: resp.Usage["total_tokens"]}
+	c := Call{Role: req.CallerRole, Model: resp.Model, Input: resp.Usage["prompt_tokens"], Output: resp.Usage["completion_tokens"], Total: resp.Usage["total_tokens"]}
 	if c.Total == 0 {
 		c.Total = c.Input + c.Output
 	}
