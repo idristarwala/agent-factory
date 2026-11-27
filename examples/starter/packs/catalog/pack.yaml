@@ -1,0 +1,18 @@
+# Example domain pack for a catalog title fixer.
+# Validated by factory validate.
+name: catalog
+description: Improve product titles and descriptions while preserving seller wording.
+node_types:
+  - product
+worker_roles:
+  - title_fixer
+  - description_fixer
+rules:
+  - id: keep_original_wording
+    text: Keep the original seller wording as much as possible. Only add missing variant facts.
+    active: true
+  - id: no_invented_claims
+    text: Do not invent attributes or claims not present in the item facts.
+    active: true
+tools:
+  - catalog.get_item

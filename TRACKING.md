@@ -95,4 +95,8 @@ All high-impact correctness, config seams, POST adapters, packaging, HTTP tools,
 - Continuous runner applies `agents.GuardDecision` before considering a judge result (#10).
 - Collected failure signals are attached to learning gaps via `BuildActionableRule` so structured causes influence rule text (#13/#16).
 
+## Starter template and docs (2026-11-27)
 
+- Expanded `examples/starter` with a concrete catalog pack.yaml so `factory validate` succeeds out of the box.
+- Added `docs/GETTING_STARTED.md` covering the 15-minute path from clone to first validation.
+- Learning-loop tests already cover replay-gate and same-cause deduplication; further scripted round-improvement cases can be added in internal/swarm/learning_e2e_test.go.
