@@ -92,6 +92,7 @@ func main() {
 	}
 	steward := agents.NewSmartSteward(store)
 	steward.Registry = registry
+	steward.AllowedFields = []string{"title", "description"}
 	activeRules := ruleEngine.ToAgentsRules()
 	steward.SetRuntime(gw, g, activeRules)
 	def, err := registry.Resolve(agents.AgentVersion{Name: "worker-1", Role: "catalog-corrector", ModelTier: "cheap", CreatedBy: "steward"})

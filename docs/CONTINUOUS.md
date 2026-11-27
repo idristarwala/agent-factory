@@ -23,3 +23,9 @@ The command executes against its built-in fixture and publishes the terminal run
 ## Goal-driven
 
 State a clear goal. The Steward turns it into units of work. The loop continues until the graph reports no remaining problems or the round limit is hit.
+
+## Choose editable fields
+
+Use a repeated `-field` flag before the goal to give the continuous worker an explicit write scope. For example, `go run ./cmd/continuous-swarm -field title 'Improve the title using the record as evidence'` authorizes one field on the bundled fixture. Other properties remain available to the judge and worker as evidence. A compact goal such as `Edit only title` names a single literal field. A goal with no explicit scope can use the sole editable property of a single-field record. A multi-field record with ambiguous scope stops before a model call.
+
+The worker rejects an entire reply containing an out-of-scope property. A successful continuous write can also update the runner-managed completion status. Workspace factories declare their editable fields and types in the pinned factory definition. [Worker output schema](SCHEMA.md)

@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"github.com/idristarwala/agent-factory/internal/tools"
 	"log"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -24,6 +26,15 @@ import (
 )
 
 func main() {
+	var fields []string
+	flag.Func("field", "Editable record field (repeat for multiple fields)", func(name string) error {
+		if name == "" || name == "status" || slices.Contains(fields, name) {
+			return fmt.Errorf("expected a distinct editable field name")
+		}
+		fields = append(fields, name)
+		return nil
+	})
+	flag.Parse()
 	database, err := factoryStore.NewFromEnv()
 	if err != nil {
 		log.Fatal(err)
@@ -46,6 +57,7 @@ func main() {
 	}
 	steward := agents.NewSmartSteward(store)
 	steward.Registry = registry
+	steward.AllowedFields = fields
 
 	// Real or noop gateway so CreateWorker succeeds
 	var gw models.Gateway = &noopGateway{}
@@ -109,8 +121,8 @@ func main() {
 	fmt.Printf("Settings revision %d\n", version)
 
 	goal := "Fix all entities until clean"
-	if len(os.Args) > 1 {
-		goal = os.Args[1]
+	if flag.NArg() > 0 {
+		goal = strings.Join(flag.Args(), " ")
 	}
 
 	fmt.Println("Continuous swarm (stops when graph is clean)")

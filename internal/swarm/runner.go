@@ -238,7 +238,6 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 						r.Queue.Fail(ctx, uow.ID, err.Error())
 						continue
 					}
-					decision = agents.GuardDecision(nil, decision)
 					action := "rejected"
 					if decision.Approved {
 						action = "approved"

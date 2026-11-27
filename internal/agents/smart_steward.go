@@ -14,12 +14,13 @@ import (
 // SmartSteward uses domain packs to turn a goal into units of work
 // and can create workers when given a gateway and graph.
 type SmartSteward struct {
-	Registry *Registry
-	store    unitofwork.Store
-	packs    []domain.Pack
-	Gateway  models.Gateway
-	Graph    graph.Graph
-	Rules    []Rule
+	AllowedFields []string
+	Registry      *Registry
+	store         unitofwork.Store
+	packs         []domain.Pack
+	Gateway       models.Gateway
+	Graph         graph.Graph
+	Rules         []Rule
 }
 
 func NewSmartSteward(store unitofwork.Store) *SmartSteward {
@@ -71,19 +72,25 @@ func (s *SmartSteward) InterpretGoal(goal string, graphSnapshot any) ([]*unitofw
 		// Create units only for nodes that need work
 		var uows []*unitofwork.UnitOfWork
 		for _, n := range needsWork {
+			fields, err := continuousFields(goal, s.AllowedFields, n.Props)
+			if err != nil {
+				return nil, fmt.Errorf("record %s: %w", n.ID, err)
+			}
 			id := uuid.NewString()
 			u := &unitofwork.UnitOfWork{
-				ID:             id,
-				GoalID:         "goal-" + id[:8],
-				Description:    fmt.Sprintf("%s — fix %s", goal, n.ID),
-				InputSubgraph:  n.ID,
+				ID:            id,
+				GoalID:        "goal-" + id[:8],
+				Description:   fmt.Sprintf("%s — fix %s", goal, n.ID),
+				InputSubgraph: n.ID, AllowedFields: fields,
 				ExpectedOutput: "graph mutation",
 				Mode:           "non_deterministic",
 			}
+			uows = append(uows, u)
+		}
+		for _, u := range uows {
 			if err := s.store.Create(u); err != nil {
 				return nil, err
 			}
-			uows = append(uows, u)
 		}
 		return uows, nil
 	}

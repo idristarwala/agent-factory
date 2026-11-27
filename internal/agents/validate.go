@@ -14,14 +14,13 @@ func ParseAndValidate(raw string, allowed []string) (map[string]any, error) {
 	for _, k := range allowed {
 		allow[k] = true
 	}
-	out := map[string]any{}
-	for k, v := range m {
-		if allow[k] {
-			out[k] = v
+	for k := range m {
+		if !allow[k] {
+			return nil, fmt.Errorf("response contains a field outside the write scope: %s", k)
 		}
 	}
-	if len(out) == 0 {
+	if len(m) == 0 {
 		return nil, fmt.Errorf("no allowed fields in response")
 	}
-	return out, nil
+	return m, nil
 }

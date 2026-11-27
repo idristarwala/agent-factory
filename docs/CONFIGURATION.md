@@ -103,3 +103,5 @@ Edit these fields on the worker or judge in **Agents**, or send them as string v
 | `max_attempts` | Worker | Integer string from 1 to 16, default 2 | Maximum worker attempts to obtain a valid proposal. Configured gateway transport retries apply separately. |
 
 For example, `{"max_output_tokens":"1024","max_attempts":"1"}` requests a single worker attempt with at most 1024 output tokens. Omit a limit to use its default. The workspace run token budget still applies across calls. [Versioned definitions](API.md#versioned-definitions)
+
+The continuous CLI accepts repeated `-field FIELD` arguments before its goal. They select existing editable record properties for this invocation. A narrow literal task can only select a field within the supplied list. The runner owns `status` for continuous completion tracking. [Write scope and examples](CONTINUOUS.md#choose-editable-fields)

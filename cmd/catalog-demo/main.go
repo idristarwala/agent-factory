@@ -71,6 +71,7 @@ func main() {
 		os.Exit(1)
 	}
 	uow := uows[0]
+	uow.AllowedFields = []string{"title", "description"}
 	uow.InputSubgraph = "sku-1001"
 	fmt.Printf("Created unit of work: %s\n", uow.ID)
 
