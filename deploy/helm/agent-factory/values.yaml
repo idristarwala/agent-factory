@@ -1,0 +1,20 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/idristarwala/agent-factory
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8080
+
+env:
+  SECRETS_DIR: /etc/secrets
+  # DATABASE_URL: postgres://factory:factory@postgres:5432/factory?sslmode=disable
+
+secrets:
+  # Mounted at SECRETS_DIR
+  enabled: true
+
+resources: {}

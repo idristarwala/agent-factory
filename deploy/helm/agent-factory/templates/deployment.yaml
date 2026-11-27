@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "agent-factory.fullname" . }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ include "agent-factory.name" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "agent-factory.name" . }}
+    spec:
+      containers:
+        - name: api
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["api"]
+          ports:
+            - containerPort: {{ .Values.service.port }}
+          env:
+            - name: SECRETS_DIR
+              value: {{ .Values.env.SECRETS_DIR | quote }}
+            {{- if .Values.env.DATABASE_URL }}
+            - name: DATABASE_URL
+              value: {{ .Values.env.DATABASE_URL | quote }}
+            {{- end }}
+          volumeMounts:
+            - name: secrets
+              mountPath: /etc/secrets
+              readOnly: true
+      volumes:
+        - name: secrets
+          secret:
+            secretName: {{ include "agent-factory.fullname" . }}-secrets
+            optional: true
