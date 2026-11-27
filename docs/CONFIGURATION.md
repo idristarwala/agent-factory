@@ -128,7 +128,7 @@ Gateway retry settings resolve at process startup. With `LLM_GATEWAY_CONFIG`, ea
 
 Run `factory readiness` with the same environment and mounted files as the deployment. It opens the workspace store and checks any configured continuous evidence recipe, pack grants (including `propose`), API source configuration and referenced tool credential files. A failed check exits nonzero. Both a missing and an empty tool key fail the check. The CLI reports the tool name without printing credential values. Runtime calls reread the file so rotation takes effect.
 
-With tool and source configuration unset, readiness checks the store alone. To validate model credentials or upstream permissions, run a representative goal against that deployment. The readiness command makes no tool or model requests.
+With tool and source configuration unset, plain readiness checks the store alone. Add `--gateway` to build the model routes using the API’s configuration precedence. With `LLM_GATEWAY_CONFIG`, the check also reads every configured authenticated gateway’s key file and loads the configured CA. Environment-only mode checks the selected providers and required keys. To validate model credentials or upstream permissions, run a representative goal against that deployment. The readiness command makes no tool or model requests.
 
 ### Verified storage deployments
 

@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"github.com/idristarwala/agent-factory/internal/configuredgateway"
 	"github.com/idristarwala/agent-factory/internal/revision"
 	"github.com/idristarwala/agent-factory/internal/store"
 	"github.com/idristarwala/agent-factory/internal/tools"
@@ -74,7 +75,7 @@ func main() {
 			runEngineTests()
 		}
 	case "readiness":
-		if err := runReadiness(); err != nil {
+		if err := runReadiness(os.Args[2:]...); err != nil {
 			log.Fatal(err)
 		}
 	case "up":
@@ -129,7 +130,10 @@ func runEngineTests() {
 	fmt.Println("All selected tests passed.")
 }
 
-func runReadiness() error {
+func runReadiness(args ...string) error {
+	if len(args) > 1 || (len(args) == 1 && args[0] != "--gateway") {
+		return errors.New("usage: factory readiness [--gateway]")
+	}
 	var problems []error
 	db, mode, err := store.OpenFromEnv()
 	if err != nil {
@@ -161,6 +165,13 @@ func runReadiness() error {
 			fmt.Println("API sources: configuration and credential files ready")
 		}
 	}
+	if len(args) == 1 {
+		if err := configuredgateway.CheckReadiness(); err != nil {
+			problems = append(problems, errors.New("model gateway: check route configuration, endpoint settings and referenced credentials"))
+		} else {
+			fmt.Println("model gateway: local route configuration and credentials ready")
+		}
+	}
 	return errors.Join(problems...)
 }
 
@@ -174,7 +185,7 @@ func printUsage() {
 	fmt.Println("  validate --rule FILE...   Check standalone rules against the published schema")
 	fmt.Println("  test [PATH...]   Run pack fixtures (and engine contracts in the engine checkout)")
 	fmt.Println("  test --receipt PACK_FILE   Test committed fixtures and emit publish evidence as JSON")
-	fmt.Println("  readiness  Check environment readiness")
+	fmt.Println("  readiness [--gateway]  Check deployment readiness and optionally preflight model routes")
 	fmt.Println("  tools import [flags] FILE   Generate reviewable GET evidence tools from OpenAPI")
 	fmt.Println("  publish -pack FILE -evidence FILE -expected N   Publish a proposed revision")
 }

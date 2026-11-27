@@ -66,7 +66,7 @@ func environmentRouter() (*Router, error) {
 	default:
 		return nil, fmt.Errorf("unknown judge provider %q", judge)
 	}
-	if j.key == "" {
+	if strings.TrimSpace(j.key) == "" {
 		return nil, fmt.Errorf("missing dedicated credential for %s judge", judge)
 	}
 	j.timeout = time.Minute
@@ -111,8 +111,11 @@ func providerFromEnv(name string) (environmentProvider, error) {
 	default:
 		return p, fmt.Errorf("unknown LLM_PROVIDER %q", name)
 	}
-	if p.key == "" || p.base == "" {
+	if strings.TrimSpace(p.key) == "" || p.base == "" {
 		return p, fmt.Errorf("missing endpoint or credentials for %s", name)
+	}
+	if !validGatewayURL(p.base) {
+		return p, fmt.Errorf("invalid gateway endpoint for %s", name)
 	}
 	return p, nil
 }
