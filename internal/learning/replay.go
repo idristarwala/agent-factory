@@ -5,7 +5,7 @@ package learning
 // or the cause is understood.
 func ShouldActivate(signals []FailureSignal) bool {
 	if len(signals) == 0 {
-		return true
+		return false // hold until evidence is present
 	}
 	// Activate format and truncation fixes immediately; hold others for review.
 	for _, s := range signals {
