@@ -2,12 +2,11 @@ package agents
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/google/uuid"
-	"github.com/idristarwala/agent-factory/internal/domain"
 	"github.com/idristarwala/agent-factory/internal/graph"
 	"github.com/idristarwala/agent-factory/internal/models"
+	"github.com/idristarwala/agent-factory/internal/pack"
 	"github.com/idristarwala/agent-factory/internal/unitofwork"
 )
 
@@ -17,7 +16,7 @@ type SmartSteward struct {
 	AllowedFields []string
 	Registry      *Registry
 	store         unitofwork.Store
-	packs         []domain.Pack
+	PlanningPack  *pack.Pack
 	Gateway       models.Gateway
 	Graph         graph.Graph
 	Rules         []Rule
@@ -26,7 +25,6 @@ type SmartSteward struct {
 func NewSmartSteward(store unitofwork.Store) *SmartSteward {
 	return &SmartSteward{Registry: NewRegistry(),
 		store: store,
-		packs: domain.All(),
 	}
 }
 
@@ -108,16 +106,9 @@ func (s *SmartSteward) InterpretGoal(goal string, graphSnapshot any) ([]*unitofw
 	}
 
 	// Fallback when no graph is set
-	goalLower := strings.ToLower(goal)
-	var chosen domain.Pack
-	for _, p := range s.packs {
-		if strings.Contains(goalLower, p.Name) {
-			chosen = p
-			break
-		}
-	}
-	if chosen.Name == "" {
-		chosen = domain.Pack{Name: "general", WorkerRoles: []string{"worker"}}
+	chosen := s.PlanningPack
+	if chosen == nil {
+		chosen = &pack.Pack{Name: "general", WorkerRoles: []string{"worker"}}
 	}
 	var uows []*unitofwork.UnitOfWork
 	for _, role := range chosen.WorkerRoles {

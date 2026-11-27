@@ -12,11 +12,12 @@ import (
 	"github.com/idristarwala/agent-factory/internal/agents"
 	"github.com/idristarwala/agent-factory/internal/catalog"
 	"github.com/idristarwala/agent-factory/internal/configuredgateway"
-	"github.com/idristarwala/agent-factory/internal/domain"
 	"github.com/idristarwala/agent-factory/internal/graph"
 	"github.com/idristarwala/agent-factory/internal/memory"
+	"github.com/idristarwala/agent-factory/internal/pack"
 	"github.com/idristarwala/agent-factory/internal/rules"
 	"github.com/idristarwala/agent-factory/internal/unitofwork"
+	"github.com/idristarwala/agent-factory/packs"
 )
 
 func needsWork(n graph.Node) bool {
@@ -35,9 +36,13 @@ func needsWork(n graph.Node) bool {
 }
 
 func main() {
+	catalogPack, err := pack.Parse("pack.yaml", []byte(packs.CatalogYAML))
+	if err != nil {
+		log.Fatal(err)
+	}
 	var evidenceConfig *tools.EvidenceConfig
 	if path := os.Getenv("FACTORY_EVIDENCE_CONFIG"); path != "" {
-		config, err := tools.LoadEvidenceConfig(path, domain.CatalogPack().Name)
+		config, err := tools.LoadEvidenceConfig(path, catalogPack.Name)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -67,8 +72,8 @@ func main() {
 	mem := memory.NewStore()
 	agentReg := registry
 
-	for i, r := range domain.CatalogPack().DefaultRules {
-		if err := ruleEngine.Install(rules.VersionedRule{ID: fmt.Sprintf("catalog/default/%d", i+1), Description: r, Active: true, Source: "domain-pack", CreatedBy: "system"}); err != nil {
+	for _, r := range catalogPack.Rules {
+		if err := ruleEngine.Install(rules.VersionedRule{ID: r.ID, Description: r.Text, Active: r.Active, Source: "domain-pack", CreatedBy: "system"}); err != nil {
 			log.Fatal(err)
 		}
 	}
@@ -94,6 +99,7 @@ func main() {
 		log.Fatal(err)
 	}
 	steward := agents.NewSmartSteward(store)
+	steward.PlanningPack = catalogPack
 	steward.Registry = registry
 	steward.AllowedFields = []string{"title", "description"}
 	activeRules := ruleEngine.ToAgentsRules()

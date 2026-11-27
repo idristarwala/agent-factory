@@ -31,6 +31,8 @@ jobs:
         run: python3 scripts/check-unused-helpers.py "$BASE_SHA"
       - name: Documentation contracts
         run: make docs-check
+      - name: Validate bundled example packs
+        run: go run ./cmd/factory validate packs/*/pack.yaml
       - name: Vet
         run: go vet ./...
       - name: Test

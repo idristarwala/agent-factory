@@ -1,0 +1,9 @@
+name: pricing
+description: "Price rules, promotions, margin checks"
+node_types: ["price", "promo", "competitor"]
+worker_roles: ["price-proposer", "margin-checker"]
+rules:
+  - id: pricing/default/1
+    text: "Never propose a price below cost"
+  - id: pricing/default/2
+    text: "Flag large deviations from current price"

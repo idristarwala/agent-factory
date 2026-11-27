@@ -33,7 +33,6 @@ func (r *RuleSpec) UnmarshalJSON(data []byte) error {
 }
 
 // Pack is the file-based domain pack format for issue #9.
-// Replaces hard-coded Go packs over time.
 type Pack struct {
 	Name         string     `json:"name" yaml:"name"`
 	Description  string     `json:"description,omitempty" yaml:"description,omitempty"`
