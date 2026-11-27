@@ -68,6 +68,10 @@ func runValidate() {
 
 func runTest() {
 	fmt.Println("Running fixture and contract tests...")
+	// Prefer running the real suite when go is available
+	if _, err := os.Stat("go.mod"); err == nil {
+		fmt.Println("  (run: go test ./internal/llm/... ./examples/out-of-tree-gateway/ -count=1)")
+	}
 	fmt.Println("Recommended:")
 	fmt.Println("  go test ./internal/store/...          # Store contract (memory + sqlite)")
 	fmt.Println("  go test ./internal/llm/...            # conformance + adapters")

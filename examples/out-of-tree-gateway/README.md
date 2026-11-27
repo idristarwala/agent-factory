@@ -25,3 +25,15 @@ The adapter reuses `llm.OpenAIAdapter` (or Anthropic/Gemini) so path, headers, b
 ```bash
 go test ./examples/out-of-tree-gateway/ -v
 ```
+
+## Using FakeServer
+
+Prefer `llm.NewFakeServer()` over a hand-rolled `httptest.Server` when you need recorded bodies or cancel testing:
+
+```go
+fs := llm.NewFakeServer()
+defer fs.Close()
+gw := NewCorpGateway(fs.URL, "k", nil)
+llm.RunConformance(t, harness{gw.Client()})
+// fs.LastBody() contains the JSON the adapter sent
+```
