@@ -39,9 +39,20 @@ func (s *SmartSteward) SetRuntime(gw models.Gateway, g graph.Graph, rules []Rule
 func (s *SmartSteward) InterpretGoal(goal string, graphSnapshot any) ([]*unitofwork.UnitOfWork, error) {
 	// Check graph for remaining problems
 	if s.Graph != nil {
-		snap, ok := graphSnapshot.(map[graph.NodeID]*graph.Node)
-		if !ok {
-			snap = s.Graph.Snapshot()
+		var snap map[graph.NodeID]*graph.Node
+		if graphSnapshot != nil {
+			if s, ok := graphSnapshot.(map[graph.NodeID]*graph.Node); ok {
+				snap = s
+			}
+		}
+		if snap == nil {
+			// Snapshot returns any; assert it
+			if s, ok := s.Graph.Snapshot().(map[graph.NodeID]*graph.Node); ok {
+				snap = s
+			}
+		}
+		if snap == nil {
+			return nil, nil
 		}
 		var needsWork []*graph.Node
 		for _, n := range snap {
