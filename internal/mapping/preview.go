@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/idristarwala/agent-factory/internal/llm"
 	"github.com/idristarwala/agent-factory/internal/schema"
 )
 
@@ -229,8 +230,8 @@ func imageURLs(v any) ([]string, error) {
 	if !ok {
 		values = []any{v}
 	}
-	if len(values) > 10 {
-		return nil, fmt.Errorf("maximum 10 images per record")
+	if len(values) > llm.MaxRecordImages {
+		return nil, fmt.Errorf("maximum %d images per record", llm.MaxRecordImages)
 	}
 	var urls []string
 	for _, value := range values {
