@@ -8,3 +8,6 @@ If you have been granted permission to contribute:
 2. Keep changes focused.
 3. Run `make ci` before submitting.
 4. Do not commit secrets.
+
+Use Go 1.26 and Node.js 24 for the checks. To run them automatically
+before each push from this clone, run `git config core.hooksPath .githooks`.

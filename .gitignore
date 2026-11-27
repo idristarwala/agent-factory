@@ -21,3 +21,6 @@ vendor/
 
 # OS
 .DS_Store
+
+/ui-app/node_modules/
+/ui-app/dist/

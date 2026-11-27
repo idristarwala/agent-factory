@@ -1,4 +1,4 @@
-.PHONY: test build ci release
+.PHONY: test build ci ui-build release
 
 test:
 	go test -race ./...
@@ -6,7 +6,11 @@ test:
 build:
 	go build ./...
 
-ci: test build
+ui-build:
+	npm --prefix ui-app ci
+	npm --prefix ui-app run build
+
+ci: test build ui-build
 	go vet ./...
 
 release:
