@@ -65,4 +65,24 @@ func TestLiveGeminiConversation(t *testing.T) {
 	if err := json.Unmarshal([]byte(reply.Content), &structured); err != nil || structured.Identifier != "XQ-719" {
 		t.Fatalf("unexpected structured output %q", reply.Content)
 	}
+
+	request = ChatRequest{Model: model, MaxTokens: 350, Tools: []ToolSpec{{Name: "lookup", Description: "Read the observed value for a record.", Parameters: map[string]any{"type": "object", "properties": map[string]any{"record": map[string]string{"type": "string"}}, "required": []string{"record"}}}}, Messages: []Message{
+		{Role: "system", Content: "Use lookup to read the record. Once the value is available, reply with the value only."},
+		{Role: "user", Content: "Read record A with lookup and tell me the value."},
+	}}
+	first, err := gateway.Chat(ctx, request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(first.ToolCalls) != 1 || first.ToolCalls[0].Name != "lookup" {
+		t.Fatal("expected a lookup request")
+	}
+	request.Messages = append(request.Messages, Message{Role: "assistant", Content: first.Content, ToolCalls: first.ToolCalls}, Message{Role: "tool", ToolCallID: first.ToolCalls[0].ID, Content: "OBS-714"})
+	reply, err = gateway.Chat(ctx, request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.TrimSpace(reply.Content) != "OBS-714" {
+		t.Fatalf("unexpected tool result answer %q", reply.Content)
+	}
 }

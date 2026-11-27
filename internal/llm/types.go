@@ -40,9 +40,10 @@ type ToolSpec struct {
 
 // ToolCall is a model-requested tool invocation.
 type ToolCall struct {
-	ID        string
-	Name      string
-	Arguments string // JSON
+	ThoughtSignature string `json:",omitempty"` // opaque provider continuation token
+	ID               string
+	Name             string
+	Arguments        string // JSON
 }
 
 // ChatRequest is the normalized request every adapter receives.
