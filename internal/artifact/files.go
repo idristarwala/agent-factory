@@ -91,9 +91,16 @@ func save(s revision.Store, ref Ref, name string, data []byte, source string) (R
 	return ref, nil
 }
 
+type Citation struct {
+	Ref
+	Name     string `json:"name"`
+	Location string `json:"location"`
+	Source   string `json:"source,omitempty"`
+}
 type Evidence struct {
-	Text   string
-	Images []llm.ImagePart
+	Citations []Citation
+	Text      string
+	Images    []llm.ImagePart
 }
 
 func Read(s revision.Store, refs []Ref) (Evidence, error) {
@@ -108,32 +115,46 @@ func Read(s revision.Store, refs []Ref) (Evidence, error) {
 			return out, fmt.Errorf("invalid or duplicate artifact reference")
 		}
 		seen[r.ID] = true
-		h, err := revision.Documents(s, "chat-artifact/"+r.ID)
+		f, err := ReadFile(s, r)
 		if err != nil {
-			return out, err
-		}
-		if r.Version > len(h) {
-			return out, fmt.Errorf("unknown artifact revision")
-		}
-		var f File
-		if err = json.Unmarshal(h[r.Version-1].Data, &f); err != nil {
 			return out, err
 		}
 		fmt.Fprintf(&context, "\nAttachment %q revision %d (sha256 %s)", f.Name, r.Version, f.SHA256)
 		if f.Source != "" {
 			fmt.Fprintf(&context, " from %s", f.Source)
 		}
+		cite := func(location string) int {
+			out.Citations = append(out.Citations, Citation{Ref: r, Name: f.Name, Location: location, Source: f.Source})
+			return len(out.Citations)
+		}
 		if len(f.Passages) > 0 {
 			for _, part := range f.Passages {
-				fmt.Fprintf(&context, "\n[%s, %s] %s\n", f.Name, part.Location, part.Text)
+				fmt.Fprintf(&context, "\n[Source %d: %s, %s] %s\n", cite(part.Location), f.Name, part.Location, part.Text)
 			}
 		} else if f.MIME == "text/plain" {
-			fmt.Fprintf(&context, ":\n%s\n", f.Data)
+			fmt.Fprintf(&context, " [Source %d]:\n%s\n", cite("file"), f.Data)
 		} else {
 			out.Images = append(out.Images, llm.ImagePart{Mime: f.MIME, Base64: base64.StdEncoding.EncodeToString(f.Data)})
-			fmt.Fprintf(&context, " is attached image %d.\n", len(out.Images))
+			fmt.Fprintf(&context, " [Source %d] is attached image %d.\n", cite("image"), len(out.Images))
 		}
 	}
 	out.Text = context.String()
 	return out, nil
+}
+
+// ReadFile returns exactly one pinned revision for inspection.
+func ReadFile(s revision.Store, r Ref) (File, error) {
+	var f File
+	if uuid.Validate(r.ID) != nil || r.Version < 1 {
+		return f, fmt.Errorf("invalid artifact reference")
+	}
+	h, err := revision.Documents(s, "chat-artifact/"+r.ID)
+	if err != nil {
+		return f, err
+	}
+	if r.Version > len(h) {
+		return f, fmt.Errorf("unknown artifact revision")
+	}
+	err = json.Unmarshal(h[r.Version-1].Data, &f)
+	return f, err
 }

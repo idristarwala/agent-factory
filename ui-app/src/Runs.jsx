@@ -11,7 +11,8 @@ export default function Runs({runs, source, setSource, request, refresh, setMess
     request('/api/rules').then(rows=>{if(live)setAvailableRules(rows)}).catch(e=>{if(live)setMessage(e.message)})
     return ()=>{live=false}
   },[page,request,setMessage])
-  const [goal,setGoal] = useState('')
+  const goal=source?.goal || ''
+  const setGoal=value=>setSource(previous=>({...previous,goal:value}))
   const definition=source?.definition || '', expected=source?.expected || 0
   const [selected,setSelected] = useState('')
   const [notes,setNotes] = useState({})

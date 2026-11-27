@@ -2,9 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/idristarwala/agent-factory/internal/artifact"
 	"github.com/idristarwala/agent-factory/internal/factory"
+	"github.com/idristarwala/agent-factory/internal/revision"
 	"log"
 	"net/http"
 	"os"
@@ -66,6 +68,7 @@ func main() {
 	configRoutes(mux, definitions)
 	memoryRoutes(mux, definitions)
 	chatArtifactRoute(mux, definitions)
+	goalApprovalRoute(mux, definitions)
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		storeKind := storeKindLabel()
 		w.Header().Set("Content-Type", "application/json")
@@ -86,6 +89,8 @@ func main() {
 
 	mux.HandleFunc("/api/chat", apiRoute(func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
+			Proposal  string              `json:"proposal"`
+			Expected  int                 `json:"expected"`
 			Artifacts []artifact.Ref      `json:"artifacts"`
 			Message   string              `json:"message"`
 			Source    *factory.RunRequest `json:"source"`
@@ -103,7 +108,11 @@ func main() {
 		const create = "create a factory to"
 		lower := strings.ToLower(message)
 		if lower == create || strings.HasPrefix(lower, create+" ") {
-			reply, err := createChatFactory(ws, strings.TrimSpace(message[len(create):]), req.Artifacts, evidence)
+			reply, err := createChatFactory(ws, strings.TrimSpace(message[len(create):]), req.Artifacts, evidence, req.Proposal, req.Expected)
+			if errors.Is(err, revision.ErrConflict) {
+				sendJSON(w, nil, err)
+				return
+			}
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadGateway)
 				return

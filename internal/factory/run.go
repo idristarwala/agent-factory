@@ -23,12 +23,19 @@ import (
 	"github.com/idristarwala/agent-factory/internal/unitofwork"
 )
 
+type Criterion struct {
+	Text      string              `json:"text"`
+	Citations []artifact.Citation `json:"citations"`
+}
 type Spec struct {
-	Artifacts  []artifact.Ref    `json:"artifacts,omitempty"`
-	RecordType string            `json:"record_type"`
-	Fields     map[string]string `json:"fields"`
-	Required   []string          `json:"required"`
-	Worker     string            `json:"worker"`
+	Goal            string            `json:"goal,omitempty"`
+	Criteria        []Criterion       `json:"criteria,omitempty"`
+	ProposalVersion int               `json:"proposal_version,omitempty"`
+	Artifacts       []artifact.Ref    `json:"artifacts,omitempty"`
+	RecordType      string            `json:"record_type"`
+	Fields          map[string]string `json:"fields"`
+	Required        []string          `json:"required"`
+	Worker          string            `json:"worker"`
 }
 type Plan struct {
 	UseGoalArtifacts       bool          `json:"use_goal_artifacts,omitempty"`
@@ -128,6 +135,9 @@ func (p Plan) evaluate(gw models.Gateway, goal string, e schema.Entity, origin *
 		}
 	}
 	evidence := media.Text
+	for _, criterion := range p.Spec.Criteria {
+		evidence = append(evidence, "Approved acceptance criterion: "+criterion.Text)
+	}
 	if goalEvidence.Text != "" {
 		evidence = append(evidence, goalEvidence.Text)
 		// Goal evidence numbers its images from one.
