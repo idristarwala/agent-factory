@@ -29,14 +29,6 @@ func (r *Registry) Get(name string) (Tool, bool) {
 	return t, ok
 }
 
-func (r *Registry) All() []Tool {
-	out := make([]Tool, 0, len(r.tools))
-	for _, t := range r.tools {
-		out = append(out, t)
-	}
-	return out
-}
-
 func (r *Registry) Specs() []ToolSpec {
 	var specs []ToolSpec
 	for _, t := range r.tools {

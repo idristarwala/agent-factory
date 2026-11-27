@@ -13,7 +13,7 @@ import (
 const DefaultDir = "/etc/secrets"
 
 // Loader reads secrets from a single directory.
-// Files are named after the secret (e.g. gemini-api-key, bigquery-sa.json).
+// Files are named after the secret (e.g. factory-github-token).
 // Values are cached and re-read when the file mtime changes.
 type Loader struct {
 	Dir string
@@ -69,24 +69,4 @@ func (l *Loader) Get(name string) (string, error) {
 	l.cache[name] = cached{value: val, mod: info.ModTime().UnixNano()}
 	l.mu.Unlock()
 	return val, nil
-}
-
-// MustGet panics if the secret is missing. Use only at startup.
-func (l *Loader) MustGet(name string) string {
-	v, err := l.Get(name)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Path returns the full path for a secret file (useful for SDKs that take a file).
-func (l *Loader) Path(name string) string {
-	return filepath.Join(l.Dir, name)
-}
-
-// Exists reports whether the secret file is present.
-func (l *Loader) Exists(name string) bool {
-	_, err := os.Stat(l.Path(name))
-	return err == nil
 }
