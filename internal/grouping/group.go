@@ -95,6 +95,7 @@ func (d *SimpleDetector) Detect(entities []schema.Entity, groupField string) []P
 var stopWords = map[string]bool{
 	"the": true, "a": true, "an": true, "and": true, "or": true,
 	"of": true, "for": true, "with": true, "to": true, "in": true,
+	"on": true, "at": true, "by": true, "from": true,
 }
 
 func signature(e schema.Entity) string {
@@ -108,16 +109,24 @@ func signature(e schema.Entity) string {
 	return strings.ToLower(brand) + "|" + strings.ToLower(ptype) + "|" + stem
 }
 
+// nameStem returns up to two significant non-stop words for more stable neighbourhoods (#10).
 func nameStem(title string) string {
 	words := strings.Fields(title)
+	var stems []string
 	for _, w := range words {
 		w = strings.Trim(w, ".,;:!?\"'")
 		if w != "" && !stopWords[w] && len(w) > 2 {
-			return w
+			stems = append(stems, w)
+			if len(stems) >= 2 {
+				break
+			}
 		}
 	}
-	if len(words) > 0 {
-		return words[0]
+	if len(stems) == 0 {
+		if len(words) > 0 {
+			return words[0]
+		}
+		return ""
 	}
-	return ""
+	return strings.Join(stems, " ")
 }
