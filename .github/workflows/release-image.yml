@@ -6,16 +6,53 @@ on:
       - Dockerfile
       - LICENSE
       - scripts/build-binaries.sh
+      - scripts/push-release-images.sh
+      - scripts/release-manifest.py
+      - cmd/factory/tools_sample.go
+      - .github/workflows/release.yml
       - .github/workflows/release-image.yml
   workflow_dispatch:
 
 jobs:
   smoke:
     runs-on: ubuntu-latest
+    services:
+      registry:
+        image: registry:2
+        ports:
+          - 5000/tcp
     steps:
       - uses: actions/checkout@v4
-      - name: Build release image and verify its embedded notice
+      - name: Select disposable repository
+        run: echo "IMAGE_REPOSITORY=localhost:${{ job.services.registry.ports[5000] }}/agent-factory" >> "$GITHUB_ENV"
+      - name: Push all roles to the disposable registry
+        run: GITHUB_REF_NAME=smoke sh scripts/push-release-images.sh
+      - name: Verify the manifest and run each pinned image
+        env:
+          FIXTURE_REVISION: ${{ github.event.pull_request.base.sha || github.sha }}
         run: |
-          docker build --tag factory-release-check .
-          docker run --rm --entrypoint cat factory-release-check /usr/share/licenses/agent-factory/LICENSE | cmp - LICENSE
-          docker run --rm --env FACTORY_STORE_MODE=memory --entrypoint factory factory-release-check readiness
+          mkdir -p dist
+          cp LICENSE dist/
+          touch dist/fixture-binary
+          python3 scripts/release-manifest.py dist
+          for role in engine worker connector; do
+            image=$(jq -er --arg role "$role" '.images[$role]' dist/release-manifest.json)
+            docker run --rm --entrypoint cat "$image" /usr/share/licenses/agent-factory/LICENSE | cmp - LICENSE
+            case "$role" in
+              engine) docker run --rm --env FACTORY_STORE_MODE=memory --entrypoint factory "$image" readiness ;;
+              worker) docker run --rm "$image" -help 2>&1 | grep -- '-records' ;;
+              connector)
+                cat > sources.yaml <<YAML
+          tools: {lookup: {url: "https://raw.githubusercontent.com/$GITHUB_REPOSITORY/$FIXTURE_REVISION/schemas/pack.schema.json"}}
+          grants: [{pack: review, tools: [lookup], side_effects: [read-only]}]
+          YAML
+                run_connector() {
+                  docker run --rm -v "$PWD/sources.yaml:/sources.yaml:ro" -e FACTORY_SOURCE_CONFIG=/sources.yaml -e "FACTORY_PACK=$1" "$image" lookup "${@:2}"
+                }
+                if run_connector unknown 2>error.log; then exit 1; fi
+                grep -F 'source unavailable for this factory' error.log
+                if run_connector review undeclared=one 2>error.log; then exit 1; fi
+                grep -F 'unsupported source query parameter' error.log
+                run_connector review | jq -e '.type == "object" and (.required | index("worker_roles") != null)' ;;
+            esac
+          done

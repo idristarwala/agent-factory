@@ -2,7 +2,18 @@
 
 Run `make release` to build the goal runner (`agent-factory`), management CLI (`factory`), and HTTP server (`api`) in `dist/`. Published targets are Linux amd64, macOS amd64 and arm64, and Windows amd64. The container builds the same three programs for its target platform.
 
-A version tag triggers the release workflow. It builds the binaries, publishes the container, records its digest and binary filenames in the release manifest, and attaches the artifacts to the GitHub release. Ordinary pull requests run vet, race tests, the Go build, and the frontend build.
+A version tag triggers the release workflow. It builds the binaries, publishes engine, worker and connector containers, records their digests and the binary filenames in the release manifest, and attaches the artifacts to the GitHub release. Ordinary pull requests run vet, race tests, the Go build, and the frontend build.
+
+Use the fully qualified references under `images.engine`, `images.worker` and `images.connector` in `release-manifest.json`. The original `image` field refers to the engine. The engine retains the goal CLI entry point and includes the API and management CLI. The worker runs the same goal CLI as a batch job. Give it a versioned factory definition, a shared database, records and a model route. [Deployment](DEPLOYMENT.md)
+
+The connector runs a one-shot read against an operator-configured HTTP or MCP source. Supply a source file and a pack with a read-only grant. For example, with `CONNECTOR_IMAGE` set to the pinned connector reference and a grant for the named source:
+
+```sh
+docker run --rm -v "$PWD/config:/config:ro" -e FACTORY_SOURCE_CONFIG=/config/sources.yaml \
+  -e FACTORY_PACK=review -e RECORDS_API_TOKEN "$CONNECTOR_IMAGE" records cursor=next
+```
+
+The process writes the source JSON to stdout for a calling harness. Use the same pinned reference in a connector Dockerfile's `FROM` instruction to add a custom program and override its entry point. [Source and grant configuration](HTTP_TOOLS.md)
 
 The release manifest also identifies the exact schema sources shipped with the engine. Compare `pack_spec_version` to detect changes in the published pack schema or its referenced rule schema. Compare `database_schema_version` to detect changes in the shared PostgreSQL and SQLite migration source, including the dialect-specific primary keys. Each value is a SHA-256 digest of the compact, sorted JSON map from repository path to file SHA-256. Formatting edits also change these identifiers. Equal versions mean identical sources. Compatibility and migration safety require separate review.
 

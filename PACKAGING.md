@@ -20,7 +20,7 @@ The Kubernetes Job expects a pre-imported definition, `factory-run` and `factory
 `.github/workflows/ci.yml` runs `go vet`, `go test -race`, and `go build` on every PR.
 `go.sum` is committed so clean clones build.
 
-`.github/workflows/release.yml` builds binaries, pushes a digest-pinned image to GHCR, writes a release manifest containing the digest, and creates a GitHub release on `v*` tags.
+`.github/workflows/release.yml` builds binaries, pushes the engine, worker and connector images to GHCR, writes a release manifest containing their digests, and creates a GitHub release on `v*` tags.
 
 See `docs/RELEASE.md`.
 
