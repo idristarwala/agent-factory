@@ -140,11 +140,10 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    A[Steward] -->|volume ≤ 10k| B[MemoryGraph + MemoryQueue]
-    A -->|volume > 10k| C[SQLGraph + SQLQueue]
+    A[Steward] --> B[MemoryGraph + MemoryQueue]
     B --> D[ContinuousRunner]
-    C --> D
-    D --> E[Audit Log + Metrics]
+    D --> E[Run history with audit entries and model usage]
+    E --> F[Configured workspace store]
 ```
 
 ## Notes

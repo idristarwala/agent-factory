@@ -9,4 +9,6 @@ Open issues track work and its acceptance criteria. [Issue tracker](https://gith
 | Operator UI | `make ui-build` installs the locked dependencies and builds the app. The UI epic tracks the individual screens and runtime integration. [Operator UI](https://github.com/idristarwala/agent-factory/issues/34) |
 | Packaging | Release artifacts and supported platforms are listed in the [release guide](RELEASE.md). Packaging acceptance is tracked in [issue 9](https://github.com/idristarwala/agent-factory/issues/9). |
 
+The continuous CLI processes work in an in-memory graph and queue and publishes terminal audit entries and model usage to the workspace store. Configured HTTP tools and mapped images use the evidence collector.
+
 Pull requests also compare exported internal Go helpers against the base revision and flag newly unreachable helpers. Run `make ci` before pushing. Install the repository hook with `git config core.hooksPath .githooks`. The Go module and its checksums are committed.
