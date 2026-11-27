@@ -47,8 +47,24 @@ grants:
     side_effects: [read-only]
 ```
 
-Scalar record properties are available to path and query parameters. The graph node ID supplies `id`. Relative key paths resolve from the configuration file's directory. The loader supports read-only GET requests. With the variable unset, the command uses the seeded records alone.
+Scalar record properties are available to path and query parameters. The graph node ID supplies `id`. Relative key paths resolve from the configuration file's directory. The loader supports GET and explicitly read-only POST requests. With the variable unset, the command uses the seeded records alone.
 
 For visual evidence, set `context.media` to a field name in the entity tool's JSON object. For example, `media: attachments` reads an array of image URLs from `attachments`. Use an empty array for a record with no images. Both models receive the same downloaded bytes. Mutation evidence records each image's source tool, position and SHA-256 digest.
 
 The runner accepts up to 10 PNG, JPEG or WebP images per record and 512 KiB per image. A missing field, unsupported content, failed download or exceeded limit fails evidence collection. Image requests use the public-network and host restrictions above and carry no tool authentication headers.
+
+A search endpoint that accepts JSON can use the following tool definition. Record parameters in quoted body values preserve quotes, backslashes and line breaks across retries.
+
+```yaml
+find-related:
+  method: POST
+  side_effect: read-only
+  url: https://records.example.com/search
+  body: {query: "{label}", limit: 25}
+  auth: {type: header, name: X-Records-Key, key_file: secrets/search-key}
+  tls: {ca_file: certs/records-ca.pem}
+  proxy: none
+  limits: {timeout: 5s, retries: 2, cache_ttl: 0s}
+```
+
+For HTTP Basic authentication, set `auth.type: basic`, `auth.username` and a password in `auth.key_file`. Credentials are reread for each HTTP attempt. The timeout applies per attempt. Cancellation interrupts retry waits. Only successful GET responses without a request body are cached. A custom CA adds trust for that tool's TLS connection. Destination restrictions still apply.
