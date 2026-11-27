@@ -95,7 +95,7 @@ Respond ONLY with valid JSON of this form:
 			System:      "You produce structured attribute updates that obey the provided rules and evidence. Output JSON only.",
 			User:        prompt,
 			Temperature: 0.2,
-			MaxTokens:   4000, // raised to avoid truncation from reasoning tokens
+			MaxTokens:   8000, // raised further; see worker_config for 16000 ceiling
 		})
 		if err != nil {
 			lastErr = err

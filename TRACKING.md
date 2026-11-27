@@ -13,6 +13,8 @@
 - Block-then-decide LLM membership helper (`grouping.BlockThenDecide` + `askMembership`)
 - Context recipe evidence injected into worker prompt (UnitOfWork.Evidence)
 - Labelled fixture + scoring demo (`cmd/variant-demo`, `examples/labelled_grouping.json`)
+- Worker MaxTokens raised to 8000 (ceiling 16000 in config) to reduce truncation
+- JSON response_format support in OpenAI body builder for structured output
 
 ### Enterprise gateway (#11)
 - Declarative config loader
@@ -39,6 +41,7 @@
 - Fuller factory CLI: validate loads packs via pack.Load, checks go.sum and out-of-tree example; readiness checks SECRETS_DIR and DATABASE_URL; test points at contract / conformance packages
 - Multi-binary Dockerfile (goal, factory, api)
 - Optional Postgres wiring in `cmd/api` via `store.NewFromEnv()` when `DATABASE_URL` is set
+- Improved YAML pack loader: SimpleYAMLToJSON converts common pack.yaml (maps + lists) to JSON so Load works for both formats
 
 ### LLM foundation (#1–#8)
 - Client types, adapter registry, typed errors
@@ -51,6 +54,7 @@
 - Basic native SSE streaming for OpenAI-compatible, Gemini, and Anthropic endpoints
 - Multi-protocol SSE text delta extraction used by all stream implementations
 - Concrete out-of-tree gateway example that runs `llm.RunConformance` against an httptest server (`examples/out-of-tree-gateway/adapter_test.go`)
+- OpenAI adapter now emits response_format: {type: json_object} when ResponseFormat == "json"
 
 ### HTTP tools (#12)
 - HTTPTool with path templating, auth, retries, cache, real key loading
@@ -68,7 +72,7 @@
 
 ## Remaining (minor)
 
-- Optional: full YAML pack loader (JSON works today; factory.yaml is documentation-oriented)
-- Optional: regenerate go.sum after adding github.com/lib/pq (run `go mod tidy`)
+- Optional: full YAML library (gopkg.in/yaml.v3) for nested structures beyond the simple converter
+- Optional: wire ResponseFormat into the models.Gateway path so workers can request json_object mode end-to-end
 
-All high-impact correctness, config seams, POST adapters, packaging, HTTP tools, tool-call round-trips across protocols, auth refresh with key injection, refined streaming parsers, release automation, context-recipe prompt injection, labelled grouping demo, durable Postgres store (now wired into the API), fuller CLI, Helm chart, multi-binary image, and concrete out-of-tree conformance test are in place.
+All high-impact correctness, config seams, POST adapters, packaging, HTTP tools, tool-call round-trips across protocols, auth refresh with key injection, refined streaming parsers, release automation, context-recipe prompt injection, labelled grouping demo, durable Postgres store (now wired into the API), fuller CLI, Helm chart, multi-binary image, concrete out-of-tree conformance test, and improved YAML pack loading are in place.

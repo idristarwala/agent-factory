@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 )
 
 // Pack is the file-based domain pack format for issue #9.
@@ -16,10 +17,15 @@ type Pack struct {
 }
 
 // Load reads a pack.yaml or pack.json from disk.
+// YAML files are converted via SimpleYAMLToJSON before unmarshalling.
 func Load(path string) (*Pack, error) {
-	data, err := os.ReadFile(path)
+	data, err := LoadYAMLOrJSON(path)
 	if err != nil {
 		return nil, err
+	}
+	// If it was YAML and conversion produced JSON, use it; otherwise try as-is.
+	if strings.HasSuffix(path, ".yaml") || strings.HasSuffix(path, ".yml") {
+		// data is already converted JSON or original
 	}
 	var p Pack
 	if err := json.Unmarshal(data, &p); err != nil {

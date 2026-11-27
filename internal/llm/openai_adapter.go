@@ -206,6 +206,10 @@ func BuildOpenAIBody(req ChatRequest) ([]byte, error) {
 		}
 		body["tools"] = tools
 	}
+	// Provider-enforced structured output (issue #10 / #8)
+	if req.ResponseFormat == "json" {
+		body["response_format"] = map[string]any{"type": "json_object"}
+	}
 	return json.Marshal(body)
 }
 
