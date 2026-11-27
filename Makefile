@@ -28,4 +28,4 @@ conformance:
 
 .PHONY: test-mixed-judges
 test-mixed-judges:
-	go test -v -tags openrouter_live -run '^TestLiveOpenRouter' -count=1 ./internal/factory
+	go test -v -tags openrouter_live -run '^TestLiveOpenRouter' -count=1 ./internal/factory ./internal/llm
