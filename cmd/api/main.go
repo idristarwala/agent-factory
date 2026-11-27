@@ -79,6 +79,18 @@ func main() {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		message := strings.TrimSpace(req.Message)
+		const create = "create a factory to"
+		lower := strings.ToLower(message)
+		if lower == create || strings.HasPrefix(lower, create+" ") {
+			reply, err := createChatFactory(ws, strings.TrimSpace(message[len(create):]))
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadGateway)
+				return
+			}
+			sendJSON(w, reply, nil)
+			return
+		}
 		if reply, handled, err := chatCommand(ws, req.Message, req.Source); handled {
 			if err != nil {
 				http.Error(w, err.Error(), 400)

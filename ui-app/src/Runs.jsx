@@ -10,7 +10,7 @@ export default function Runs({runs, source, setSource, request, refresh, setMess
     return ()=>{live=false}
   },[page,request,setMessage])
   const [goal,setGoal] = useState('')
-  const [definition,setDefinition]=useState(''), [expected,setExpected]=useState(0)
+  const definition=source?.definition || '', expected=source?.expected || 0
   const [selected,setSelected] = useState('')
   const [notes,setNotes] = useState({})
   const [busy,setBusy] = useState(false)
@@ -24,11 +24,11 @@ export default function Runs({runs, source, setSource, request, refresh, setMess
     const r=await request('/api/goals',{description:goal, factory:source.factory,records,selected_rules:source.rules,max_tokens:Number(source.budget)})
     setSelected(r.id);setMessage('Started run '+r.id)
   })}}><h2>Create a goal</h2><label>Outcome<input required value={goal} onChange={e=>setGoal(e.target.value)}/></label>
-    <label>Factory definition ID<input required value={source.factory} onChange={e=>setSource({...source,factory:e.target.value})}/></label>
+    <label>Factory definition ID<input required value={source.factory} onChange={e=>setSource({...source,factory:e.target.value,expected:0,definition:''})}/></label>
     <details><summary>Create or revise this factory definition</summary>
-      <label>Expected revision<input type="number" min="0" value={expected} onChange={e=>setExpected(Number(e.target.value))}/></label>
-      <label>Definition JSON<textarea rows={4} value={definition} placeholder='{"record_type":"request","fields":{"assigned_team":"string"}}' onChange={e=>setDefinition(e.target.value)}/></label>
-      <button type="button" disabled={busy||!source.factory} onClick={()=>action(async()=>{const d=await request('/api/definitions/factory/'+encodeURIComponent(source.factory),{Expected:expected,Data:JSON.parse(definition)});setExpected(d.version);setMessage('Saved factory revision '+d.version)})}>Save definition</button></details>
+      <label>Expected revision<input type="number" min="0" value={expected} onChange={e=>setSource({...source,expected:Number(e.target.value)})}/></label>
+      <label>Definition JSON<textarea rows={4} value={definition} placeholder='{"record_type":"request","fields":{"assigned_team":"string"}}' onChange={e=>setSource({...source,definition:e.target.value})}/></label>
+      <button type="button" disabled={busy||!source.factory} onClick={()=>action(async()=>{const d=await request('/api/definitions/factory/'+encodeURIComponent(source.factory),{Expected:expected,Data:JSON.parse(definition)});setSource(previous=>({...previous,expected:d.version}));setMessage('Saved factory revision '+d.version)})}>Save definition</button></details>
     <label>Source records (JSON array)<textarea required rows={6} value={source.records} onChange={e=>setSource({...source,records:e.target.value})}/></label>
     <label>Token budget (0 uses workspace settings)<input type="number" min="0" value={source.budget} onChange={e=>setSource({...source,budget:e.target.value})}/></label>
     <fieldset><legend>Run rules</legend><label><input type="checkbox" checked={source.rules===undefined}

@@ -167,27 +167,57 @@ func runRoutes(mux *http.ServeMux, ws *factory.Workspace, engine *rules.Engine) 
 		runResponse(w, map[string]any{"tokens_used": total, "estimated_usd": cost, "tool_calls": 0, "model_calls": calls, "unpriced_calls": unknown}, nil)
 	}, "GET"))
 }
+
+// chatCommand resolves run operations against the workspace so replies reflect durable state.
 func chatCommand(ws *factory.Workspace, message string, source *factory.RunRequest) (string, bool, error) {
-	words := strings.Fields(message)
-	if len(words) == 0 {
-		return "", false, nil
+	text := strings.TrimSpace(message)
+	for _, prefix := range []string{"please ", "can you ", "could you "} {
+		if strings.HasPrefix(strings.ToLower(text), prefix) {
+			text = strings.TrimSpace(text[len(prefix):])
+		}
 	}
-	switch strings.ToLower(words[0]) {
-	case "status":
-		if len(words) != 2 {
-			return "Use status followed by a run ID.", true, nil
+	text = strings.TrimRight(text, "?!")
+	lower := strings.ToLower(text)
+	for _, prefix := range []string{"what is the status of ", "what's the status of ", "check the status of ", "check status of ", "status of ", "status "} {
+		if strings.HasPrefix(lower, prefix) {
+			id := strings.TrimSpace(text[len(prefix):])
+			if strings.HasPrefix(strings.ToLower(id), "run ") {
+				id = strings.TrimSpace(id[4:])
+			}
+			switch strings.ToLower(id) {
+			case "latest", "latest run", "the latest run", "my latest run":
+				runs, err := ws.List()
+				if err != nil {
+					return "", true, err
+				}
+				if len(runs) == 0 {
+					return "There are no runs in this workspace yet.", true, nil
+				}
+				id = runs[0].ID
+			}
+			r, err := ws.Get(id)
+			if err != nil {
+				return "", true, err
+			}
+			return fmt.Sprintf("%s is %s. Decisions: %d. Source records: %d.", r.ID, r.Status, len(r.Decisions), len(r.Records)), true, nil
 		}
-		r, err := ws.Get(words[1])
-		if err != nil {
-			return "", true, err
+	}
+	if lower == "status" || lower == "check status" || lower == "what is the status" {
+		return "Which run? Send its ID after Status, or ask for the status of the latest run.", true, nil
+	}
+	for _, prefix := range []string{"start a new factory to", "start a factory to", "start a run to", "start a run", "start"} {
+		if lower != prefix && !strings.HasPrefix(lower, prefix+" ") {
+			continue
 		}
-		return fmt.Sprintf("%s is %s with %d reviewed records.", r.ID, r.Status, len(r.Decisions)), true, nil
-	case "start":
-		if source == nil || len(source.Records) == 0 {
+		goal := strings.TrimSpace(text[len(prefix):])
+		if goal == "" {
+			return "What should this run accomplish?", true, nil
+		}
+		if source == nil || len(source.Records) == 0 || source.Factory == "" {
 			return "Choose a factory and source records in the goal builder, then send Start with your goal.", true, nil
 		}
 		req := *source
-		req.Description = strings.TrimSpace(strings.Join(words[1:], " "))
+		req.Description = goal
 		r, err := startRun(ws, req)
 		if err != nil {
 			return "", true, err
