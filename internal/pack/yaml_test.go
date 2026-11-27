@@ -2,6 +2,8 @@ package pack
 
 import (
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
 func TestLoadStarterPack(t *testing.T) {
@@ -28,8 +30,7 @@ func TestLoadStarterPack(t *testing.T) {
 }
 
 func TestLoadMinimalYAML(t *testing.T) {
-	// Write a temp file? For unit test we exercise the unmarshal path via Load on a known string by testing SimpleYAMLToJSON still works for simple cases.
-	yaml := `
+	yamlDoc := `
 name: retail
 worker_roles:
   - title-fixer
@@ -40,9 +41,8 @@ rules:
 tools:
   - http
 `
-	// Direct unmarshal test
 	var p Pack
-	if err := yaml.Unmarshal([]byte(yaml), &p); err != nil {
+	if err := yaml.Unmarshal([]byte(yamlDoc), &p); err != nil {
 		t.Fatal(err)
 	}
 	if p.Name != "retail" {
