@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import {parseSample, runSource} from './sourceInput'
 import Settings from './Settings'
 import Definitions from './Definitions'
 import Runs from './Runs'
@@ -10,16 +11,16 @@ export default function App(){
   const [source,setSource]=useState({factory:'',records:'[]',budget:0})
   const [chat,setChat]=useState([]),[input,setInput]=useState(''),[sending,setSending]=useState(false)
   const [usage,setUsage]=useState({tokens_used:0})
-  const request=useCallback(async(path,body,method)=>{
+  const request=useCallback(async(path,body,method,lossless=false)=>{
     const r=await fetch(API+path,{method:method || (body?'POST':'GET'),headers:body?{'Content-Type':'application/json'}:undefined,body:body?JSON.stringify(body):undefined})
     if(!r.ok)throw new Error((await r.text()).trim() || 'Request failed')
-    return await r.json()
+    return lossless ? parseSample(await r.text()) : await r.json()
   },[])
   const refresh=useCallback(async()=>{const [r,u]=await Promise.all([request('/api/goals'),request('/api/usage')]);setRuns(r);setUsage(u)},[request])
   useEffect(()=>{refresh().catch(e=>setMessage(e.message));const id=setInterval(()=>refresh().catch(e=>setMessage(e.message)),5000);return ()=>clearInterval(id)},[refresh])
   async function send(e){e.preventDefault();if(!input.trim()||sending)return;setSending(true)
     try{const text=input.trim();const body={message:text}
-      if(/^(?:please\s+)?(?:(?:can|could) you\s+)?start\b/i.test(text)&&source.factory) body.source={factory:source.factory,records:JSON.parse(source.records),selected_rules:source.rules,max_tokens:Number(source.budget)}
+      if(/^(?:please\s+)?(?:(?:can|could) you\s+)?start\b/i.test(text)&&source.factory) body.source=runSource(source)
       const reply=await request('/api/chat',body)
       if(reply.factory){setSource({factory:reply.factory,definition:reply.definition,expected:1,records:'[]',budget:0});setPage('Goal builder')}
       setChat(c=>[...c,{role:'user',text},{role:'bot',text:reply.reply}]);setInput('');await refresh()

@@ -1,3 +1,5 @@
+import SourceMapping from './SourceMapping'
+import {runSource} from './sourceInput'
 import RecordGraph from './RecordGraph'
 import { useEffect, useState } from 'react'
 
@@ -19,23 +21,25 @@ export default function Runs({runs, source, setSource, request, refresh, setMess
     {runs.map(r=><option key={r.id} value={r.id}>{r.description} · {r.id.slice(0,8)}</option>)}</select></label>
   async function action(fn) { setBusy(true); try { await fn(); await refresh() } catch(e) {setMessage(e.message)} finally {setBusy(false)} }
   if(page==='Goal builder') return <form className="definitions" onSubmit={e=>{e.preventDefault();action(async()=>{
-    const records=JSON.parse(source.records)
-    if(!Array.isArray(records)||!records.length) throw new Error('Supply at least one source record.')
-    const r=await request('/api/goals',{description:goal, factory:source.factory,records,selected_rules:source.rules,max_tokens:Number(source.budget)})
+    const input=runSource(source)
+    if(!input.source && (!Array.isArray(input.records)||!input.records.length)) throw new Error('Supply at least one source record.')
+    const r=await request('/api/goals',{description:goal,...input})
     setSelected(r.id);setMessage('Started run '+r.id)
   })}}><h2>Create a goal</h2><label>Outcome<input required value={goal} onChange={e=>setGoal(e.target.value)}/></label>
-    <label>Factory definition ID<input required value={source.factory} onChange={e=>setSource({...source,factory:e.target.value,expected:0,definition:''})}/></label>
+    <label>Factory definition ID<input required value={source.factory} onChange={e=>setSource({...source,factory:e.target.value,approved:null,expected:0,definition:''})}/></label>
     <details><summary>Create or revise this factory definition</summary>
       <label>Expected revision<input type="number" min="0" value={expected} onChange={e=>setSource({...source,expected:Number(e.target.value)})}/></label>
       <label>Definition JSON<textarea rows={4} value={definition} placeholder='{"record_type":"request","fields":{"assigned_team":"string"}}' onChange={e=>setSource({...source,definition:e.target.value})}/></label>
       <button type="button" disabled={busy||!source.factory} onClick={()=>action(async()=>{const d=await request('/api/definitions/factory/'+encodeURIComponent(source.factory),{Expected:expected,Data:JSON.parse(definition)});setSource(previous=>({...previous,expected:d.version}));setMessage('Saved factory revision '+d.version)})}>Save definition</button></details>
-    <label>Source records (JSON array)<textarea required rows={6} value={source.records} onChange={e=>setSource({...source,records:e.target.value})}/></label>
+    <label>Input format<select value={source.inputMode || 'records'} onChange={e=>setSource({...source,inputMode:e.target.value})}><option value="records">Factory records</option><option value="mapped">Source API response</option></select></label>
+    {source.inputMode==='mapped' ? <SourceMapping key={source.factory} factory={source.factory} goal={goal} approved={source.approved} request={request} setMessage={setMessage} onApprove={approved=>setSource(prev=>prev.factory===source.factory?{...prev,approved}:prev)}/> :
+<label>Source records (JSON array)<textarea required rows={6} value={source.records} onChange={e=>setSource({...source,records:e.target.value})}/></label>}
     <label>Token budget (0 uses workspace settings)<input type="number" min="0" value={source.budget} onChange={e=>setSource({...source,budget:e.target.value})}/></label>
     <fieldset><legend>Run rules</legend><label><input type="checkbox" checked={source.rules===undefined}
       onChange={e=>setSource({...source,rules:e.target.checked?undefined:Object.fromEntries(availableRules.map(r=>[r.ID,r.Version]))})}/> Use all active rules</label>
       {source.rules!==undefined && availableRules.map(r=><label key={r.ID}><input type="checkbox" checked={source.rules[r.ID]===r.Version}
         onChange={e=>{const rules={...source.rules};if(e.target.checked)rules[r.ID]=r.Version;else delete rules[r.ID];setSource({...source,rules})}}/> {r.Description} · r{r.Version}</label>)}</fieldset>
-    <button className="ok" disabled={busy}>Start run</button></form>
+    <button className="ok" disabled={busy || (source.inputMode==='mapped' && !source.approved)}>Start run</button></form>
   const decisionCard = d => <article key={d.id}><h3>{d.entity_id} · {d.status}</h3><p>{d.reason}</p>
       <div className="decision-layout"><div><table><thead><tr><th>Field</th><th>Before</th><th>Proposed</th></tr></thead><tbody>{Object.entries(d.after).map(([k,v])=><tr key={k}><td>{k}</td><td>{JSON.stringify(d.before?.[k]) ?? 'Unset'}</td><td>{JSON.stringify(v)}</td></tr>)}</tbody></table></div>
       <aside aria-label="Decision evidence"><h4>Evidence</h4>
