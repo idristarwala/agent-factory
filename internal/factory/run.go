@@ -9,6 +9,7 @@ import (
 	"github.com/idristarwala/agent-factory/internal/artifact"
 	"github.com/idristarwala/agent-factory/internal/memory"
 	"github.com/idristarwala/agent-factory/internal/tools"
+	"maps"
 	"slices"
 	"sort"
 	"strings"
@@ -120,6 +121,13 @@ func Prepare(st revision.Store, name string, number int) (Plan, error) {
 		if err != nil {
 			return Plan{}, err
 		}
+		if plan.ApprovedPack != nil {
+			for name := range plan.ApprovedPack.ProposalArguments {
+				if name == plan.ProposalTool.RecordArgument || name == plan.ProposalTool.ChangesArgument {
+					return Plan{}, fmt.Errorf("proposal argument %q conflicts with the tool's record or changes binding", name)
+				}
+			}
+		}
 	}
 	for _, item := range []struct {
 		key, role, tier, actor string
@@ -213,9 +221,21 @@ func (p Plan) evaluate(gw models.Gateway, goal string, e schema.Entity, origin *
 		return nil, agents.Decision{}, err
 	}
 	if tool := p.ProposalTool; tool != nil {
+		record, err := json.Marshal(e.ID)
+		if err != nil {
+			return nil, agents.Decision{}, err
+		}
+		changes, err := json.Marshal(mutation.Updates[0].Props)
+		if err != nil {
+			return nil, agents.Decision{}, err
+		}
+		arguments := map[string]json.RawMessage{tool.RecordArgument: record, tool.ChangesArgument: changes}
+		if p.ApprovedPack != nil {
+			maps.Copy(arguments, p.ApprovedPack.ProposalArguments)
+		}
 		mutation.ToolProposal = &graph.ToolProposal{
 			Name: tool.Name, ToolRevision: tool.ToolRevision, Pack: p.Factory, PackRevision: tool.PackRevision, SideEffect: tool.SideEffect,
-			Arguments: map[string]any{tool.RecordArgument: e.ID, tool.ChangesArgument: mutation.Updates[0].Props},
+			Arguments: arguments,
 		}
 	}
 	mutation.Evidence = append(mutation.Evidence, "Requested goal: "+goal)

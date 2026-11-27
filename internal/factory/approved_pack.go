@@ -18,6 +18,7 @@ type PackRef struct {
 }
 
 type ApprovedPack struct {
+	ProposalArguments map[string]json.RawMessage `json:"proposal_arguments,omitempty"`
 	PackRef
 	Commit      string        `json:"commit"`
 	PackSHA     string        `json:"pack_sha256"`
@@ -71,7 +72,7 @@ func pinApprovedPack(st revision.Store, def Spec) (*ApprovedPack, error) {
 			return nil, fmt.Errorf("tool %q is not allowed by reviewed pack", name)
 		}
 	}
-	pinned := &ApprovedPack{PackRef: ref, Commit: r.Commit, PackSHA: r.PackSHA, EvidenceSHA: r.EvidenceSHA}
+	pinned := &ApprovedPack{ProposalArguments: p.ProposalArguments[def.ProposeTool], PackRef: ref, Commit: r.Commit, PackSHA: r.PackSHA, EvidenceSHA: r.EvidenceSHA}
 	seen := map[string]bool{}
 	for _, rule := range p.Rules {
 		if seen[rule.ID] {

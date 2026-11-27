@@ -8,6 +8,7 @@ import (
 	"github.com/santhosh-tekuri/jsonschema/v5"
 	"io"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 
@@ -34,13 +35,14 @@ func (r *RuleSpec) UnmarshalJSON(data []byte) error {
 
 // Pack is the file-based domain pack format for issue #9.
 type Pack struct {
-	Name         string     `json:"name" yaml:"name"`
-	Description  string     `json:"description,omitempty" yaml:"description,omitempty"`
-	NodeTypes    []string   `json:"node_types,omitempty" yaml:"node_types,omitempty"`
-	WorkerRoles  []string   `json:"worker_roles" yaml:"worker_roles"`
-	Rules        []RuleSpec `json:"rules" yaml:"rules"`
-	ToolsAllowed []string   `json:"tools_allowed,omitempty" yaml:"tools_allowed,omitempty"`
-	Tools        []string   `json:"tools,omitempty" yaml:"tools,omitempty"`
+	ProposalArguments map[string]map[string]json.RawMessage `json:"proposal_arguments,omitempty" yaml:"proposal_arguments,omitempty"`
+	Name              string                                `json:"name" yaml:"name"`
+	Description       string                                `json:"description,omitempty" yaml:"description,omitempty"`
+	NodeTypes         []string                              `json:"node_types,omitempty" yaml:"node_types,omitempty"`
+	WorkerRoles       []string                              `json:"worker_roles" yaml:"worker_roles"`
+	Rules             []RuleSpec                            `json:"rules" yaml:"rules"`
+	ToolsAllowed      []string                              `json:"tools_allowed,omitempty" yaml:"tools_allowed,omitempty"`
+	Tools             []string                              `json:"tools,omitempty" yaml:"tools,omitempty"`
 }
 
 const schemaBase = "https://raw.githubusercontent.com/idristarwala/agent-factory/main/schemas/"
@@ -79,6 +81,11 @@ func Parse(path string, data []byte) (*Pack, error) {
 	// Normalise tools alias
 	if len(p.ToolsAllowed) == 0 && len(p.Tools) > 0 {
 		p.ToolsAllowed = p.Tools
+	}
+	for tool := range p.ProposalArguments {
+		if !slices.Contains(p.ToolsAllowed, tool) {
+			return nil, fmt.Errorf("proposal_arguments names tool %q outside tools_allowed", tool)
+		}
 	}
 	return &p, nil
 }
