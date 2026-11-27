@@ -16,25 +16,26 @@ import (
 
 // HTTPTool is a config-driven HTTP tool for issue #12.
 type HTTPTool struct {
-	mcpTool      string
-	response     *responseMapping
-	Name         string
-	Description  string
-	Method       string
-	URLTemplate  string
-	BodyTemplate string
-	QueryParams  []string // param names that go to query string
-	AuthType     string
-	KeyFile      string
-	AuthHeader   string
-	Username     string
-	Headers      map[string]string
-	SideEffect   string
-	Client       *http.Client
-	Retries      int
-	CacheTTL     time.Duration
-	cache        map[string]cacheEntry
-	mu           sync.Mutex
+	mcpTool        string
+	response       *responseMapping
+	Name           string
+	Description    string
+	Method         string
+	URLTemplate    string
+	BodyTemplate   string
+	RequiredParams []string
+	QueryParams    []string // param names that go to query string
+	AuthType       string
+	KeyFile        string
+	AuthHeader     string
+	Username       string
+	Headers        map[string]string
+	SideEffect     string
+	Client         *http.Client
+	Retries        int
+	CacheTTL       time.Duration
+	cache          map[string]cacheEntry
+	mu             sync.Mutex
 }
 
 type cacheEntry struct {
@@ -52,6 +53,11 @@ func (t *HTTPTool) Call(ctx context.Context, params map[string]string) (string, 
 		return "", fmt.Errorf("non-read-only tools must become proposals")
 	}
 
+	for _, name := range t.RequiredParams {
+		if _, ok := params[name]; !ok {
+			return "", fmt.Errorf("missing required parameter %q", name)
+		}
+	}
 	urlStr := t.URLTemplate
 	for k, v := range params {
 		urlStr = strings.ReplaceAll(urlStr, "{"+k+"}", url.PathEscape(v))

@@ -53,6 +53,7 @@ func loadHTTPConfig(path string) (*EvidenceConfig, error) {
 			Method   string
 			URL      string
 			Headers  map[string]string
+			Required []string
 			Query    []string
 			Body     map[string]any
 			Proxy    string
@@ -130,6 +131,7 @@ func loadHTTPConfig(path string) (*EvidenceConfig, error) {
 			transport := t.Client.Transport.(*http.Transport)
 			transport.TLSClientConfig = &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS12}
 		}
+		t.RequiredParams = def.Required
 		t.Headers, t.QueryParams = def.Headers, def.Query
 		if def.Body != nil {
 			if !readPost {
