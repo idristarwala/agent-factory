@@ -9,15 +9,26 @@ spec:
       containers:
         - name: factory
           image: agent-factory:latest
-          args: ["Fix titles and product types"]
+          args: ["-factory", "$(FACTORY_DEFINITION)", "-records", "/input/records.json", "$(FACTORY_GOAL)"]
+          envFrom:
+            - configMapRef:
+                name: factory-run
+            - secretRef:
+                name: factory-database
           env:
             - name: SECRETS_DIR
               value: /etc/secrets
           volumeMounts:
+            - name: input
+              mountPath: /input
+              readOnly: true
             - name: secrets
               mountPath: /etc/secrets
               readOnly: true
       volumes:
+        - name: input
+          configMap:
+            name: factory-records
         - name: secrets
           secret:
             secretName: agent-factory-secrets

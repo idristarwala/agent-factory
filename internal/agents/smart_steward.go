@@ -92,13 +92,13 @@ func (s *SmartSteward) InterpretGoal(goal string, graphSnapshot any) ([]*unitofw
 	goalLower := strings.ToLower(goal)
 	var chosen domain.Pack
 	for _, p := range s.packs {
-		if strings.Contains(goalLower, p.Name) || strings.Contains(goalLower, "title") || strings.Contains(goalLower, "description") || strings.Contains(goalLower, "product") {
+		if strings.Contains(goalLower, p.Name) {
 			chosen = p
 			break
 		}
 	}
-	if chosen.Name == "" && len(s.packs) > 0 {
-		chosen = s.packs[0]
+	if chosen.Name == "" {
+		chosen = domain.Pack{Name: "general", WorkerRoles: []string{"worker"}}
 	}
 	var uows []*unitofwork.UnitOfWork
 	for _, role := range chosen.WorkerRoles {

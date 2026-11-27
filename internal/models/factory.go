@@ -25,11 +25,13 @@ func NewGatewayFromEnv() (Gateway, error) {
 	}
 
 	switch provider {
+	case "anthropic":
+		return NewAnthropicFromEnv()
 	case "gemini":
 		return NewGeminiFromEnv()
 	case "openai", "groq", "openrouter", "openai-compat":
 		return NewOpenAICompatFromEnv()
 	default:
-		return nil, fmt.Errorf("unknown LLM_PROVIDER: %s (supported: gemini, openai, groq, openrouter)", provider)
+		return nil, fmt.Errorf("unknown LLM_PROVIDER: %s (supported: anthropic, gemini, openai, groq, openrouter)", provider)
 	}
 }

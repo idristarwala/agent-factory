@@ -32,14 +32,25 @@ func NewReactWorker(id, role string, gw models.Gateway, g graph.Graph, tr *tools
 func (w *ReactWorker) Claim(uow *unitofwork.UnitOfWork) error { return nil }
 
 func (w *ReactWorker) Execute(uow *unitofwork.UnitOfWork) (*graph.Mutation, error) {
-	var contextParts []string
-	if uow.InputSubgraph != "" {
-		if n, err := w.Graph.GetNode(uow.InputSubgraph); err == nil {
-			b, _ := json.Marshal(n)
-			contextParts = append(contextParts, "Current node: "+string(b))
-		}
+	if uow.InputSubgraph == "" {
+		return nil, fmt.Errorf("input record ID is required")
 	}
-
+	node, err := w.Graph.GetNode(uow.InputSubgraph)
+	if err != nil {
+		return nil, err
+	}
+	allowed, types, err := outputFields(uow, node.Props)
+	if err != nil {
+		return nil, err
+	}
+	raw, err := json.Marshal(node)
+	if err != nil {
+		return nil, err
+	}
+	contextParts := []string{"Current record: " + string(raw), "Editable fields: " + strings.Join(allowed, ", ")}
+	if instructions := w.Definition.Config["instructions"]; instructions != "" {
+		contextParts = append(contextParts, instructions)
+	}
 	toolSpecs := ""
 	if w.Tools != nil {
 		for _, spec := range w.Tools.Specs() {
@@ -51,7 +62,7 @@ func (w *ReactWorker) Execute(uow *unitofwork.UnitOfWork) (*graph.Mutation, erro
 	scratch := strings.Join(contextParts, "\n")
 
 	for step := 0; step < w.MaxSteps; step++ {
-		prompt := fmt.Sprintf(`You are a catalog worker in a ReAct loop.
+		prompt := fmt.Sprintf(`You are a factory worker in a ReAct loop.
 Goal: %s
 Context so far:
 %s
@@ -61,7 +72,7 @@ Available tools:
 
 Reply with ONE of:
 1. TOOL: <tool_name> {"arg":"value"}
-2. FINAL: {"title":"...","description":"..."}
+2. FINAL: a JSON object containing the editable fields to change
 
 Only use FINAL when you have enough information.`, uow.Description, scratch, toolSpecs)
 
@@ -79,26 +90,17 @@ Only use FINAL when you have enough information.`, uow.Description, scratch, too
 		line := strings.TrimSpace(resp.Content)
 		if strings.HasPrefix(line, "FINAL:") {
 			jsonPart := strings.TrimSpace(strings.TrimPrefix(line, "FINAL:"))
-			var out struct {
-				Title       string `json:"title"`
-				Description string `json:"description"`
+			out, err := ParseAndValidate(jsonPart, allowed)
+			if err != nil {
+				return nil, err
 			}
-			if err := json.Unmarshal([]byte(jsonPart), &out); err != nil {
-				return nil, fmt.Errorf("final JSON: %w", err)
-			}
-			nodeID := uow.InputSubgraph
-			if nodeID == "" {
-				nodeID = "product-unknown"
+			if err := validateFields(out, types, uow.RequiredFields); err != nil {
+				return nil, err
 			}
 			return &graph.Mutation{
 				UnitOfWorkID: uow.ID, AgentName: w.Definition.Name, AgentRevision: w.Definition.Revision,
 				Updates: []graph.Node{{
-					ID:   graph.NodeID(nodeID),
-					Type: "product",
-					Props: map[string]any{
-						"title":       out.Title,
-						"description": out.Description,
-					},
+					ID: uow.InputSubgraph, Type: node.Type, Props: out,
 				}},
 				Evidence: evidence,
 			}, nil
@@ -115,6 +117,10 @@ Only use FINAL when you have enough information.`, uow.Description, scratch, too
 			var args map[string]any
 			if err := json.Unmarshal([]byte(parts[1]), &args); err != nil {
 				scratch += "\n[error] bad tool args"
+				continue
+			}
+			if w.Tools == nil {
+				scratch += "\n[error] no tools configured"
 				continue
 			}
 			t, ok := w.Tools.Get(toolName)

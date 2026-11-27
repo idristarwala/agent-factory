@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/idristarwala/agent-factory/internal/factory"
+	"log"
 	"net/http"
 	"os"
 	"slices"
@@ -18,20 +20,6 @@ import (
 	"github.com/idristarwala/agent-factory/internal/store"
 )
 
-type Goal struct {
-	ID          string    `json:"id"`
-	Description string    `json:"description"`
-	Status      string    `json:"status"`
-	CreatedAt   time.Time `json:"created_at"`
-}
-
-type Decision struct {
-	ID       string `json:"id"`
-	GoalID   string `json:"goal_id"`
-	Approved bool   `json:"approved"`
-	Reason   string `json:"reason"`
-}
-
 type Usage struct {
 	TokensUsed   int     `json:"tokens_used"`
 	ToolCalls    int     `json:"tool_calls"`
@@ -39,10 +27,6 @@ type Usage struct {
 }
 
 var (
-	goalsMu     sync.Mutex
-	goals       = map[string]*Goal{}
-	goalSeq     int
-	decisions   = []Decision{}
 	usageMu     sync.Mutex
 	usageTotals = Usage{}
 )
@@ -78,73 +62,34 @@ func main() {
 		})
 	})
 
-	mux.HandleFunc("/api/goals", apiRoute(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPost {
-			var body struct {
-				Description string `json:"description"`
-			}
-			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
-				return
-			}
-			goalsMu.Lock()
-			goalSeq++
-			id := fmt.Sprintf("goal-%d", goalSeq)
-			g := &Goal{ID: id, Description: body.Description, Status: "created", CreatedAt: time.Now()}
-			goals[id] = g
-			goalsMu.Unlock()
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(g)
-			return
-		}
-		goalsMu.Lock()
-		list := make([]*Goal, 0, len(goals))
-		for _, g := range goals {
-			list = append(list, g)
-		}
-		goalsMu.Unlock()
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(list)
-	}, "GET", "POST"))
-
-	mux.HandleFunc("/api/decisions", apiRoute(func(w http.ResponseWriter, r *http.Request) {
-
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(decisions)
-	}, "GET"))
-
-	mux.HandleFunc("/api/usage", apiRoute(func(w http.ResponseWriter, r *http.Request) {
-
-		w.Header().Set("Content-Type", "application/json")
-		usageMu.Lock()
-		snapshot := usageTotals
-		usageMu.Unlock()
-		json.NewEncoder(w).Encode(snapshot)
-	}, "GET"))
-
+	modelPrices, err := prices(os.Getenv("FACTORY_MODEL_PRICES"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	ws := &factory.Workspace{Store: definitions, Gateway: gw, Prices: modelPrices}
+	runRoutes(mux, ws, ruleEngine)
 	definitionRoutes(mux, ruleEngine, agents.NewStoredRegistry(definitions))
-
-	mux.HandleFunc("/api/graph", apiRoute(func(w http.ResponseWriter, r *http.Request) {
-
-		w.Header().Set("Content-Type", "application/json")
-		// Placeholder graph snapshot for the UI explorer
-		json.NewEncoder(w).Encode(map[string]any{
-			"nodes": []map[string]string{},
-			"edges": []map[string]string{},
-		})
-	}, "GET"))
 
 	mux.HandleFunc("/api/chat", apiRoute(func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
-			Message string `json:"message"`
+			Message string              `json:"message"`
+			Source  *factory.RunRequest `json:"source"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		if reply, handled, err := chatCommand(ws, req.Message, req.Source); handled {
+			if err != nil {
+				http.Error(w, err.Error(), 400)
+				return
+			}
+			sendJSON(w, map[string]string{"reply": reply}, nil)
+			return
+		}
 		resp, err := gw.Generate(models.Request{
 			Tier:        models.TierCheap,
-			System:      "You are a helpful factory assistant. Answer briefly. If the user gives a goal, confirm you will start a factory run for it.",
+			System:      "You are a helpful factory assistant. Answer briefly. To start a run, direct the user to the goal builder or the Start command.",
 			User:        req.Message,
 			Temperature: 0.3,
 			MaxTokens:   300,
@@ -187,7 +132,10 @@ func main() {
 		})
 	}, "POST"))
 
-	addr := ":8080"
+	addr := os.Getenv("FACTORY_LISTEN_ADDR")
+	if addr == "" {
+		addr = ":8080"
+	}
 	fmt.Println("API listening on", addr, "(store:", storeKindLabel(), ")")
 	srv := &http.Server{
 		Addr:         addr,

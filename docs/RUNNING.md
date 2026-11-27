@@ -1,40 +1,14 @@
-# Running
+# Run a factory
 
-## Local (Go)
+Import an explicit definition, then run it against a source file. From the project root, with a model gateway configured, try the service-desk example.
 
-```bash
-export GEMINI_API_KEY=your-key
-export LLM_PROVIDER=gemini
-go run ./cmd/goal "Fix catalog titles"
+```sh
+go run ./cmd/factory import factory service-desk 0 examples/service-desk/factory.json
+go run ./cmd/goal -factory service-desk -revision 1 -records examples/service-desk/records.json 'Assign requests using the routing guide'
 ```
 
-## Continuous multi-agent
+The importer takes the current revision as its fourth argument after the command name and kind/ID. Zero creates a new definition. The runner prints the selected revision and emits JSON decisions to standard output. Source data stays in its input file.
 
-```bash
-go run ./cmd/continuous-demo
-```
+The HTTP API uses the same factory definitions and evaluator. Start the API, open Goal builder, and supply the definition ID, goal, and source records. Pending changes can be reviewed before application to the run's record snapshot. Use Settings to enable observe mode for subsequent runs.
 
-## Docker
-
-```bash
-mkdir -p secrets
-echo -n "$GEMINI_API_KEY" > secrets/gemini-api-key
-docker compose up --build
-```
-
-## Kubernetes
-
-```bash
-# Edit the secret values first
-kubectl apply -f deploy/k8s/deployment.yaml
-kubectl apply -f deploy/k8s/job.yaml
-```
-
-## Environment
-
-| Variable | Purpose |
-|----------|---------|
-| `GEMINI_API_KEY` | Gemini key (or put in secrets dir) |
-| `LLM_PROVIDER` | `gemini` or `openai` |
-| `SECRETS_DIR` | Override secrets location |
-| `LLM_BASE_URL` | Custom OpenAI-compatible endpoint |
+Set `FACTORY_DB_PATH` or `DATABASE_URL` and `FACTORY_ID` consistently across the CLI and API. Set `FACTORY_MODEL_PRICES` to a JSON object keyed by model name with numeric `input_per_million` and `output_per_million` USD rates. Run details retain token counts and the estimate calculated for each successful model call. Unpriced calls are identified separately.
