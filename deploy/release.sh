@@ -6,3 +6,4 @@ for target in linux/amd64 darwin/amd64 darwin/arm64 windows/amd64; do
   if [ "$GOOS" = windows ]; then suffix="$suffix.exe"; fi
   scripts/build-binaries.sh dist "$suffix"
 done
+cp LICENSE dist/LICENSE

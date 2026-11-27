@@ -4,6 +4,8 @@ Run `make release` to build the goal runner (`agent-factory`), management CLI (`
 
 A version tag triggers the release workflow. It builds the binaries, publishes the container, records its digest and binary filenames in the release manifest, and attaches the artifacts to the GitHub release. Ordinary pull requests run vet, race tests, the Go build, and the frontend build.
 
+Engine releases carry the project’s proprietary license. The release assets include `LICENSE`, the release manifest names that file, and the runtime image includes the same text at `/usr/share/licenses/agent-factory/LICENSE`. [License and permission inquiries](../README.md#license)
+
 ## Publish a proposed pack revision
 
 Run your checks on the committed pack in your user repository. After they pass, have CI write a JSON receipt with `status` set to `passed`, the full Git `commit`, the lowercase hex `pack_sha256` of the exact pack file, and a nonempty `tests` array naming the checks. Additional evidence fields are retained. The publisher trusts the CI producer’s test report. It verifies the commit and pack digest against the checkout.

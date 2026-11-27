@@ -41,7 +41,7 @@ Full documentation lives in [`docs/`](docs/README.md):
 
 ## License
 
-Proprietary. All rights reserved. See [LICENSE](LICENSE).
+Agent Factory is a public repository distributed under the proprietary license of Idris Tarwala. Copying, distribution and modification require prior written permission under its terms. To request permission, contact the copyright holder through the repository. [License](LICENSE) · [Permission inquiries](https://github.com/idristarwala/agent-factory/issues/new)
 
 ### Goal chat attachments
 
