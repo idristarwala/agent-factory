@@ -70,11 +70,16 @@ func TestLiveGeminiConversation(t *testing.T) {
 		{Role: "system", Content: "Use lookup to read the record. Once the value is available, reply with the value only."},
 		{Role: "user", Content: "Read record A with lookup and tell me the value."},
 	}}
-	first, err := gateway.Chat(ctx, request)
+	toolStream, err := gateway.Stream(ctx, request)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(first.ToolCalls) != 1 || first.ToolCalls[0].Name != "lookup" {
+	defer toolStream.Close()
+	first, err := CollectStream(toolStream)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.Usage.Total == 0 || first.FinishReason == "" || len(first.ToolCalls) != 1 || first.ToolCalls[0].Name != "lookup" {
 		t.Fatal("expected a lookup request")
 	}
 	request.Messages = append(request.Messages, Message{Role: "assistant", Content: first.Content, ToolCalls: first.ToolCalls}, Message{Role: "tool", ToolCallID: first.ToolCalls[0].ID, Content: "OBS-714"})

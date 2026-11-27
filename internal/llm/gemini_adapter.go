@@ -149,6 +149,7 @@ func (a *GeminiAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatRespons
 			Total     int `json:"totalTokenCount"`
 		} `json:"usageMetadata"`
 		Candidates []struct {
+			Finish  string `json:"finishReason"`
 			Content struct {
 				Parts []struct {
 					Text             string `json:"text"`
@@ -188,7 +189,7 @@ func (a *GeminiAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatRespons
 	if err := validateOutput(schema, content); err != nil {
 		return nil, err
 	}
-	return &ChatResponse{Content: content, ToolCalls: toolCalls, Model: out.Model, LogicalModel: req.Model, Usage: Usage{Input: out.Usage.Input, Output: out.Usage.Output, Reasoning: out.Usage.Reasoning, Total: out.Usage.Total}}, nil
+	return &ChatResponse{Content: content, ToolCalls: toolCalls, FinishReason: out.Candidates[0].Finish, Model: out.Model, LogicalModel: req.Model, Usage: Usage{Input: out.Usage.Input, Output: out.Usage.Output, Reasoning: out.Usage.Reasoning, Total: out.Usage.Total}}, nil
 }
 
 func (a *GeminiAdapter) Stream(ctx context.Context, req ChatRequest) (Stream, error) {
@@ -219,7 +220,8 @@ func (a *GeminiAdapter) Stream(ctx context.Context, req ChatRequest) (Stream, er
 		return nil, err
 	}
 
-	return &sseStream{r: resp.Body}, nil
+	state := new(geminiStreamState)
+	return &sseStream{r: resp.Body, decode: state.decode}, nil
 }
 
 func parseInt(s string) (int, error) {
