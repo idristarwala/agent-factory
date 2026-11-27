@@ -19,6 +19,7 @@ type Budget struct {
 	MaxRounds    int
 	MaxWallClock time.Duration
 	MaxFailures  int
+	MaxTokens    int
 }
 
 // ContinuousRunner runs until the goal is achieved or a limit is hit.
@@ -38,6 +39,7 @@ type ContinuousRunner struct {
 	Recipe     tools.ContextRecipe
 	Stagnation int
 	progress   *Progress
+	tokenBudgets *Budgets
 }
 
 func NewContinuousRunner(s agents.Steward, j agents.Judge, q queue.WorkQueue, g graph.Graph, re *rules.Engine, ll *learning.LearningLoop) *ContinuousRunner {
@@ -53,9 +55,11 @@ func NewContinuousRunner(s agents.Steward, j agents.Judge, q queue.WorkQueue, g 
 			MaxRounds:    10,
 			MaxWallClock: 30 * time.Minute,
 			MaxFailures:  100,
+			MaxTokens:    1000000,
 		},
 		Stagnation: 2,
 		progress:   NewProgress(),
+		tokenBudgets: NewBudgets(10, 30*time.Minute, 1000000),
 	}
 }
 
@@ -71,20 +75,32 @@ func (r *ContinuousRunner) SetTools(reg map[string]*tools.HTTPTool, recipe tools
 	r.Recipe = recipe
 }
 
-func (r *ContinuousRunner) SetBudget(b Budget) { r.Budget = b }
+func (r *ContinuousRunner) SetBudget(b Budget) {
+	r.Budget = b
+	if r.tokenBudgets == nil {
+		r.tokenBudgets = NewBudgets(b.MaxRounds, b.MaxWallClock, b.MaxTokens)
+	} else {
+		r.tokenBudgets.MaxRounds = b.MaxRounds
+		r.tokenBudgets.MaxWallClock = b.MaxWallClock
+		r.tokenBudgets.MaxTokens = b.MaxTokens
+	}
+}
 
 func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 	if r.progress == nil {
 		r.progress = NewProgress()
 	}
 	r.progress.MaxStagnant = r.Stagnation
+	if r.tokenBudgets == nil {
+		r.tokenBudgets = NewBudgets(r.Budget.MaxRounds, r.Budget.MaxWallClock, r.Budget.MaxTokens)
+	}
 
 	start := time.Now()
 	totalFailures := 0
 
 	for round := 1; round <= r.Budget.MaxRounds; round++ {
-		if r.Budget.MaxWallClock > 0 && time.Since(start) > r.Budget.MaxWallClock {
-			return fmt.Errorf("wall-clock budget exceeded")
+		if reason := r.tokenBudgets.Exhausted(round); reason != "" {
+			return fmt.Errorf("budget exceeded: %s", reason)
 		}
 		if r.Budget.MaxFailures > 0 && totalFailures >= r.Budget.MaxFailures {
 			return fmt.Errorf("failure budget exceeded (%d)", totalFailures)
@@ -112,7 +128,6 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 			fmt.Println("Steward reports clean but verifier disagrees. Continuing.")
 		}
 
-		// Exclude blocked units from this round
 		blocked := map[string]bool{}
 		for _, id := range r.progress.BlockedNodes() {
 			blocked[string(id)] = true
@@ -197,9 +212,11 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 						r.Queue.Fail(ctx, uow.ID, err.Error())
 						continue
 					}
-					if decision.Approved && !r.Observe {
-						r.Graph.Apply(mutation)
-					}
+					// Rough token estimate
+			r.tokenBudgets.AddTokens(800)
+				if decision.Approved && !r.Observe {
+					r.Graph.Apply(mutation)
+				}
 					r.Queue.Complete(ctx, uow.ID)
 					mu.Lock()
 					decisions = append(decisions, decision)
@@ -212,9 +229,8 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 		totalFailures += len(failureMsgs)
 
 		if r.Learning != nil {
-			// Use CollectFailureSignals so learning sees grouped failures
 			signals := CollectFailureSignals(nil, failureErrs)
-			_ = signals // available for richer learning; Review still takes messages for now
+			_ = signals
 			gaps := r.Learning.Review(decisions, failureMsgs)
 			updates := r.Learning.ProposeUpdates(gaps)
 			applied := r.Learning.Apply(updates)
@@ -226,7 +242,6 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 			}
 		}
 
-		// Use Progress.Observe for stagnation
 		if r.progress.Observe(r.Graph.Snapshot()) {
 			fmt.Printf("No progress for %d rounds. Stopping.\n", r.progress.Stagnant)
 			return fmt.Errorf("stagnation: no progress for %d rounds", r.progress.Stagnant)
@@ -240,7 +255,6 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 	return fmt.Errorf("max rounds reached")
 }
 
-// verifyClean is the verifier gate.
 func (r *ContinuousRunner) verifyClean(goal string) bool {
 	uows, err := r.Steward.InterpretGoal(goal, r.Graph.Snapshot())
 	return err == nil && len(uows) == 0
