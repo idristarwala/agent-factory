@@ -2,8 +2,12 @@ package main
 
 import (
 	"fmt"
+	"github.com/idristarwala/agent-factory/internal/revision"
+	"github.com/idristarwala/agent-factory/internal/store"
+	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/idristarwala/agent-factory/internal/pack"
 )
@@ -15,6 +19,34 @@ func main() {
 	}
 	cmd := os.Args[1]
 	switch cmd {
+	case "import":
+		if len(os.Args) != 6 {
+			log.Fatal("usage: factory import KIND ID EXPECTED_REVISION definition.json")
+		}
+		kind := os.Args[2]
+		switch kind {
+		case "factory", "tool", "pack", "experience":
+		default:
+			log.Fatal("unsupported definition kind")
+		}
+		n, err := strconv.Atoi(os.Args[4])
+		if err != nil || n < 0 {
+			log.Fatal("expected a nonnegative revision")
+		}
+		data, err := os.ReadFile(os.Args[5])
+		if err != nil {
+			log.Fatal(err)
+		}
+		db, err := store.NewFromEnv()
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer db.Close()
+		doc, err := revision.SaveDocument(store.FactoryDefinitions(db, ""), kind+"/"+os.Args[3], n, "human", data)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("%s revision %d\n", doc.ID, doc.Version)
 	case "validate":
 		runValidate()
 	case "test":
@@ -117,6 +149,7 @@ func runPublish() {
 func printUsage() {
 	fmt.Println("Usage: factory <command>")
 	fmt.Println("Commands:")
+	fmt.Println("  import     Save a versioned definition from JSON")
 	fmt.Println("  up         Start the factory locally")
 	fmt.Println("  validate   Validate packs and config")
 	fmt.Println("  test       Run fixture / contract tests")

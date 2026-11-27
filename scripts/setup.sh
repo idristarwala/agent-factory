@@ -7,4 +7,4 @@ if [ -n "${GEMINI_API_KEY:-}" ]; then
   echo "Wrote secrets/gemini-api-key"
 fi
 go mod download
-echo "Ready. Run: go run ./cmd/goal \"your goal\""
+echo "Ready. See docs/RUNNING.md to import a factory and run a goal."

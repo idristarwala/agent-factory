@@ -4,16 +4,25 @@ services:
   factory:
     build: .
     environment:
+      - DATABASE_URL=postgres://factory:factory@postgres:5432/factory?sslmode=disable
       - SECRETS_DIR=/etc/secrets
       - LLM_PROVIDER=${LLM_PROVIDER:-gemini}
     volumes:
       - ./secrets:/etc/secrets:ro
     depends_on:
-      - postgres
-    command: ["Fix catalog titles"]
+      postgres:
+        condition: service_healthy
+    entrypoint: ["api"]
+    ports:
+      - "127.0.0.1:8080:8080"
 
   postgres:
     image: postgres:16-alpine
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U factory"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     environment:
       POSTGRES_USER: factory
       POSTGRES_PASSWORD: factory

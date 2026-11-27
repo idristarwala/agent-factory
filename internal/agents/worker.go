@@ -38,21 +38,18 @@ func (w *LLMWorker) Execute(uow *unitofwork.UnitOfWork) (*graph.Mutation, error)
 	}
 
 	var context string
-	var originalTitle, originalDesc string
-	if uow.InputSubgraph != "" {
-		n, err := w.Graph.GetNode(uow.InputSubgraph)
-		if err == nil {
-			b, _ := json.Marshal(n)
-			context = string(b)
-			if t, ok := n.Props["title"].(string); ok {
-				originalTitle = t
-			}
-			if d, ok := n.Props["description"].(string); ok {
-				originalDesc = d
-			}
-		}
+	if uow.InputSubgraph == "" {
+		return nil, fmt.Errorf("input record ID is required")
 	}
-
+	node, err := w.Graph.GetNode(uow.InputSubgraph)
+	if err != nil {
+		return nil, err
+	}
+	raw, err := json.Marshal(node)
+	if err != nil {
+		return nil, err
+	}
+	context = string(raw)
 	var ruleText strings.Builder
 	for _, r := range w.Rules {
 		ruleText.WriteString(fmt.Sprintf("- %s\n", r.Description))
@@ -62,16 +59,15 @@ func (w *LLMWorker) Execute(uow *unitofwork.UnitOfWork) (*graph.Mutation, error)
 	}
 
 	var familyNote string
-	if uow.InputSubgraph != "" {
-		fam, err := GatherFamily(w.Graph, uow.InputSubgraph, "group")
-		if err == nil && fam != nil {
+	if field := w.Definition.Config["group_field"]; field != "" {
+		fam, err := GatherFamily(w.Graph, uow.InputSubgraph, field)
+		if err != nil {
+			return nil, err
+		}
+		if fam != nil {
 			familyNote = fam.PromptFragment()
 		}
 	}
-	if familyNote == "" {
-		familyNote = "If this item has siblings, apply consistent wording across the family."
-	}
-
 	var evidenceNote string
 	if len(uow.Evidence) > 0 {
 		evidenceNote = "Gathered evidence:\n" + strings.Join(uow.Evidence, "\n") + "\n"
@@ -84,24 +80,22 @@ Goal / unit of work: %s
 Active rules you MUST follow:
 %s
 Current entity (JSON): %s
-Original title: %s
-Original description: %s
 %s
 %s
 Propose improvements as a JSON object of attribute key-value pairs.
 Respect the rules. Use the gathered evidence. Do not invent facts.
-Respond ONLY with valid JSON of the allowed fields.`, uow.Description, ruleText.String(), context, originalTitle, originalDesc, familyNote, evidenceNote)
+Respond ONLY with valid JSON of the allowed fields.`, uow.Description, ruleText.String(), context, familyNote, evidenceNote)
 
 	// Schema fields come from the unit of work when provided
-	allowed := uow.AllowedFields
-	required := uow.RequiredFields
-	if len(allowed) == 0 {
-		allowed = []string{"title", "description"}
+	allowed, types, err := outputFields(uow, node.Props)
+	if err != nil {
+		return nil, err
 	}
-	if len(required) == 0 {
-		required = []string{"title"}
+	schema := BuildResponseSchema(allowed, uow.RequiredFields)
+	properties := schema["properties"].(map[string]any)
+	for k, typ := range types {
+		properties[k] = map[string]any{"type": typ}
 	}
-	schema := BuildResponseSchema(allowed, required)
 	if instructions := w.Definition.Config["instructions"]; instructions != "" {
 		prompt += "\nWorker instructions: " + instructions
 	}
@@ -113,7 +107,7 @@ Respond ONLY with valid JSON of the allowed fields.`, uow.Description, ruleText.
 			System:      "You produce structured attribute updates that obey the provided rules and evidence. Output JSON only.",
 			User:        prompt,
 			Temperature: 0.2,
-			MaxTokens:   8000,
+			MaxTokens:   DefaultWorkerConfig().MaxTokens,
 			Schema:      schema,
 		})
 		if err != nil {
@@ -123,24 +117,24 @@ Respond ONLY with valid JSON of the allowed fields.`, uow.Description, ruleText.
 		}
 
 		updates, err := ParseAndValidate(resp.Content, allowed)
+		if err == nil {
+			err = validateFields(updates, types, uow.RequiredFields)
+		}
 		if err != nil {
 			lastErr = fmt.Errorf("worker validation failed: %w; content length=%d", err, len(resp.Content))
 			continue
 		}
 
-		updates["status"] = "fixed"
-
-		nodeID := uow.InputSubgraph
-		if nodeID == "" {
-			nodeID = graph.NodeID("entity-unknown")
+		if !uow.PreserveStatus {
+			updates["status"] = "fixed"
 		}
 
 		return &graph.Mutation{
 			UnitOfWorkID: uow.ID,
 			AgentName:    w.Definition.Name, AgentRevision: w.Definition.Revision, RuleRevisions: ruleRevisions(w.Rules),
 			Updates: []graph.Node{{
-				ID:    nodeID,
-				Type:  "entity",
+				ID:    uow.InputSubgraph,
+				Type:  node.Type,
 				Props: updates,
 			}},
 			Evidence: []string{"source: llm-worker-with-rules", "model: " + resp.Model, "attempt: " + fmt.Sprint(attempt+1)},

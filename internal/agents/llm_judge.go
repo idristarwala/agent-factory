@@ -13,8 +13,9 @@ import (
 // Fails closed: any model error or unclear reply rejects the proposal.
 // Now receives the full proposed mutation so it can see facts and original context.
 type LLMJudge struct {
-	Gateway models.Gateway
-	Graph   graph.Graph
+	Definition AgentVersion
+	Gateway    models.Gateway
+	Graph      graph.Graph
 }
 
 func NewLLMJudge(gw models.Gateway, g graph.Graph) *LLMJudge {
@@ -58,6 +59,9 @@ APPROVE: <reason>
 or
 REJECT: <reason>`, ruleText.String(), original, proposalJSON)
 
+	if extra := j.Definition.Config["instructions"]; extra != "" {
+		prompt += "\nJudge instructions: " + extra
+	}
 	resp, err := j.Gateway.Generate(models.Request{
 		Tier:        models.TierFrontier,
 		System:      "You are a strict judge. Output only APPROVE: or REJECT: followed by a short reason.",

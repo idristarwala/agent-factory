@@ -27,6 +27,28 @@ func InferMapping(sourceName, domain string, columns []string) Mapping {
 		lower[strings.ToLower(c)] = c
 	}
 
+	if domain != "catalog" && domain != "pricing" && domain != "inventory" && domain != "merchandising" {
+		typ := domain
+		if typ == "" {
+			typ = "entity"
+		}
+		for _, col := range columns {
+			fieldMap[col] = col
+		}
+		idField = lower["id"]
+		if idField == "" {
+			for _, col := range columns {
+				if strings.HasSuffix(strings.ToLower(col), "_id") {
+					if idField != "" {
+						idField = ""
+						break
+					}
+					idField = col
+				}
+			}
+		}
+		return Mapping{SourceName: sourceName, Domain: domain, Type: typ, IDField: idField, FieldMap: fieldMap}
+	}
 	for dest, candidates := range aliases {
 		for _, cand := range candidates {
 			if orig, ok := lower[cand]; ok {

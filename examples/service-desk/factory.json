@@ -1,0 +1,1 @@
+{"record_type":"request","fields":{"assigned_team":"string"},"required":["assigned_team"],"worker":"triage-worker"}

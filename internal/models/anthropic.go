@@ -107,6 +107,10 @@ func (g *AnthropicGateway) Generate(req Request) (*Response, error) {
 	}
 
 	var parsed struct {
+		Usage struct {
+			Input  int `json:"input_tokens"`
+			Output int `json:"output_tokens"`
+		} `json:"usage"`
 		Content []struct {
 			Type  string         `json:"type"`
 			Text  string         `json:"text"`
@@ -123,13 +127,14 @@ func (g *AnthropicGateway) Generate(req Request) (*Response, error) {
 		return nil, fmt.Errorf("anthropic: %s", parsed.Error.Message)
 	}
 
+	usage := map[string]int{"prompt_tokens": parsed.Usage.Input, "completion_tokens": parsed.Usage.Output, "total_tokens": parsed.Usage.Input + parsed.Usage.Output}
 	for _, c := range parsed.Content {
 		if c.Type == "tool_use" && c.Input != nil {
 			b, _ := json.Marshal(c.Input)
-			return &Response{Content: string(b), Model: model}, nil
+			return &Response{Content: string(b), Model: model, Usage: usage}, nil
 		}
 		if c.Type == "text" && c.Text != "" {
-			return &Response{Content: c.Text, Model: model}, nil
+			return &Response{Content: c.Text, Model: model, Usage: usage}, nil
 		}
 	}
 	return nil, fmt.Errorf("no content in anthropic response")

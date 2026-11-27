@@ -44,7 +44,7 @@ func (q *writeTrackingQueue) Complete(ctx context.Context, id string) error {
 func TestFailedGraphWriteNeverCompletesUnit(t *testing.T) {
 	writeErr := errors.New("graph unavailable")
 	g := failingGraph{graph.NewMemoryGraph(), writeErr}
-	g.AddNode(graph.Node{ID: "item", Props: map[string]any{"status": "needs_fix"}})
+	g.AddNode(graph.Node{ID: "item", Props: map[string]any{"status": "needs_fix", "title": "needs review"}})
 	s := agents.NewSmartSteward(unitofwork.NewMemoryStore())
 	s.SetRuntime(titleGateway{}, g, nil)
 	q := &writeTrackingQueue{MemoryQueue: queue.NewMemoryQueue()}

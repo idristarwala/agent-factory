@@ -14,19 +14,21 @@ const (
 )
 
 type UnitOfWork struct {
-	ID              string
-	GoalID          string
-	Description     string
-	InputSubgraph   graph.NodeID
-	ExpectedOutput  string
-	Budget          map[string]any
-	Mode            string
-	Status          Status
-	ClaimedBy       string
-	Proposal        *graph.Mutation
-	Evidence        []string
-	AllowedFields   []string // fields the worker may change; schema is built from these
-	RequiredFields  []string
+	ID             string
+	GoalID         string
+	Description    string
+	InputSubgraph  graph.NodeID
+	ExpectedOutput string
+	Budget         map[string]any
+	Mode           string
+	Status         Status
+	ClaimedBy      string
+	Proposal       *graph.Mutation
+	Evidence       []string
+	AllowedFields  []string // fields the worker may change; schema is built from these
+	RequiredFields []string
+	FieldTypes     map[string]string
+	PreserveStatus bool
 }
 
 type Store interface {

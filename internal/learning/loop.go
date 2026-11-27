@@ -125,7 +125,7 @@ func actionableRule(pattern string, evidence []string) string {
 	lower := strings.ToLower(pattern)
 	switch {
 	case strings.Contains(lower, "title"):
-		return "When correcting titles, keep the original product name and only fix obvious errors. Do not invent attributes."
+		return "When correcting a title, preserve the source meaning and verify changes against the evidence."
 	case strings.Contains(lower, "description"):
 		return "When correcting descriptions, preserve factual claims from the original. Do not add marketing language."
 	case strings.Contains(lower, "format"), strings.Contains(lower, "json"), strings.Contains(lower, "validation"):

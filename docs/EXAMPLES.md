@@ -3,7 +3,7 @@
 ## Fix a single bad title
 
 ```bash
-go run ./cmd/goal "Improve the title for sku-1001"
+go run ./cmd/catalog-demo
 ```
 
 ## Continuous multi-agent on a hard catalog

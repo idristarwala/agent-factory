@@ -18,6 +18,7 @@ const (
 	Agent  Kind = "agent"
 	Rule   Kind = "rule"
 	Config Kind = "config"
+	Run    Kind = "run"
 )
 
 type Snapshot struct {
@@ -73,6 +74,8 @@ func table(k Kind) (string, error) {
 	switch k {
 	case Agent:
 		return "agent_versions", nil
+	case Run:
+		return "run_versions", nil
 	case Config:
 		return "config_versions", nil
 	case Rule:

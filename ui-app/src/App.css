@@ -48,3 +48,6 @@ button[aria-pressed=true] { background: var(--accent); color: var(--bg); }
 .definitions pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 @media(max-width:650px) { .definition-layout { grid-template-columns: 1fr; } }
 @media(prefers-color-scheme:dark) { :root { color-scheme:dark; --bg:#15171c; --card:#202329; --text:#f5f5f6; --muted:#b9bdc8; --accent:#bdb4ff; } .msg.bot,.badge,.no { background:#333641; } .msg.user,.fab {color:#161622;} }
+main nav { flex-wrap:wrap; }
+.definitions textarea { width:100%; padding:8px; display:block; }
+.definitions th,.definitions td { text-align:left; padding:6px; vertical-align:top; overflow-wrap:anywhere; }
