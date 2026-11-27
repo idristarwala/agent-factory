@@ -67,20 +67,14 @@ if weight_oz > 30 and pt == Apparel then flag weight
 4. Judge approves against active rules (including customer policies).
 5. Repeat until clean.
 
-## Demo
+## Compare against independent labels
 
-```bash
-go run ./cmd/variant-demo
-```
+Run the scoring command on the supplied example or on your own labelled fixture.
 
-## Labelled fixture and demo
-
-A small labelled set lives at `examples/labelled_grouping.json`.
-
-```bash
-go run ./cmd/variant-demo
-# or
+```sh
 go run ./cmd/variant-demo examples/labelled_grouping.json
 ```
 
-It runs SimpleDetector and BlockThenDecide (nil-client fallback), then prints pair precision/recall/F1 via `ScorePairMetrics`. Use this to measure changes before and after wiring a real LLM client.
+Supply the current assignments in `entities[].attributes.group`. Supply independently assigned groups in a separate `labels` array with one entry per entity, for example `{"id":"6","group":"family-a"}`. An empty group string marks an explicitly ungrouped entity. IDs must be unique in each collection. Missing, extra or incomplete labels fail the run.
+
+The command prints pair precision, recall, F1 and pair counts for existing assignments, the deterministic detector and the nil-client fallback. Each comparison uses the same labels. Detectors receive only the source entities. Unlabelled legacy fixtures still run and report proposal counts. The bundled fixture illustrates the format. Field accuracy requires independently labelled field records.
