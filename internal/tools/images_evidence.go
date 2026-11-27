@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"fmt"
 )
 
 // ImageEvidence fetches a limited set of image URLs and returns summaries for prompts.
