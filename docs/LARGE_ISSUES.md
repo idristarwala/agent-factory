@@ -5,7 +5,7 @@
 Foundation complete in `internal/llm`:
 - Client / ChatRequest / ChatResponse / Message / ToolSpec / ToolCall / Usage
 - Adapter registry with Register/New
-- Typed Error with IsRetryable
+- Typed Error with a Retryable flag
 - Router with tier policy and rate limiter
 - Retry with exponential backoff
 - Protocol builders and POST adapters (OpenAI, Gemini, Anthropic)
