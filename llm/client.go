@@ -22,6 +22,7 @@ type (
 	Error          = core.Error
 	AdapterFactory = core.AdapterFactory
 	OpenAIAdapter  = core.OpenAIAdapter
+	OpenAIEnvelope = core.OpenAIEnvelope
 )
 
 const (

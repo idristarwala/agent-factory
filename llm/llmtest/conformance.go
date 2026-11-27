@@ -13,4 +13,8 @@ type Harness interface{ Client() llm.Client }
 func RunConformance(t *testing.T, h Harness) {
 	t.Helper()
 	core.RunConformance(t, h)
+	if p, ok := h.(*ProtocolHarness); ok {
+		RunHTTPConformance(t, p.NewClient)
+		RunStructuredConformance(t, p.Protocol, p.NewClient)
+	}
 }

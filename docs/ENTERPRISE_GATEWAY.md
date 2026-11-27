@@ -64,3 +64,18 @@ models:
 ```
 
 Define the model aliases used by your workload. Ordinary factory calls select their tier. Judge calls prefer the optional `judge` entry. Each model may add static headers or override a gateway header. Each gateway shares one HTTP transport across its models. Relative key and CA paths resolve beside the configuration file. Bearer, Google API key, and Anthropic API key authentication read the key file on each request so a rotated credential takes effect without restarting. Set `auth.type` to `bearer`, `google_api_key`, `anthropic_api_key`, or `none`.
+
+### Wrapped OpenAI requests
+
+For an endpoint that expects OpenAI parameters under a named key and returns standard OpenAI responses, configure the envelope on its model route. The same envelope applies to streaming and one-shot requests. The exact string `{model}` in a template value resolves to the configured wire model.
+
+```yaml
+models:
+  frontier:
+    gateway: corp
+    protocol: openai-envelope
+    model: reasoning-model
+    envelope:
+      params_key: params
+      template: {operation: chat, model: "{model}", version: "2025-01-01"}
+```
