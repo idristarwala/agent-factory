@@ -50,3 +50,9 @@ Packs live in `internal/domain`. Each pack supplies Name, NodeTypes, WorkerRoles
 |------|------|
 | memory | Local, tests, demos |
 | sql | Production (Postgres-compatible) |
+
+### Independent judge model
+
+Set `LLM_PROVIDER` for the worker and other ordinary calls. To route only judge calls to a different model, set both `LLM_JUDGE_PROVIDER` (gemini or openrouter) and `LLM_JUDGE_MODEL`. The judge uses its provider’s dedicated runtime credential, `GEMINI_API_KEY` or `OPENROUTER_API_KEY`. Run history records the role, served model and tokens for each worker and judge call.
+
+For a Gemini worker with a GPT-4o judge, use `LLM_PROVIDER=gemini`, `LLM_JUDGE_PROVIDER=openrouter`, and `LLM_JUDGE_MODEL=openai/gpt-4o`. For the reverse, use `LLM_PROVIDER=openrouter`, `LLM_CHEAP_MODEL=openai/gpt-4o`, `LLM_JUDGE_PROVIDER=gemini`, and `LLM_JUDGE_MODEL=gemini-3.5-flash-lite`. With both credentials available, `make test-mixed-judges` executes both configurations through human approval.

@@ -63,6 +63,7 @@ REJECT: <reason>`, ruleText.String(), original, proposalJSON)
 		prompt += "\nJudge instructions: " + extra
 	}
 	resp, err := j.Gateway.Generate(models.Request{
+		CallerRole:  "judge",
 		Tier:        models.TierFrontier,
 		System:      "You are a strict judge. Output only APPROVE: or REJECT: followed by a short reason.",
 		User:        prompt,

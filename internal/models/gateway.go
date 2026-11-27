@@ -12,6 +12,7 @@ const (
 )
 
 type Request struct {
+	CallerRole  string
 	Tier        Tier
 	System      string
 	User        string

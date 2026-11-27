@@ -77,6 +77,7 @@ Reply with ONE of:
 Only use FINAL when you have enough information.`, uow.Description, scratch, toolSpecs)
 
 		resp, err := w.Gateway.Generate(models.Request{
+			CallerRole:  "worker",
 			Tier:        models.TierCheap,
 			System:      "You are a precise agent. Output only TOOL: or FINAL: lines.",
 			User:        prompt,

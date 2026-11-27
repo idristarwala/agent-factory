@@ -25,3 +25,7 @@ test-gemini:
 conformance:
 	go test -race ./internal/llm/...
 	cd examples/out-of-tree-gateway && go test -race ./...
+
+.PHONY: test-mixed-judges
+test-mixed-judges:
+	go test -v -tags openrouter_live -run '^TestLiveOpenRouter' -count=1 ./internal/factory
