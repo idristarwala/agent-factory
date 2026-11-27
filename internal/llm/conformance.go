@@ -125,9 +125,12 @@ func RunConformance(t *testing.T, h ConformanceHarness) {
 
 	t.Run("streaming_optional", func(t *testing.T) {
 		ctx := context.Background()
-		_, err := c.Stream(ctx, ChatRequest{
+		stream, err := c.Stream(ctx, ChatRequest{
 			Messages: []Message{{Role: "user", Content: "hello"}},
 		})
+		if stream != nil {
+			defer stream.Close()
+		}
 		if err != nil && err != ErrStreamingUnsupported {
 			t.Errorf("unexpected stream error: %v", err)
 		}
