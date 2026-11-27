@@ -1,0 +1,9 @@
+{
+  "definition":"definition.json",
+  "goal":"Add the documented color to the title.",
+  "record":{"id":"one","type":"product","attributes":{"title":"Cup","color":"Blue"}},
+  "worker_reply":{"title":"Blue Cup"},
+  "judge_reply":"APPROVE: The color is present in the source.",
+  "expected_patch":{"title":"Blue Cup"},
+  "expected_approved":true
+}

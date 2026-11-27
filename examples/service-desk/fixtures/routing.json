@@ -1,0 +1,9 @@
+{
+  "definition":"factory.json",
+  "goal":"Assign the team from the routing guide.",
+  "record":{"id":"request-1","type":"request","attributes":{"assigned_team":"","routing_guide":"Workplace IT handles folder access."}},
+  "worker_reply":{"assigned_team":"Workplace IT"},
+  "judge_reply":"APPROVE: The team matches the guide.",
+  "expected_patch":{"assigned_team":"Workplace IT"},
+  "expected_approved":true
+}
