@@ -52,6 +52,23 @@ The API and CLI read deployment configuration from their process environment. Re
 | `LLM_CHEAP_MODEL`, `LLM_FRONTIER_MODEL` | Model names | Direct OpenRouter defaults to `gpt-4o-mini`. Custom OpenAI-compatible endpoints default to `llama-3.1-8b-instant`. Frontier defaults to the cheap model. |
 | `LLM_JUDGE_PROVIDER`, `LLM_JUDGE_MODEL` | Provider and model names, both unset | Set together for independent judge routing. Otherwise judge calls use the primary provider. |
 
+## CLI options
+
+Options below apply to a single invocation. Place named flags before positional paths or the goal. The management commands accept plain paths unless a different input mode is selected.
+
+| Command | Options | Default and effect |
+| --- | --- | --- |
+| `agent-factory` | `-factory`, `-records`, `-revision` | Factory definition ID and entity-array JSON path default to `FACTORY_DEFINITION` and `FACTORY_RECORDS` and must be supplied by flag or environment. Integer revision defaults to 0 (latest). The remaining words form the goal. |
+| `continuous-swarm` | `-field`, `-review-replay` | Repeat the string field selector to constrain edits. With no selector, the runner derives scope from the goal. Review defaults to false. Enabling it requires an active replay gate and human approval after successful replay. |
+| `factory up` | `-f` | Optional Compose file path. Overrides `COMPOSE_FILE` and project discovery. |
+| `factory validate` | `--rule`, `--tools` | Select one mode and provide one or more files. Default mode validates packs from named paths or local discovery. |
+| `factory test` | `--receipt` | Default mode tests working-tree fixtures. Receipt mode takes one pack file, tests the committed snapshot and prints JSON. |
+| `factory tools import` | `-operation`, `-server`, `-key-file` | Optional strings. Select one operation ID or import eligible GET operations. A fixed HTTP(S) base overrides the document's server selection. A credential file reference requires one selected operation. |
+| `factory publish` | `-pack`, `-evidence`, `-expected` | All required. Supply the committed pack path, passing JSON receipt path and expected integer revision. Use 0 for an initial proposal. |
+| `factory readiness` | `--gateway` | Default mode checks the store and configured evidence tools and sources. The switch adds local model route and credential checks. |
+
+The [harness guide](HARNESSES.md) covers goal execution and JSON output. The [release guide](RELEASE.md) shows the fixture-to-publication handoff.
+
 ## Versioned workspace settings
 
 Read `GET /api/settings/schema` for a machine-readable JSON Schema with types, bounds, defaults and descriptions. Read `GET /api/settings` for effective workspace values, then post the complete settings object with its current revision as `Expected`. A successful edit appends a revision. A run pins the settings it reads at startup.

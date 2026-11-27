@@ -1,5 +1,7 @@
 # First run from an external harness
 
+For invocation defaults, flag precedence and deployment settings, see the [CLI option reference](CONFIGURATION.md#cli-options).
+
 From a checkout with Go 1.26, build the CLI once. Both examples below use the standard library, the same two binaries and the service-desk fixture. Set `GEMINI_API_KEY` in the launching environment and run from the repository root. A release installation can supply the same binaries on `PATH`. [Release guide](RELEASE.md)
 
 ```sh
