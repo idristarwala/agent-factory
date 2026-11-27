@@ -16,6 +16,7 @@ import (
 
 // HTTPTool is a config-driven HTTP tool for issue #12.
 type HTTPTool struct {
+	response     *responseMapping
 	Name         string
 	Description  string
 	Method       string
@@ -39,6 +40,8 @@ type cacheEntry struct {
 	body string
 	exp  time.Time
 }
+
+const maxHTTPResponse = 512 * 1024
 
 var bodyParameter = regexp.MustCompile(`\{[a-zA-Z0-9_.-]+\}`)
 
@@ -159,14 +162,20 @@ func (t *HTTPTool) Call(ctx context.Context, params map[string]string) (string, 
 			return "", fmt.Errorf("http %d", resp.StatusCode)
 		}
 
-		respBody, err := io.ReadAll(io.LimitReader(resp.Body, 512*1024+1))
+		respBody, err := io.ReadAll(io.LimitReader(resp.Body, maxHTTPResponse+1))
 		if err != nil {
 			return "", err
 		}
-		if len(respBody) > 512*1024 {
+		if len(respBody) > maxHTTPResponse {
 			return "", fmt.Errorf("tool response exceeds 512 KiB")
 		}
 		result := string(respBody)
+		if t.response != nil {
+			result, err = t.response.apply(respBody)
+			if err != nil {
+				return "", fmt.Errorf("map tool response: %w", err)
+			}
+		}
 
 		if cacheable {
 			t.mu.Lock()

@@ -81,3 +81,17 @@ find-related:
 ```
 
 For HTTP Basic authentication, set `auth.type: basic`, `auth.username` and a password in `auth.key_file`. Credentials are reread for each HTTP attempt. The timeout applies per attempt. Cancellation interrupts retry waits. Only successful GET responses without a request body are cached. A custom CA adds trust for that tool's TLS connection. Destination restrictions still apply.
+
+## Select fields from a response
+
+A tool can use JSONPath to select the part of a JSON response that the worker and judge should see. For example, a support system can return a request inside an envelope with attachments:
+
+```yaml
+response:
+  root: $.data.request
+  map:
+    subject: $.summary
+    attachments: $.files[*].url
+```
+
+Place `response` inside the tool definition. Paths in `map` start at the selected root. The root defaults to the entire document. Omit `map` to return the selected root directly, or omit `response` to keep the original response body, including plain text. A singular path selects one value and fails if that value is absent. A wildcard or filter returns an array, including an empty array when nothing matches. Use `context.media: attachments` to pass the selected image URLs through the existing image evidence pipeline.

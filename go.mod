@@ -6,12 +6,14 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/lib/pq v1.12.3
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
+	github.com/theory/jsonpath v0.12.3
 	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.63.0
 )
 
 require (
 	github.com/dustin/go-humanize v1.1.0 // indirect
+	github.com/kr/text v0.2.0 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/ncruces/go-strftime v1.1.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect

@@ -47,13 +47,14 @@ func loadHTTPConfig(path string) (*EvidenceConfig, error) {
 	}
 	var config struct {
 		Tools map[string]struct {
-			Method  string
-			URL     string
-			Headers map[string]string
-			Query   []string
-			Body    map[string]any
-			Proxy   string
-			TLS     struct {
+			Response *responseConfig
+			Method   string
+			URL      string
+			Headers  map[string]string
+			Query    []string
+			Body     map[string]any
+			Proxy    string
+			TLS      struct {
 				CAFile string `yaml:"ca_file"`
 			}
 			Limits struct {
@@ -93,6 +94,12 @@ func loadHTTPConfig(path string) (*EvidenceConfig, error) {
 			return nil, fmt.Errorf("invalid destination for tool %q", name)
 		}
 		t := NewHTTPTool(name, def.Method, def.URL)
+		if def.Response != nil {
+			t.response, err = def.Response.compile()
+			if err != nil {
+				return nil, fmt.Errorf("tool %q: %w", name, err)
+			}
+		}
 		if def.Proxy != "" && def.Proxy != "none" {
 			return nil, fmt.Errorf("unsupported proxy mode for evidence tool %q", name)
 		}
