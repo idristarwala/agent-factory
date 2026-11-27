@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -22,34 +23,49 @@ type HTTPTool struct {
 	Headers     map[string]string
 	SideEffect  string
 	Client      *http.Client
-	cache       map[string]string
-	cacheMu     sync.RWMutex
+	Retries     int
+	CacheTTL    time.Duration
+	cache       map[string]cacheEntry
+	mu          sync.Mutex
 }
 
-// Call executes the tool with path templating, retries, and basic cache.
+type cacheEntry struct {
+	body string
+	exp  time.Time
+}
+
+// Call executes the tool with path templating, key from file, retries, and cache.
 func (t *HTTPTool) Call(ctx context.Context, params map[string]string) (string, error) {
-	url := t.URLTemplate
-	for k, v := range params {
-		url = strings.ReplaceAll(url, "{"+k+"}", v)
+	// Grants check if SideEffect is set (caller can wrap for full grants)
+	if t.SideEffect != "read-only" && t.SideEffect != "" {
+		return "", fmt.Errorf("non-read-only tools must become proposals")
 	}
 
-	// Simple cache check
-	t.cacheMu.RLock()
-	if cached, ok := t.cache[url]; ok {
-		t.cacheMu.RUnlock()
-		return cached, nil
+	urlStr := t.URLTemplate
+	for k, v := range params {
+		urlStr = strings.ReplaceAll(urlStr, "{"+k+"}", url.PathEscape(v))
 	}
-	t.cacheMu.RUnlock()
+
+	// Cache lookup
+	if t.CacheTTL > 0 {
+		t.mu.Lock()
+		if e, ok := t.cache[urlStr]; ok && time.Now().Before(e.exp) {
+			t.mu.Unlock()
+			return e.body, nil
+		}
+		t.mu.Unlock()
+	}
 
 	var lastErr error
-	for attempt := 0; attempt < 3; attempt++ {
-		select {
-		case <-ctx.Done():
-			return "", ctx.Err()
-		default:
+	attempts := t.Retries + 1
+	if attempts < 1 {
+		attempts = 1
+	}
+	for attempt := 0; attempt < attempts; attempt++ {
+		if err := ctx.Err(); err != nil {
+			return "", err
 		}
-
-		req, err := http.NewRequestWithContext(ctx, t.Method, url, nil)
+		req, err := http.NewRequestWithContext(ctx, t.Method, urlStr, nil)
 		if err != nil {
 			return "", err
 		}
@@ -67,12 +83,12 @@ func (t *HTTPTool) Call(ctx context.Context, params map[string]string) (string, 
 		resp, err := t.Client.Do(req)
 		if err != nil {
 			lastErr = err
-			time.Sleep(time.Duration(attempt+1) * 100 * time.Millisecond)
+			time.Sleep(time.Duration(attempt+1) * 200 * time.Millisecond)
 			continue
 		}
 		defer resp.Body.Close()
 
-		if resp.StatusCode >= 500 || resp.StatusCode == 429 {
+		if resp.StatusCode == 429 || resp.StatusCode >= 500 {
 			lastErr = fmt.Errorf("http %d", resp.StatusCode)
 			time.Sleep(time.Duration(attempt+1) * 200 * time.Millisecond)
 			continue
@@ -87,20 +103,20 @@ func (t *HTTPTool) Call(ctx context.Context, params map[string]string) (string, 
 		}
 		result := string(body)
 
-		// Cache success
-		t.cacheMu.Lock()
-		if t.cache == nil {
-			t.cache = make(map[string]string)
+		// Cache store
+		if t.CacheTTL > 0 {
+			t.mu.Lock()
+			if t.cache == nil {
+				t.cache = make(map[string]cacheEntry)
+			}
+			t.cache[urlStr] = cacheEntry{body: result, exp: time.Now().Add(t.CacheTTL)}
+			t.mu.Unlock()
 		}
-		t.cache[url] = result
-		t.cacheMu.Unlock()
-
 		return result, nil
 	}
 	return "", lastErr
 }
 
-// NewHTTPTool creates a tool from a simple definition.
 func NewHTTPTool(name, method, urlTemplate string) *HTTPTool {
 	return &HTTPTool{
 		Name:        name,
@@ -109,6 +125,7 @@ func NewHTTPTool(name, method, urlTemplate string) *HTTPTool {
 		SideEffect:  "read-only",
 		Client:      &http.Client{Timeout: 20 * time.Second},
 		Headers:     map[string]string{},
-		cache:       make(map[string]string),
+		Retries:     2,
+		CacheTTL:    10 * time.Minute,
 	}
 }

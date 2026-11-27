@@ -97,14 +97,19 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 						}
 					}
 
-					// Gather context if recipe is set
+					// Gather context and attach full result as evidence
 					var evidence []string
 					if r.Tools != nil && (r.Recipe.Entity != "" || r.Recipe.Neighbours != "") {
 						args := map[string]string{"id": string(uow.InputSubgraph)}
 						ctxResult, err := tools.ExecuteRecipe(ctx, r.Recipe, r.Tools, args)
 						if err == nil && ctxResult != nil {
-							evidence = append(evidence, "context gathered")
-							fmt.Printf("context gathered\n")
+							if entity, ok := ctxResult["entity"].(string); ok && entity != "" {
+								evidence = append(evidence, "entity: "+entity[:min(200, len(entity))])
+							}
+							if neigh, ok := ctxResult["neighbours"].(string); ok && neigh != "" {
+								evidence = append(evidence, "neighbours: "+neigh[:min(200, len(neigh))])
+							}
+							fmt.Printf("context gathered for %s\n", uow.ID)
 						}
 					}
 
@@ -153,4 +158,11 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 		}
 	}
 	return fmt.Errorf("max rounds reached")
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
