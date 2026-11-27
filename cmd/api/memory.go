@@ -12,7 +12,7 @@ import (
 )
 
 func memoryRoutes(mux *http.ServeMux, store revision.Store) {
-	mux.HandleFunc("/api/memory/{factory}", apiRoute(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/memory/{factory}", operatorRoute(func(w http.ResponseWriter, r *http.Request) {
 		files := memory.Files{Store: store, Factory: r.PathValue("factory")}
 		q := r.URL.Query()
 		path := q.Get("path")

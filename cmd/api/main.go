@@ -37,6 +37,9 @@ var (
 )
 
 func main() {
+	if !apiCredentials().valid() {
+		log.Fatal("API role tokens must be distinct")
+	}
 	gw, err := configuredgateway.NewFromEnv()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "gateway: %v\n", err)
@@ -64,7 +67,7 @@ func main() {
 	remoteSourceRoutes(mux, sampler, definitions)
 	sourceMappingRoutes(mux, definitions)
 	sourceProposalRoutes(mux, definitions, gw)
-	mux.HandleFunc("/api/sources/profile", apiRoute(profileSource, http.MethodPost))
+	mux.HandleFunc("/api/sources/profile", operatorRoute(profileSource, http.MethodPost))
 	configRoutes(mux, definitions)
 	memoryRoutes(mux, definitions)
 	chatArtifactRoute(mux, definitions)
@@ -87,7 +90,30 @@ func main() {
 	runRoutes(mux, ws, ruleEngine)
 	definitionRoutes(mux, ruleEngine, agents.NewStoredRegistry(definitions))
 
-	mux.HandleFunc("/api/chat", apiRoute(func(w http.ResponseWriter, r *http.Request) {
+	chatRoute(mux, ws, gw)
+
+	feedbackRoute(mux, definitions, ruleEngine)
+
+	addr := os.Getenv("FACTORY_LISTEN_ADDR")
+	if addr == "" {
+		addr = ":8080"
+	}
+	fmt.Println("API listening on", addr, "(store:", storeKindLabel(), ")")
+	srv := &http.Server{
+		Addr:         addr,
+		Handler:      mux,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+	if err := srv.ListenAndServe(); err != nil {
+		fmt.Fprintf(os.Stderr, "server: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func chatRoute(mux *http.ServeMux, ws *factory.Workspace, gw models.Gateway) {
+	mux.HandleFunc("/api/chat", operatorRoute(func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			Proposal  string              `json:"proposal"`
 			Expected  int                 `json:"expected"`
@@ -108,6 +134,9 @@ func main() {
 		const create = "create a factory to"
 		lower := strings.ToLower(message)
 		if lower == create || strings.HasPrefix(lower, create+" ") {
+			if !requireRole(w, r, admin) {
+				return
+			}
 			reply, err := createChatFactory(ws, strings.TrimSpace(message[len(create):]), req.Artifacts, evidence, req.Proposal, req.Expected)
 			if errors.Is(err, revision.ErrConflict) {
 				sendJSON(w, nil, err)
@@ -145,28 +174,17 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"reply": resp.Content})
 	}, "POST"))
-
-	feedbackRoute(mux, definitions, ruleEngine)
-
-	addr := os.Getenv("FACTORY_LISTEN_ADDR")
-	if addr == "" {
-		addr = ":8080"
-	}
-	fmt.Println("API listening on", addr, "(store:", storeKindLabel(), ")")
-	srv := &http.Server{
-		Addr:         addr,
-		Handler:      mux,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 30 * time.Second,
-		IdleTimeout:  60 * time.Second,
-	}
-	if err := srv.ListenAndServe(); err != nil {
-		fmt.Fprintf(os.Stderr, "server: %v\n", err)
-		os.Exit(1)
-	}
 }
 
 func apiRoute(next http.HandlerFunc, methods ...string) http.HandlerFunc {
+	return roleRoute(admin, next, methods...)
+}
+
+func operatorRoute(next http.HandlerFunc, methods ...string) http.HandlerFunc {
+	return roleRoute(operator, next, methods...)
+}
+
+func roleRoute(writeRole apiRole, next http.HandlerFunc, methods ...string) http.HandlerFunc {
 	allow := strings.Join(append(methods, http.MethodOptions), ", ")
 	return func(w http.ResponseWriter, r *http.Request) {
 		origin := os.Getenv("CORS_ORIGIN")
@@ -185,13 +203,11 @@ func apiRoute(next http.HandlerFunc, methods ...string) http.HandlerFunc {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		token := os.Getenv("API_TOKEN")
-		if token == "" {
-			next(w, r)
-			return
+		required := writeRole
+		if r.Method == http.MethodGet {
+			required = viewer
 		}
-		if r.Header.Get("Authorization") != "Bearer "+token {
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
+		if !requireRole(w, r, required) {
 			return
 		}
 		next(w, r)

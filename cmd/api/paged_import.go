@@ -25,7 +25,7 @@ func (f importFeed) Sample(ctx context.Context, factory, name string, q map[stri
 	return raw, err
 }
 func pagedImportRoutes(mux *http.ServeMux, ws *factory.Workspace, source sampleSource) {
-	mux.HandleFunc("/api/imports/{factory}/{id}", apiRoute(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/imports/{factory}/{id}", operatorRoute(func(w http.ResponseWriter, r *http.Request) {
 		name, id := r.PathValue("factory"), r.PathValue("id")
 		if r.Method == http.MethodGet {
 			pages, err := ws.ImportPages(name, id)

@@ -141,6 +141,6 @@ func sourceMappingRoutes(mux *http.ServeMux, store revision.Store) {
 			sendJSON(w, doc, err)
 		}
 	}
-	mux.HandleFunc("/api/sources/preview", apiRoute(handle(false), "POST"))
+	mux.HandleFunc("/api/sources/preview", operatorRoute(handle(false), "POST"))
 	mux.HandleFunc("/api/sources/mappings/{id}", apiRoute(handle(true), "GET", "POST"))
 }

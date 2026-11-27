@@ -19,7 +19,7 @@ type sampleSource interface {
 }
 
 func remoteSourceRoutes(mux *http.ServeMux, source sampleSource, store revision.Store) {
-	mux.HandleFunc("/api/sources/{factory}/{name}/sample", apiRoute(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/sources/{factory}/{name}/sample", operatorRoute(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "use POST", 405)
 			return
