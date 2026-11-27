@@ -88,3 +88,9 @@ All high-impact correctness, config seams, POST adapters, packaging, HTTP tools,
 - Added `llm.NewFakeServer` that records request bodies/headers and supports blocking handlers for cancel and error-injection tests.
 - Documented the contract and FakeServer usage in `docs/CONFORMANCE.md`.
 - Factory CLI `test` command now points at the real conformance packages.
+
+## Wiring pass (2026-11-27)
+
+- Worker validation failures now call `LogValidationFailure` so raw reply previews appear in logs (#10).
+- Continuous runner applies `agents.GuardDecision` before considering a judge result (#10).
+- Collected failure signals are attached to learning gaps via `BuildActionableRule` so structured causes influence rule text (#13/#16).
