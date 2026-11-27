@@ -8,7 +8,7 @@ import Definitions from './Definitions'
 import Runs from './Runs'
 import './App.css'
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8080'
+const API = (import.meta.env.VITE_API_URL || 'http://localhost:8080').replace(/\/+$/, '')
 function apiFetch(path, token, options = {}) {
   const headers = new Headers(options.headers)
   if (token) headers.set('Authorization', 'Bearer ' + token)

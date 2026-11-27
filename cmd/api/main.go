@@ -57,6 +57,9 @@ func main() {
 	ruleEngine := rules.NewStoredEngine(definitions)
 
 	mux := http.NewServeMux()
+	if err := workspaceUI(mux, os.Getenv("FACTORY_UI_DIR")); err != nil {
+		log.Fatal(err)
+	}
 	var sampler sampleSource
 	if path := os.Getenv("FACTORY_SOURCE_CONFIG"); path != "" {
 		sampler, err = tools.LoadSourceSampler(path)

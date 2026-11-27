@@ -2,7 +2,9 @@
 
 Use the workspace to define a factory in chat, start a goal, track run usage, inspect records and decisions, and approve or reject a change with feedback. The rule manager lets a reviewer activate feedback for a later run. Agents and Settings provide versioned definition and budget controls. The Figma file covers the operator screens and configurable experiences. [Design file](https://www.figma.com/design/jPNDukgzOzcM6n1e6UpV9R/Agent-Factory?node-id=28-2)
 
-Run `npm ci` and `npm run dev` in `ui-app`. Configure `VITE_API_URL` for the API and `CORS_ORIGIN` on the server for the browser origin.
+Open the root URL of the engine's API service to use the bundled workspace. It loads its assets and calls the API on the same origin. Workspace data and edits use the existing API role tokens. To serve your own compiled bundle with a standalone API binary, set `FACTORY_UI_DIR` to its output directory and start the API.
+
+For frontend development, run `npm ci` and `npm run dev` in `ui-app`. Configure `VITE_API_URL` for the API and `CORS_ORIGIN` on the server for the browser origin.
 
 When the API requires a bearer token, enter the workspace API token on the connection screen. The browser keeps it in memory for the current page. Reloading the page or choosing **Disconnect** clears it.
 

@@ -20,7 +20,8 @@ The API and CLI read deployment configuration from their process environment. Re
 | `FACTORY_OPERATOR_TOKEN` | Secret string, unset | Operator bearer token for running factories and reviewing work. |
 | `FACTORY_VIEWER_TOKEN` | Secret string, unset | Viewer bearer token for read access to workspace data. |
 | `CORS_ORIGIN` | Origin string, unset | Permits the configured browser origin or an explicit wildcard. |
-| `VITE_API_URL` | URL, `http://localhost:8080` | Operator UI’s API base URL. |
+| `FACTORY_UI_DIR` | Directory, unset for standalone API binaries | Serve the compiled workspace index and assets. The engine image sets this to `/usr/share/agent-factory/ui`. |
+| `VITE_API_URL` | URL, `http://localhost:8080` | Operator UI’s build-time API base URL. The bundled workspace uses `/` to call the same origin. |
 | `FACTORY_DEFINITION`, `FACTORY_RECORDS` | ID and JSON file path, unset | Defaults for goal CLI flags `-factory` and `-records`. `-revision` defaults to 0, selecting the latest revision. |
 | `FACTORY_HTTP_ALLOWED_HOSTS` | Comma-separated hostnames, unset | Restricts outbound tool destinations by exact hostname. An explicitly empty value allows no hosts. Other destination checks still apply. |
 | `FACTORY_SOURCE_CONFIG` | YAML path, unset | Enables named read-only source sampling in the API. [Source mapping](MAPPING.md) |
