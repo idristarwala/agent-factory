@@ -1,7 +1,10 @@
 package pack
 
 import (
+	"encoding/json"
 	"os"
+
+	"gopkg.in/yaml.v3"
 )
 
 // LoadYAMLOrJSON is kept for compatibility. Prefer Load which handles both formats.
