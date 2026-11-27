@@ -2,8 +2,6 @@ package swarm
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -20,25 +18,26 @@ import (
 type Budget struct {
 	MaxRounds    int
 	MaxWallClock time.Duration
-	MaxFailures  int // stop if total failures exceed this
+	MaxFailures  int
 }
 
 // ContinuousRunner runs until the goal is achieved or a limit is hit.
 type ContinuousRunner struct {
-	Steward     agents.Steward
-	Judge       agents.Judge
-	Queue       queue.WorkQueue
-	Graph       graph.Graph
-	Rules       *rules.Engine
-	Learning    *learning.LearningLoop
-	Workers     int
-	Budget      Budget
-	Observe     bool
-	Grants      []tools.Grant
-	Pack        string
-	Tools       map[string]*tools.HTTPTool
-	Recipe      tools.ContextRecipe
-	Stagnation  int // stop after this many unchanged rounds (default 2)
+	Steward    agents.Steward
+	Judge      agents.Judge
+	Queue      queue.WorkQueue
+	Graph      graph.Graph
+	Rules      *rules.Engine
+	Learning   *learning.LearningLoop
+	Workers    int
+	Budget     Budget
+	Observe    bool
+	Grants     []tools.Grant
+	Pack       string
+	Tools      map[string]*tools.HTTPTool
+	Recipe     tools.ContextRecipe
+	Stagnation int
+	progress   *Progress
 }
 
 func NewContinuousRunner(s agents.Steward, j agents.Judge, q queue.WorkQueue, g graph.Graph, re *rules.Engine, ll *learning.LearningLoop) *ContinuousRunner {
@@ -56,6 +55,7 @@ func NewContinuousRunner(s agents.Steward, j agents.Judge, q queue.WorkQueue, g 
 			MaxFailures:  100,
 		},
 		Stagnation: 2,
+		progress:   NewProgress(),
 	}
 }
 
@@ -74,13 +74,15 @@ func (r *ContinuousRunner) SetTools(reg map[string]*tools.HTTPTool, recipe tools
 func (r *ContinuousRunner) SetBudget(b Budget) { r.Budget = b }
 
 func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
+	if r.progress == nil {
+		r.progress = NewProgress()
+	}
+	r.progress.MaxStagnant = r.Stagnation
+
 	start := time.Now()
-	var lastHash string
-	stagnationCount := 0
 	totalFailures := 0
 
 	for round := 1; round <= r.Budget.MaxRounds; round++ {
-		// Budget checks
 		if r.Budget.MaxWallClock > 0 && time.Since(start) > r.Budget.MaxWallClock {
 			return fmt.Errorf("wall-clock budget exceeded")
 		}
@@ -90,7 +92,6 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 
 		fmt.Printf("===== Round %d =====\n", round)
 
-		// Refresh active rules
 		if smart, ok := r.Steward.(*agents.SmartSteward); ok && r.Rules != nil {
 			var active []agents.Rule
 			for _, vr := range r.Rules.Active() {
@@ -104,7 +105,6 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 			return err
 		}
 		if len(uows) == 0 {
-			// Verifier gate: confirm the graph is truly clean
 			if r.verifyClean(goal) {
 				fmt.Println("Goal achieved. Graph verified clean.")
 				return nil
@@ -171,6 +171,9 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 						r.Queue.Fail(ctx, uow.ID, err.Error())
 						mu.Lock()
 						failureMsgs = append(failureMsgs, err.Error())
+						if r.progress.RecordFailure(string(uow.InputSubgraph)) {
+							fmt.Printf("Unit %s blocked after repeated failures\n", uow.InputSubgraph)
+						}
 						mu.Unlock()
 						continue
 					}
@@ -196,7 +199,6 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 
 		totalFailures += len(failureMsgs)
 
-		// Learning
 		if r.Learning != nil {
 			gaps := r.Learning.Review(decisions, failureMsgs)
 			updates := r.Learning.ProposeUpdates(gaps)
@@ -209,18 +211,11 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 			}
 		}
 
-		// Progress delta
-		currentHash := r.graphHash()
-		if currentHash == lastHash {
-			stagnationCount++
-			fmt.Printf("No progress (stagnation %d/%d)\n", stagnationCount, r.Stagnation)
-			if stagnationCount >= r.Stagnation {
-				return fmt.Errorf("stagnation: no progress for %d rounds", stagnationCount)
-			}
-		} else {
-			stagnationCount = 0
+		// Use Progress.Observe for stagnation
+		if r.progress.Observe(r.Graph.Snapshot()) {
+			fmt.Printf("No progress for %d rounds. Stopping.\n", r.progress.Stagnant)
+			return fmt.Errorf("stagnation: no progress for %d rounds", r.progress.Stagnant)
 		}
-		lastHash = currentHash
 
 		pending, _ := r.Queue.PendingCount(ctx)
 		if pending == 0 {
@@ -230,15 +225,7 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 	return fmt.Errorf("max rounds reached")
 }
 
-// graphHash returns a stable hash of the current graph state.
-func (r *ContinuousRunner) graphHash() string {
-	snap := r.Graph.Snapshot()
-	b, _ := json.Marshal(snap)
-	h := sha256.Sum256(b)
-	return fmt.Sprintf("%x", h[:8])
-}
-
-// verifyClean is the verifier gate. Returns true only if the Steward still sees no work.
+// verifyClean is the verifier gate.
 func (r *ContinuousRunner) verifyClean(goal string) bool {
 	uows, err := r.Steward.InterpretGoal(goal, r.Graph.Snapshot())
 	return err == nil && len(uows) == 0

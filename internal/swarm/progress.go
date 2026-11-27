@@ -2,7 +2,7 @@ package swarm
 
 import (
 	"crypto/sha256"
-	"encoding/hex"
+	"encoding/json"
 	"fmt"
 
 	"github.com/idristarwala/agent-factory/internal/graph"
@@ -46,10 +46,9 @@ func (p *Progress) RecordFailure(unitID string) bool {
 }
 
 func hashSnapshot(snap any) string {
-	// Cheap hash of the snapshot string form. Sufficient for change detection.
-	s := fmt.Sprintf("%v", snap)
-	sum := sha256.Sum256([]byte(s))
-	return hex.EncodeToString(sum[:8])
+	b, _ := json.Marshal(snap)
+	sum := sha256.Sum256(b)
+	return fmt.Sprintf("%x", sum[:8])
 }
 
 // BlockedNodes returns node IDs that have failed too many times.
