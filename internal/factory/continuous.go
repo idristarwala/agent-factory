@@ -16,9 +16,9 @@ import (
 
 func modelCall(req models.Request, resp *models.Response, err error, prices map[string]Price) Call {
 	if err != nil {
-		return Call{UnitID: req.UnitID, Role: req.CallerRole, Failed: true}
+		return Call{JudgeRoute: req.JudgeRoute, UnitID: req.UnitID, Role: req.CallerRole, Failed: true}
 	}
-	c := Call{UnitID: req.UnitID, Role: req.CallerRole, Model: resp.Model, Input: resp.Usage["prompt_tokens"], Output: resp.Usage["completion_tokens"], Total: resp.Usage["total_tokens"]}
+	c := Call{JudgeRoute: req.JudgeRoute, UnitID: req.UnitID, Role: req.CallerRole, Model: resp.Model, Input: resp.Usage["prompt_tokens"], Output: resp.Usage["completion_tokens"], Total: resp.Usage["total_tokens"]}
 	if c.Total == 0 {
 		c.Total = c.Input + c.Output
 	}

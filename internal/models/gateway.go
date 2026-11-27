@@ -14,6 +14,7 @@ const (
 )
 
 type Request struct {
+	JudgeRoute  string // Named route for a continuous judge panel member.
 	UnitID      string // Local audit correlation, never sent to a provider.
 	CallerRole  string
 	Tier        Tier

@@ -165,3 +165,15 @@ models:
 		t.Fatal(collected, err)
 	}
 }
+
+func TestDistinctJudgeRoutes(t *testing.T) {
+	r := Router{routes: map[string]route{"a": {model: modelConfig{Model: "first"}}, "b": {model: modelConfig{Model: "second"}}, "alias": {model: modelConfig{Model: "FIRST"}}}}
+	for _, tc := range []struct {
+		names []string
+		ok    bool
+	}{{[]string{"a", "b"}, true}, {[]string{"a", "alias"}, false}, {[]string{"b", "missing"}, false}} {
+		if err := r.CheckJudgeRoutes(tc.names); (err == nil) != tc.ok {
+			t.Fatal(tc, err)
+		}
+	}
+}

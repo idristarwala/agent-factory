@@ -2,6 +2,7 @@ package agents
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/idristarwala/agent-factory/internal/graph"
 )
@@ -13,7 +14,7 @@ import (
 // This is the practical quality lever from the consensus research:
 // a single judge cannot land a bad change.
 type QuorumJudge struct {
-	Judges []Judge
+	Judges     []Judge
 	MinApprove int // quorum size (default 2)
 }
 
@@ -32,7 +33,9 @@ func (q *QuorumJudge) Evaluate(proposal *graph.Mutation, rules []Rule) (Decision
 		return Decision{Approved: false, Reason: "no judges configured"}, nil
 	}
 
-	var approvals, rejections int
+	var approvals int
+	seen := map[string]bool{}
+	distinct := true
 	var reasons []string
 
 	for i, j := range q.Judges {
@@ -41,16 +44,22 @@ func (q *QuorumJudge) Evaluate(proposal *graph.Mutation, rules []Rule) (Decision
 			reasons = append(reasons, fmt.Sprintf("judge-%d error: %v", i, err))
 			continue
 		}
+		model := strings.ToLower(strings.TrimSpace(dec.Model))
+		if len(q.Judges) > 1 && (model == "" || seen[model]) {
+			distinct = false
+		}
+		seen[model] = true
 		if dec.Approved {
 			approvals++
-		} else {
-			rejections++
 		}
-		reasons = append(reasons, fmt.Sprintf("judge-%d: %s", i, dec.Reason))
+		reasons = append(reasons, fmt.Sprintf("judge-%d %s: %s", i, dec.Model, dec.Reason))
 	}
 
-	approved := approvals >= q.MinApprove
+	approved := distinct && approvals >= q.MinApprove
 	reason := fmt.Sprintf("quorum %d/%d (min %d)", approvals, len(q.Judges), q.MinApprove)
+	if !distinct {
+		reason += "; missing or duplicate judge model identity"
+	}
 	if !approved {
 		reason = "escalation needed: " + reason
 	}

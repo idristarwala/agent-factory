@@ -6,6 +6,7 @@ import (
 	"maps"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/idristarwala/agent-factory/internal/llm"
 	"github.com/idristarwala/agent-factory/internal/models"
@@ -22,6 +23,23 @@ func NewFromEnv() (models.Gateway, error) {
 		return load(path)
 	}
 	return models.NewGatewayFromEnv()
+}
+
+// CheckJudgeRoutes validates the complete panel before any model is called.
+func (r *Router) CheckJudgeRoutes(names []string) error {
+	seen := map[string]bool{}
+	for _, name := range names {
+		entry, ok := r.routes[name]
+		if !ok {
+			return fmt.Errorf("unknown judge route %q", name)
+		}
+		model := strings.ToLower(strings.TrimSpace(entry.model.Model))
+		if model == "" || seen[model] {
+			return fmt.Errorf("judge routes must select distinct model IDs")
+		}
+		seen[model] = true
+	}
+	return nil
 }
 
 func (r *Router) logicalName(req llm.ChatRequest) string {
@@ -85,12 +103,15 @@ func (r *Router) Stream(ctx context.Context, req llm.ChatRequest) (llm.Stream, e
 }
 
 func (r *Router) Generate(req models.Request) (*models.Response, error) {
+	if req.JudgeRoute != "" && req.CallerRole != "judge" {
+		return nil, &llm.Error{Type: "CAPABILITY", Message: "only judges can select a judge route"}
+	}
 	var messages []llm.Message
 	if req.System != "" {
 		messages = append(messages, llm.Message{Role: "system", Content: req.System})
 	}
 	messages = append(messages, llm.Message{Role: "user", Content: req.User, Images: req.Images})
-	resp, err := r.Chat(context.Background(), llm.ChatRequest{Messages: messages, CallerRole: llm.Role(req.CallerRole), Tier: llm.Tier(req.Tier), Temperature: &req.Temperature, MaxTokens: req.MaxTokens, ResponseSchema: req.Schema})
+	resp, err := r.Chat(context.Background(), llm.ChatRequest{Model: req.JudgeRoute, Messages: messages, CallerRole: llm.Role(req.CallerRole), Tier: llm.Tier(req.Tier), Temperature: &req.Temperature, MaxTokens: req.MaxTokens, ResponseSchema: req.Schema})
 	if err != nil {
 		return nil, err
 	}

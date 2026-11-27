@@ -7,6 +7,7 @@ import (
 )
 
 type AuditEntry struct {
+	Feedback  string          `json:"feedback,omitempty"`
 	Proposal  json.RawMessage `json:"proposal,omitempty"`
 	TraceID   string          `json:"trace_id"`
 	EntityID  string          `json:"entity_id"`

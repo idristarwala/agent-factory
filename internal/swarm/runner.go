@@ -242,7 +242,7 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 					if decision.Approved {
 						action = "approved"
 					}
-					audit("judge", action, decision.Reason)
+					r.Audit.Append(obs.AuditEntry{TraceID: uow.ID, EntityID: string(uow.InputSubgraph), Actor: "judge", Action: action, Reason: decision.Reason, Feedback: decision.Feedback})
 					if decision.Approved && !r.Observe {
 						if err := r.Graph.Apply(mutation); err != nil {
 							audit("runner", "apply_failed", "graph write failed")
