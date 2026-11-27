@@ -41,3 +41,25 @@ See `SECRETS.md` and `AUTH.md`.
 `.github/workflows/release.yml` builds binaries, pushes a digest-pinned image to GHCR, writes a release manifest containing the digest, and creates a GitHub release on `v*` tags.
 
 See `docs/RELEASE.md`.
+
+## Durable Postgres store
+
+```go
+import (
+    "github.com/idristarwala/agent-factory/internal/store"
+    _ "github.com/lib/pq" // or your preferred driver
+)
+
+s, err := store.NewPostgresStore("postgres", os.Getenv("DATABASE_URL"))
+// use s as the Store for Graph / units of work
+```
+
+Shared contract tests live in `internal/store/contract_test.go` and run against Memory and SQLite. Point the same tests at a live Postgres DSN when available.
+
+## Out-of-tree gateway conformance
+
+```bash
+go test ./examples/out-of-tree-gateway/ -v
+```
+
+The example adapter reuses the in-repo OpenAI adapter and passes `llm.RunConformance`.

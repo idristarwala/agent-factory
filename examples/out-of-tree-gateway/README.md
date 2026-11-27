@@ -17,3 +17,11 @@ func TestMyGateway(t *testing.T) {
 ```
 
 The adapter reuses `llm.OpenAIAdapter` (or Anthropic/Gemini) so path, headers, body shape, tool calls, and streaming already match the suite.
+
+## Concrete test
+
+`adapter_test.go` in this directory runs `llm.RunConformance` against a real `httptest.Server`. Run it with:
+
+```bash
+go test ./examples/out-of-tree-gateway/ -v
+```
