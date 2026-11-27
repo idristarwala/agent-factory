@@ -4,6 +4,8 @@ The workspace provides goals, chat, an agent editor and a rule manager. The Figm
 
 Run `npm ci` and `npm run dev` in `ui-app`. Configure `VITE_API_URL` for the API and `CORS_ORIGIN` on the server for the browser origin.
 
+When the API requires a bearer token, enter the workspace API token on the connection screen. The browser keeps it in memory for the current page. Reloading the page or choosing **Disconnect** clears it.
+
 ## Definition history
 
 Choose **Agents** to edit a definition or retire it. The build version identifies the software release. The server allocates the numeric definition revision. Changing a role, model tier, instructions, tools or retirement state produces a new snapshot. Relaunching the same definition reuses its revision.
