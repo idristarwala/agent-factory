@@ -38,7 +38,7 @@ Added a scripted failure-pattern test (`internal/swarm/learning_improvement_test
 
 ## Accuracy wording follow-up (2026-11-27)
 
-The worker gives source-wording guidance when a customer rule requests it. In the reported 288-item field test at `8ef9ea5`, 281 items were approved with the customer policies active, and proposals stayed within the task’s field scope. [Field report](https://github.com/idristarwala/agent-factory/issues/16#issuecomment-7228494029)
+The worker gives source-wording guidance when a customer rule requests it (now injected into both system and user prompts, with broader phrase detection). In the reported 288-item field test at `8ef9ea5`, 281 items were approved with the customer policies active, and proposals stayed within the task’s field scope. [Field report](https://github.com/idristarwala/agent-factory/issues/16#issuecomment-7228494029)
 
 Issue #10 still requires three measurements on the field data:
 
