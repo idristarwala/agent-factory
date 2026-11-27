@@ -32,11 +32,13 @@
 - Factory CLI, pack loader, validation
 - Tool model with side-effect classes
 - Grants check and enforcer in ContinuousRunner
-- docker-compose, Helm chart, starter template
+- docker-compose, Helm chart (`deploy/helm/agent-factory`), starter template
 - Observe mode, release pipeline, digest notes
 - Digest-pinned release CI workflow (.github/workflows/release.yml)
 - go.sum committed
 - Fuller factory CLI: validate loads packs via pack.Load, checks go.sum and out-of-tree example; readiness checks SECRETS_DIR and DATABASE_URL; test points at contract / conformance packages
+- Multi-binary Dockerfile (goal, factory, api)
+- Optional Postgres wiring in `cmd/api` via `store.NewFromEnv()` when `DATABASE_URL` is set
 
 ### LLM foundation (#1–#8)
 - Client types, adapter registry, typed errors
@@ -62,10 +64,11 @@
 ### Persistence
 - MemoryStore and SQLite SQLStore
 - Durable PostgresStore (`store.NewPostgresStore` / `NewPostgresStoreFromDB`) with $n placeholders, ON CONFLICT upserts, and shared contract tests against Memory + SQLite
+- `store.NewFromEnv()` helper used by `cmd/api` (memory by default, Postgres when `DATABASE_URL` set)
 
 ## Remaining (minor)
 
-- Optional: wire PostgresStore into the API/cmd entrypoints when DATABASE_URL is set (currently available as a library constructor)
-- Optional: full YAML pack loader (JSON works today)
+- Optional: full YAML pack loader (JSON works today; factory.yaml is documentation-oriented)
+- Optional: regenerate go.sum after adding github.com/lib/pq (run `go mod tidy`)
 
-All high-impact correctness, config seams, POST adapters, packaging, HTTP tools, tool-call round-trips across protocols, auth refresh with key injection, refined streaming parsers, release automation, context-recipe prompt injection, labelled grouping demo, durable Postgres store, fuller CLI, and concrete out-of-tree conformance test are in place.
+All high-impact correctness, config seams, POST adapters, packaging, HTTP tools, tool-call round-trips across protocols, auth refresh with key injection, refined streaming parsers, release automation, context-recipe prompt injection, labelled grouping demo, durable Postgres store (now wired into the API), fuller CLI, Helm chart, multi-binary image, and concrete out-of-tree conformance test are in place.
