@@ -301,7 +301,12 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 			}
 		}
 
-		if r.progress.Observe(r.Graph.Snapshot()) {
+		snapshot := r.Graph.Snapshot()
+		if verifier, ok := r.Steward.(interface{ GoalComplete(any) bool }); ok && verifier.GoalComplete(snapshot) {
+			fmt.Println("Goal achieved. Graph verified clean.")
+			return nil
+		}
+		if r.progress.Observe(snapshot) {
 			fmt.Printf("No progress for %d rounds. Stopping.\n", r.progress.Stagnant)
 			return fmt.Errorf("stagnation: no progress for %d rounds", r.progress.Stagnant)
 		}
