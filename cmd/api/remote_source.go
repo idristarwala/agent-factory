@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/idristarwala/agent-factory/internal/factory"
+	"github.com/idristarwala/agent-factory/internal/revision"
 	"io"
 	"net/http"
 
@@ -16,7 +18,7 @@ type sampleSource interface {
 	Sample(context.Context, string, string, map[string]string) (json.RawMessage, error)
 }
 
-func remoteSourceRoutes(mux *http.ServeMux, source sampleSource) {
+func remoteSourceRoutes(mux *http.ServeMux, source sampleSource, store revision.Store) {
 	mux.HandleFunc("/api/sources/{factory}/{name}/sample", apiRoute(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "use POST", 405)
@@ -62,6 +64,12 @@ func remoteSourceRoutes(mux *http.ServeMux, source sampleSource) {
 		}
 		result := map[string]any{"collections": profiles}
 		if req.IncludeSample {
+			receipt, err := factory.SaveSampleReceipt(store, r.PathValue("factory"), r.PathValue("name"), sample)
+			if err != nil {
+				sendJSON(w, nil, err)
+				return
+			}
+			result["sample_receipt"] = receipt
 			result["sample"] = raw
 		}
 		sendJSON(w, result, nil)

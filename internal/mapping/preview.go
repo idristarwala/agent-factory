@@ -1,6 +1,7 @@
 package mapping
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -17,10 +18,16 @@ type SourceMapping struct {
 	Fields     map[string]string `json:"fields"` // destination attribute -> source pointer
 }
 
+type RecordLocation struct {
+	Pointer string `json:"pointer"`
+	SHA256  string `json:"sha256"`
+}
+
 type PreviewRow struct {
-	Index   int            `json:"index"`
-	Record  *schema.Entity `json:"record,omitempty"`
-	Problem string         `json:"problem,omitempty"`
+	Location *RecordLocation `json:"location,omitempty"`
+	Index    int             `json:"index"`
+	Record   *schema.Entity  `json:"record,omitempty"`
+	Problem  string          `json:"problem,omitempty"`
 }
 
 func tokens(path string) ([]string, error) {
@@ -98,6 +105,8 @@ func (m SourceMapping) Preview(sample any) ([]PreviewRow, error) {
 	if err != nil {
 		return nil, err
 	}
+	selected, _, _ := SourceValue(sample, m.Collection)
+	_, isArray := selected.([]any)
 	out := make([]PreviewRow, len(records))
 	seen := map[string]int{}
 	size := 0
@@ -115,6 +124,7 @@ func (m SourceMapping) Preview(sample any) ([]PreviewRow, error) {
 		if first, ok := seen[id]; ok {
 			out[i].Problem = fmt.Sprintf("identity also used by row %d", first)
 			out[first].Record = nil
+			out[first].Location = nil
 			out[first].Problem = "duplicate identity"
 			continue
 		}
@@ -134,6 +144,15 @@ func (m SourceMapping) Preview(sample any) ([]PreviewRow, error) {
 		if size > 2<<20 {
 			return nil, fmt.Errorf("preview exceeds 2 MiB")
 		}
+		raw, err := json.Marshal(row)
+		if err != nil {
+			return nil, err
+		}
+		path := m.Collection
+		if isArray {
+			path = pointer(path, strconv.Itoa(i))
+		}
+		out[i].Location = &RecordLocation{Pointer: path, SHA256: fmt.Sprintf("%x", sha256.Sum256(raw))}
 		out[i].Record = &record
 	}
 	return out, nil

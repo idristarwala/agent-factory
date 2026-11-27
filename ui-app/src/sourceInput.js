@@ -12,8 +12,8 @@ export function runSource(source) {
   const base = {factory: source.factory, selected_rules: source.rules, max_tokens: Number(source.budget)}
   if (source.inputMode === 'mapped') {
     if (!source.approved) throw new Error('Approve a source mapping before starting the run.')
-    const {mapping, revision, sample, payload, allowPartial} = source.approved
-    return {...base, source: {mapping, revision, payload: parseSample(payload ?? sample), allow_partial: allowPartial}}
+    const {mapping, revision, sample, payload, allowPartial, receipt} = source.approved
+    return {...base, source: {mapping, revision, payload: parseSample(payload ?? sample), allow_partial: allowPartial, sample_receipt: payload === undefined || payload === sample ? receipt : undefined}}
   }
   return {...base, records: JSON.parse(source.records)}
 }

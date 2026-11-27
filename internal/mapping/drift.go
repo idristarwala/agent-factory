@@ -94,6 +94,7 @@ func (m ApprovedMapping) ImportRows(payload any) ([]PreviewRow, error) {
 			if !slices.Contains(shape.Kinds, kind) {
 				rows[i].Problem = fmt.Sprintf("source shape changed at %s: observed %s, approved %v", shape.Path, kind, shape.Kinds)
 				rows[i].Record = nil
+				rows[i].Location = nil
 			}
 		}
 	}

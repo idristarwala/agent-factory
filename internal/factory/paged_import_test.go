@@ -67,6 +67,10 @@ func TestResumePagedImport(t *testing.T) {
 	if err != nil || run.Records[0].ID != "9007199254740993" || run.Source.Revision != 1 {
 		t.Fatal(run, err)
 	}
+	origin := pages[0].Lineage["2"]
+	if origin.Pointer != "/rows/1" || origin.Feed != "feed" || origin.Import == nil || origin.Import.Page != 2 || origin.SHA256 == "" {
+		t.Fatal(origin)
+	}
 	if other, err := ws.ImportPages("other", "batch"); err != nil || len(other) != 0 {
 		t.Fatal(other, err)
 	}

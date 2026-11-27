@@ -44,6 +44,7 @@ type Price struct {
 	Output float64 `json:"output_per_million"`
 }
 type Review struct {
+	Lineage   *SourceLineage  `json:"lineage,omitempty"`
 	UpdatedAt time.Time       `json:"updated_at"`
 	ID        string          `json:"id"`
 	RecordID  string          `json:"entity_id"`
@@ -55,21 +56,22 @@ type Review struct {
 	After     map[string]any  `json:"after"`
 }
 type Run struct {
-	Import           *ImportPageRef    `json:"import,omitempty"`
-	ImportProblems   []ImportProblem   `json:"import_problems,omitempty"`
-	Source           *SourceRef        `json:"source,omitempty"`
-	ID               string            `json:"id"`
-	Version          int               `json:"version"`
-	Description      string            `json:"description"`
-	Status           string            `json:"status"`
-	CreatedAt        time.Time         `json:"created_at"`
-	Plan             Plan              `json:"plan"`
-	Settings         settings.Settings `json:"settings"`
-	SettingsRevision int               `json:"settings_revision"`
-	Records          []schema.Entity   `json:"records"`
-	Decisions        []Review          `json:"decisions"`
-	Calls            []Call            `json:"calls"`
-	Error            string            `json:"error,omitempty"`
+	Lineage          map[string]SourceLineage `json:"lineage,omitempty"`
+	Import           *ImportPageRef           `json:"import,omitempty"`
+	ImportProblems   []ImportProblem          `json:"import_problems,omitempty"`
+	Source           *SourceRef               `json:"source,omitempty"`
+	ID               string                   `json:"id"`
+	Version          int                      `json:"version"`
+	Description      string                   `json:"description"`
+	Status           string                   `json:"status"`
+	CreatedAt        time.Time                `json:"created_at"`
+	Plan             Plan                     `json:"plan"`
+	Settings         settings.Settings        `json:"settings"`
+	SettingsRevision int                      `json:"settings_revision"`
+	Records          []schema.Entity          `json:"records"`
+	Decisions        []Review                 `json:"decisions"`
+	Calls            []Call                   `json:"calls"`
+	Error            string                   `json:"error,omitempty"`
 }
 type Workspace struct {
 	Store   revision.Store
@@ -143,6 +145,7 @@ func (w *Workspace) Start(req RunRequest) (Run, error) {
 		page := pages[req.Import.Page-1]
 		req.Records = page.Records
 		r.Records = page.Records
+		r.Lineage = page.Lineage
 		r.ImportProblems = page.Problems
 		r.Source = &page.Spec.SourceRef
 		r.Import = req.Import
@@ -151,13 +154,14 @@ func (w *Workspace) Start(req RunRequest) (Run, error) {
 		if len(req.Records) != 0 || req.Factory == "" {
 			return Run{}, fmt.Errorf("a mapped source requires a factory and cannot be combined with records")
 		}
-		records, problems, err := w.mappedRecords(*req.Source)
+		batch, err := w.mappedRecords(req.Factory, *req.Source)
 		if err != nil {
 			return Run{}, err
 		}
-		req.Records = records
-		r.Records = records
-		r.ImportProblems = problems
+		req.Records = batch.records
+		r.Records = batch.records
+		r.ImportProblems = batch.problems
+		r.Lineage = batch.lineage
 		ref := req.Source.SourceRef
 		r.Source = &ref
 	}
@@ -261,7 +265,11 @@ func (w *Workspace) Execute(id string) error {
 	}
 	meter := measured{gateway: w.Gateway, prices: w.Prices, remaining: r.Settings.MaxTokens, deadline: r.CreatedAt.Add(time.Duration(r.Settings.MaxMinutes) * time.Minute)}
 	for i, e := range r.Records {
-		mut, decision, evalErr := r.Plan.Evaluate(&meter, r.Description, e)
+		var origin *SourceLineage
+		if lineage, ok := r.Lineage[e.ID]; ok {
+			origin = &lineage
+		}
+		mut, decision, evalErr := r.Plan.evaluate(&meter, r.Description, e, origin)
 		// A cancellation wins even while a provider request is outstanding.
 		latest, err := w.Get(id)
 		if err != nil {
@@ -278,6 +286,7 @@ func (w *Workspace) Execute(id string) error {
 			return w.write(&r)
 		}
 		d := newReview(r.ID, i, e, mut, decision)
+		d.Lineage = origin
 		r.Decisions = append(r.Decisions, d)
 		if i+1 == len(r.Records) {
 			r.Status = reviewStatus(r.Decisions)
