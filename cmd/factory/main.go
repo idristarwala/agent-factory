@@ -58,6 +58,15 @@ func main() {
 			log.Fatal(err)
 		}
 	case "test":
+		if len(os.Args) >= 3 && os.Args[2] == "--receipt" {
+			if len(os.Args) != 4 {
+				log.Fatal("usage: factory test --receipt PACK_FILE")
+			}
+			if err := fixtureReceipt(os.Args[3], os.Stdout); err != nil {
+				log.Fatal(err)
+			}
+			break
+		}
 		if err := runFixtures(os.Args[2:]); err != nil {
 			log.Fatal(err)
 		}
@@ -164,6 +173,7 @@ func printUsage() {
 	fmt.Println("  validate --tools FILE...   Check draft HTTP and MCP tool files")
 	fmt.Println("  validate --rule FILE...   Check standalone rules against the published schema")
 	fmt.Println("  test [PATH...]   Run pack fixtures (and engine contracts in the engine checkout)")
+	fmt.Println("  test --receipt PACK_FILE   Test committed fixtures and emit publish evidence as JSON")
 	fmt.Println("  readiness  Check environment readiness")
 	fmt.Println("  tools import [flags] FILE   Generate reviewable GET evidence tools from OpenAPI")
 	fmt.Println("  publish -pack FILE -evidence FILE -expected N   Publish a proposed revision")
