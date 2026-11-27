@@ -79,3 +79,10 @@
 - Optional: further learning-loop end-to-end tests with scripted failure patterns
 
 All high-impact correctness, config seams, POST adapters, packaging, HTTP tools, tool-call round-trips across protocols, auth refresh with key injection, refined streaming parsers, release automation, context-recipe prompt injection, labelled grouping demo, durable Postgres store (now wired into the API), fuller CLI, Helm chart, multi-binary image, concrete out-of-tree conformance test, and improved YAML pack loading are in place.
+
+## Conformance hardening (2026-11-27)
+
+- `RunConformance` now fails if an adapter ignores an already-cancelled context.
+- Added `llm.NewFakeServer` that records request bodies/headers and supports blocking handlers for cancel and error-injection tests.
+- Documented the contract and FakeServer usage in `docs/CONFORMANCE.md`.
+- Factory CLI `test` command now points at the real conformance packages.
