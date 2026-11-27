@@ -56,8 +56,10 @@ type geminiContent struct {
 type geminiRequest struct {
 	Contents         []geminiContent `json:"contents"`
 	GenerationConfig *struct {
-		Temperature     float64 `json:"temperature,omitempty"`
-		MaxOutputTokens int     `json:"maxOutputTokens,omitempty"`
+		Temperature      float64        `json:"temperature,omitempty"`
+		MaxOutputTokens  int            `json:"maxOutputTokens,omitempty"`
+		ResponseMimeType string         `json:"responseMimeType,omitempty"`
+		ResponseSchema   map[string]any `json:"responseSchema,omitempty"`
 	} `json:"generationConfig,omitempty"`
 }
 
@@ -111,14 +113,24 @@ func (g *GeminiGateway) Generate(req Request) (*Response, error) {
 	})
 
 	body := geminiRequest{Contents: contents}
-	if req.Temperature > 0 || req.MaxTokens > 0 {
-		body.GenerationConfig = &struct {
-			Temperature     float64 `json:"temperature,omitempty"`
-			MaxOutputTokens int     `json:"maxOutputTokens,omitempty"`
-		}{
-			Temperature:     req.Temperature,
-			MaxOutputTokens: req.MaxTokens,
-		}
+	cfg := &struct {
+		Temperature      float64        `json:"temperature,omitempty"`
+		MaxOutputTokens  int            `json:"maxOutputTokens,omitempty"`
+		ResponseMimeType string         `json:"responseMimeType,omitempty"`
+		ResponseSchema   map[string]any `json:"responseSchema,omitempty"`
+	}{}
+	if req.Temperature > 0 {
+		cfg.Temperature = req.Temperature
+	}
+	if req.MaxTokens > 0 {
+		cfg.MaxOutputTokens = req.MaxTokens
+	}
+	if len(req.Schema) > 0 {
+		cfg.ResponseMimeType = "application/json"
+		cfg.ResponseSchema = req.Schema
+	}
+	if cfg.Temperature > 0 || cfg.MaxOutputTokens > 0 || cfg.ResponseMimeType != "" {
+		body.GenerationConfig = cfg
 	}
 
 	raw, err := json.Marshal(body)

@@ -34,7 +34,11 @@ func main() {
 	}
 	steward.SetRuntime(gw, g, nil)
 
-	judge := &demoJudge{}
+	var judge agents.Judge = &demoJudge{}
+	if _, ok := gw.(*noopGateway); !ok {
+		// Prefer real LLM judge when a real gateway is available
+		judge = agents.NewLLMJudge(gw, g)
+	}
 
 	runner := swarm.NewContinuousRunner(steward, judge, q, g, re, ll)
 	runner.Workers = 2

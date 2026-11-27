@@ -101,7 +101,7 @@ func (g *OpenAICompatGateway) Generate(req Request) (*Response, error) {
 			"json_schema": map[string]any{
 				"name":   "attribute_update",
 				"schema": req.Schema,
-				"strict": true,
+				"strict": false, // false so optional fields (not in required) are allowed; true requires every property in required
 			},
 		}
 	}

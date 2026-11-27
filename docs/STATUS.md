@@ -11,6 +11,6 @@
 ## Remaining minor
 - Full YAML library (optional)
 - Regenerate go.sum locally after go get github.com/lib/pq
-- Wire ResponseFormat into every adapter request (helpers exist)
+- Schema now wired for OpenAI (json_schema) and Gemini (responseSchema)
 
 All high-impact items are complete.

@@ -54,7 +54,10 @@
 - Basic native SSE streaming for OpenAI-compatible, Gemini, and Anthropic endpoints
 - Multi-protocol SSE text delta extraction used by all stream implementations
 - Concrete out-of-tree gateway example that runs `llm.RunConformance` against an httptest server (`examples/out-of-tree-gateway/adapter_test.go`)
-- OpenAI adapter now emits response_format: {type: json_object} when ResponseFormat == "json"
+- OpenAI adapter now emits response_format: {type: json_schema, ...} when Schema is set (strict: false for optional fields)
+- Gemini adapter now sends responseMimeType=application/json and responseSchema when Schema is set
+- Worker sets Schema on every request via BuildResponseSchema
+- Continuous-swarm prefers LLMJudge when a real gateway is available
 
 ### HTTP tools (#12)
 - HTTPTool with path templating, auth, retries, cache, real key loading
@@ -73,6 +76,6 @@
 ## Remaining (minor)
 
 - Optional: full YAML library (gopkg.in/yaml.v3) for nested structures beyond the simple converter
-- Optional: wire ResponseFormat into the models.Gateway path so workers can request json_object mode end-to-end
+- Optional: further learning-loop end-to-end tests with scripted failure patterns
 
 All high-impact correctness, config seams, POST adapters, packaging, HTTP tools, tool-call round-trips across protocols, auth refresh with key injection, refined streaming parsers, release automation, context-recipe prompt injection, labelled grouping demo, durable Postgres store (now wired into the API), fuller CLI, Helm chart, multi-binary image, concrete out-of-tree conformance test, and improved YAML pack loading are in place.
