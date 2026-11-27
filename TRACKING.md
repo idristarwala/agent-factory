@@ -10,6 +10,7 @@
 - /api/feedback
 - Deterministic grouping with ungrouped items first-class
 - Labelled grouping scorer (`grouping.ScorePairMetrics`)
+- Block-then-decide LLM membership helper (`grouping.BlockThenDecide` + `askMembership`)
 
 ### Enterprise gateway (#11)
 - Declarative config loader
@@ -23,6 +24,7 @@
 - Token refresher for key rotation (now injects key into adapters that implement SetAPIKey)
 - Tool call parsing (OpenAI, Anthropic, Gemini)
 - Basic native SSE streaming for OpenAI, Gemini (streamGenerateContent), and Anthropic
+- Refined multi-protocol SSE delta extraction (OpenAI, Anthropic content_block_delta, Gemini candidates/parts)
 
 ### Packaging (#9)
 - Factory CLI, pack loader, validation
@@ -42,6 +44,7 @@
 - Tool call parsing + round-trip tests (OpenAI, Anthropic, Gemini)
 - Token refresh support (`TokenRefresher` decorator with key injection, exercised in tests)
 - Basic native SSE streaming for OpenAI-compatible, Gemini, and Anthropic endpoints
+- Multi-protocol SSE text delta extraction used by all stream implementations
 
 ### HTTP tools (#12)
 - HTTPTool with path templating, auth, retries, cache, real key loading
@@ -53,8 +56,7 @@
 
 ## Remaining (minor)
 
-- Context recipe fully wired into the runner loop (types exist; further integration pending)
-- Full block-then-decide LLM membership for grouping
-- Streaming delta parsing is OpenAI-shaped; Gemini/Anthropic event shapes can be refined further
+- Context recipe fully wired into the runner loop (evidence is gathered and attached; fuller prompt injection pending)
+- Full block-then-decide LLM membership integrated into the main grouping path and scored on labelled sets
 
-All high-impact correctness, config seams, POST adapters, packaging, HTTP tools, tool-call round-trips across protocols, auth refresh with key injection, and release automation are in place.
+All high-impact correctness, config seams, POST adapters, packaging, HTTP tools, tool-call round-trips across protocols, auth refresh with key injection, refined streaming parsers, and release automation are in place.
