@@ -50,6 +50,7 @@ func (s *SQLStore) migrate() error {
 		proposal TEXT
 	);
 	CREATE TABLE IF NOT EXISTS run_versions (id TEXT, version INTEGER, data TEXT, PRIMARY KEY(id,version));
+ CREATE TABLE IF NOT EXISTS memory_file_versions (id TEXT, version INTEGER, data TEXT, PRIMARY KEY(id,version));
  CREATE TABLE IF NOT EXISTS config_versions (id TEXT, version INTEGER, data TEXT, PRIMARY KEY(id,version));
  CREATE TABLE IF NOT EXISTS agent_versions (id TEXT, version INTEGER, data TEXT, PRIMARY KEY(id,version));
  CREATE TABLE IF NOT EXISTS rule_versions (

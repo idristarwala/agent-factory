@@ -15,10 +15,11 @@ var ErrConflict = errors.New("definition has a newer revision")
 type Kind string
 
 const (
-	Agent  Kind = "agent"
-	Rule   Kind = "rule"
-	Config Kind = "config"
-	Run    Kind = "run"
+	MemoryFile Kind = "memory_file"
+	Agent      Kind = "agent"
+	Rule       Kind = "rule"
+	Config     Kind = "config"
+	Run        Kind = "run"
 )
 
 type Snapshot struct {
@@ -72,6 +73,8 @@ type SQL struct{ DB *sql.DB }
 
 func table(k Kind) (string, error) {
 	switch k {
+	case MemoryFile:
+		return "memory_file_versions", nil
 	case Agent:
 		return "agent_versions", nil
 	case Run:

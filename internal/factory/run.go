@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/idristarwala/agent-factory/internal/memory"
 	"sort"
 	"strings"
 
@@ -24,9 +25,10 @@ type Spec struct {
 	Worker     string            `json:"worker"`
 }
 type Plan struct {
-	Factory                string `json:"factory"`
-	Revision               int    `json:"revision"`
-	Spec                   Spec   `json:"spec"`
+	Memory                 []memory.File `json:"memory,omitempty"`
+	Factory                string        `json:"factory"`
+	Revision               int           `json:"revision"`
+	Spec                   Spec          `json:"spec"`
 	Steward, Worker, Judge agents.AgentVersion
 	Rules                  []rules.VersionedRule
 }
@@ -105,10 +107,15 @@ func (p Plan) Evaluate(gw models.Gateway, goal string, e schema.Entity) (*graph.
 		fields = append(fields, k)
 	}
 	sort.Strings(fields)
-	mutation, err := worker.Execute(&unitofwork.UnitOfWork{ID: e.ID, InputSubgraph: graph.NodeID(e.ID), Description: goal, AllowedFields: fields, RequiredFields: p.Spec.Required, FieldTypes: p.Spec.Fields, PreserveStatus: true})
+	var evidence []string
+	for _, file := range p.Memory {
+		evidence = append(evidence, fmt.Sprintf("Factory memory %q revision %d (%s): %s", file.Path, file.Version, file.Author, file.Content))
+	}
+	mutation, err := worker.Execute(&unitofwork.UnitOfWork{ID: e.ID, InputSubgraph: graph.NodeID(e.ID), Evidence: evidence, Description: goal, AllowedFields: fields, RequiredFields: p.Spec.Required, FieldTypes: p.Spec.Fields, PreserveStatus: true})
 	if err != nil {
 		return nil, agents.Decision{}, err
 	}
+	mutation.Evidence = append(mutation.Evidence, evidence...)
 	judge := agents.NewLLMJudge(gw, g)
 	judge.Definition = p.Judge
 	d, err := judge.Evaluate(mutation, active)
