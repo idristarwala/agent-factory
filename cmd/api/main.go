@@ -50,6 +50,7 @@ func main() {
 	ruleEngine := rules.NewStoredEngine(definitions)
 
 	mux := http.NewServeMux()
+	sourceMappingRoutes(mux, definitions)
 	mux.HandleFunc("/api/sources/profile", apiRoute(profileSource, http.MethodPost))
 	configRoutes(mux, definitions)
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
