@@ -19,6 +19,7 @@ func TestHTTPToolPathTemplating(t *testing.T) {
 	defer server.Close()
 
 	tool := NewHTTPTool("get_item", "GET", server.URL+"/items/{id}")
+	tool.Client = server.Client()
 	result, err := tool.Call(context.Background(), map[string]string{"id": "123"})
 	if err != nil {
 		t.Fatal(err)
@@ -43,6 +44,7 @@ func TestHTTPToolBearerAuth(t *testing.T) {
 	defer server.Close()
 
 	tool := NewHTTPTool("auth_test", "GET", server.URL+"/test")
+	tool.Client = server.Client()
 	tool.AuthType = "bearer"
 	tool.KeyFile = keyPath
 	_, err := tool.Call(context.Background(), nil)

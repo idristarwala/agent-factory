@@ -20,10 +20,7 @@ jobs:
           go-version: '1.26'
 
       - name: Build binaries
-        run: |
-          mkdir -p dist
-          GOOS=linux GOARCH=amd64 go build -o dist/factory-linux-amd64 ./cmd/factory
-          GOOS=darwin GOARCH=arm64 go build -o dist/factory-darwin-arm64 ./cmd/factory
+        run: make release
 
       - name: Build and push image
         run: |
@@ -36,13 +33,17 @@ jobs:
 
       - name: Write manifest
         run: |
-          cat > dist/release-manifest.json <<EOF
-          {
-            "version": "${{ github.ref_name }}",
-            "image": "ghcr.io/${{ github.repository }}@$DIGEST",
-            "binaries": ["dist/factory-linux-amd64", "dist/factory-darwin-arm64"]
+          python3 - <<'PYTHON'
+          import json, os, pathlib
+          dist = pathlib.Path("dist")
+          files = sorted(path.name for path in dist.iterdir() if path.is_file())
+          manifest = {
+              "version": os.environ["GITHUB_REF_NAME"],
+              "image": f"ghcr.io/{os.environ['GITHUB_REPOSITORY']}@{os.environ['DIGEST']}",
+              "binaries": files,
           }
-          EOF
+          (dist / "release-manifest.json").write_text(json.dumps(manifest, indent=2))
+          PYTHON
 
       - name: Create release
         uses: softprops/action-gh-release@v1
