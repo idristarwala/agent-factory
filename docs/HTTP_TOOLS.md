@@ -1,26 +1,24 @@
 # Generic HTTP Tools (Issue #12)
 
-`internal/tools/http.go` provides `HTTPTool`, a config-driven tool that can call any REST endpoint.
-
 ## Current support
 
-- Path templating (`{id}` replacement)
-- Method, headers, timeout
-- Side-effect classification (read-only by default)
-- Response size limit
-- Basic httptest coverage
+- HTTPTool with path templating, headers, timeout, side-effect
+- SimpleMap for $.field extraction
+- FetchImages for multimodal evidence
+- ContextRecipe + ExecuteRecipe that runs tools before the worker
+- Basic grants check helpers
+- MCP HTTP stub
+- Tests against httptest
 
-## Remaining for full acceptance
+## Remaining
 
-- YAML config loader that registers tools with no Go code
-- Auth from key files (bearer, header, basic)
-- Custom CA and proxy
-- Retries on 429/5xx
-- JSONPath response mapping
-- Cache
-- Grants enforced at call time
-- Context recipe that runs tools before worker/judge
-- Image fetching for multimodal
-- MCP over HTTP
+- Full YAML loader that registers tools with zero Go code
+- Complete auth (header, basic, oauth)
+- Retries with backoff
+- Cache with TTL
+- Full JSONPath
+- Image parts wired into gateway adapters
+- Grants enforced on every Call
+- MCP streamable HTTP fully implemented
 
-The skeleton is in place so evidence can be fetched without hard-coding Go.
+The core evidence path is now available. Config-driven connection of REST systems is progressing.
