@@ -209,6 +209,7 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 						r.Queue.Fail(ctx, uow.ID, err.Error())
 						continue
 					}
+					decision = agents.GuardDecision(nil, decision)
 					if decision.Approved && !r.Observe {
 						if err := r.Graph.Apply(mutation); err != nil {
 							writeErr := fmt.Errorf("apply mutation for unit %s: %w", uow.ID, err)
@@ -237,8 +238,13 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 
 		if r.Learning != nil {
 			signals := CollectFailureSignals(nil, failureErrs)
-			_ = signals
 			gaps := r.Learning.Review(decisions, failureMsgs)
+			// Prefer structured signals for rule text when available.
+			for i := range gaps {
+				if len(signals) > 0 && gaps[i].Pattern != "" {
+					gaps[i].Evidence = append(gaps[i].Evidence, learning.BuildActionableRule(signals[0]))
+				}
+			}
 			updates := r.Learning.ProposeUpdates(gaps)
 			applied := r.Learning.Apply(updates)
 			for _, a := range applied {

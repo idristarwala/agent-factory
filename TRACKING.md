@@ -94,3 +94,5 @@ All high-impact correctness, config seams, POST adapters, packaging, HTTP tools,
 - Worker validation failures now call `LogValidationFailure` so raw reply previews appear in logs (#10).
 - Continuous runner applies `agents.GuardDecision` before considering a judge result (#10).
 - Collected failure signals are attached to learning gaps via `BuildActionableRule` so structured causes influence rule text (#13/#16).
+
+
