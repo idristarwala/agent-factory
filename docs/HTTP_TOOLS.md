@@ -117,3 +117,15 @@ grants:
 ```
 
 Each lookup opens an MCP session, calls the configured tool with the rendered body as its arguments and closes the session. The client accepts JSON and server-sent events. Structured tool results can use the JSONPath mapping above. Text results pass through directly when no mapping is configured. Tool errors fail the evidence step. Session requests use the tool’s credentials, trusted CA and destination restrictions. The timeout covers the lookup and retries bound stream reconnection attempts.
+
+## Review external record changes
+
+A workspace factory can route its worker’s proposed field changes to a named external tool for review. For example, configure the following three versioned definitions through `/api/definitions/{kind}/{id}`. Each row shows the `Data` in the definition edit. Send `Expected: 0` to create it, or the current head revision to edit it.
+
+| Definition | Data |
+| --- | --- |
+| `tool/update-case` | `{"side_effect":"reversible","record_argument":"case_id","changes_argument":"patch"}` |
+| `pack/service-desk` | `{"grants":[{"pack":"service-desk","tools":["update-case"],"side_effects":["reversible"]}]}` |
+| `factory/service-desk` | `{"record_type":"request","fields":{"assigned_team":"string"},"propose_tool":"update-case"}` |
+
+At run creation the factory checks the grant against the tool’s side-effect class and pins both definition revisions. Each worker patch becomes a proposed tool call with the record ID and validated changed fields bound to the configured argument names. The judge evaluates that exact call. The Decisions screen and API expose its arguments alongside the evidence. A human approval or rejection is stored in the run history. Approval can apply the workspace record update according to observe mode. Delivery to the external service is separate. Preparing and reviewing a proposal sends zero requests to that service.
