@@ -28,6 +28,7 @@ type Criterion struct {
 	Citations []artifact.Citation `json:"citations"`
 }
 type Spec struct {
+	BrowserTool     string            `json:"browser_tool,omitempty"`
 	ProposeTool     string            `json:"propose_tool,omitempty"`
 	Goal            string            `json:"goal,omitempty"`
 	Criteria        []Criterion       `json:"criteria,omitempty"`
@@ -39,6 +40,7 @@ type Spec struct {
 	Worker          string            `json:"worker"`
 }
 type Plan struct {
+	BrowserTool            *BrowserTool  `json:"browser_tool,omitempty"`
 	ProposalTool           *ProposalTool `json:"proposal_tool,omitempty"`
 	UseGoalArtifacts       bool          `json:"use_goal_artifacts,omitempty"`
 	Memory                 []memory.File `json:"memory,omitempty"`
@@ -90,6 +92,12 @@ func Prepare(st revision.Store, name string, number int) (Plan, error) {
 	}
 	registry := agents.NewStoredRegistry(st)
 	plan := Plan{Factory: name, Revision: number, Spec: def}
+	if def.BrowserTool != "" {
+		plan.BrowserTool, err = pinBrowserTool(st, name, def.BrowserTool)
+		if err != nil {
+			return Plan{}, err
+		}
+	}
 	if def.ProposeTool != "" {
 		plan.ProposalTool, err = pinProposalTool(st, name, def.ProposeTool)
 		if err != nil {
@@ -113,6 +121,9 @@ func Prepare(st revision.Store, name string, number int) (Plan, error) {
 	return plan, err
 }
 func (p Plan) Evaluate(gw models.Gateway, goal string, e schema.Entity) (*graph.Mutation, agents.Decision, error) {
+	if p.BrowserTool != nil {
+		return nil, agents.Decision{}, fmt.Errorf("browser capture requires a workspace run")
+	}
 	return p.evaluate(gw, goal, e, nil, artifact.Evidence{}, nil)
 }
 func (p Plan) evaluate(gw models.Gateway, goal string, e schema.Entity, origin *SourceLineage, goalEvidence artifact.Evidence, toolCalls map[string]int) (*graph.Mutation, agents.Decision, error) {

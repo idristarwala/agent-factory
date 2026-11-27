@@ -1,0 +1,12 @@
+{
+  "name": "agent-factory-browser-capture",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node capture.mjs",
+    "test": "node --test capture.test.mjs"
+  },
+  "dependencies": {
+    "playwright-core": "1.65.1"
+  }
+}

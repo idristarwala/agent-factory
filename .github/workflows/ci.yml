@@ -52,3 +52,17 @@ jobs:
           cache: npm
           cache-dependency-path: ui-app/package-lock.json
       - run: make ui-build
+
+  browser-evidence:
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        working-directory: extensions/browser-capture
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci
+      - run: npx playwright-core install --with-deps chromium
+      - run: npm test

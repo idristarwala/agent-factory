@@ -27,6 +27,8 @@ The API and CLI read deployment configuration from their process environment. Re
 
 | Setting | Type and default | Scope and precedence |
 | --- | --- | --- |
+| `FACTORY_PLAYWRIGHT_SCRIPT` | Absolute path, unset | Enable rendered page capture for workspace factories that select a granted browser tool. The API resolves Node.js through its process `PATH`. [Configuration and limits](BROWSER_CAPTURE.md) |
+| `FACTORY_CHROMIUM_EXECUTABLE` | Executable path, unset | Optional system Chromium. Defaults to the browser installed by playwright-core. |
 | `FACTORY_REPLAY_RUN` | Reviewed workspace run reference `RUN_ID@REVISION`, unset | With `replay_gate=true`, compare new steward rules against human-reviewed records. Pass `-review-replay` to require human approval after a gain. [Replay procedure](RULES_REFRESH.md) |
 | `LLM_RETRY_ATTEMPTS` | Integer 1–16, default 3 | Total transport attempts per environment-routed model call, including the first. Set to 1 for a single attempt. |
 | `LLM_RETRY_BASE_DELAY` | Positive Go duration, default 250ms | Initial backoff after a retryable HTTP 429 or 5xx. |

@@ -9,10 +9,19 @@ import (
 	"strings"
 
 	"github.com/idristarwala/agent-factory/internal/artifact"
+	"github.com/idristarwala/agent-factory/internal/factory"
 	"github.com/idristarwala/agent-factory/internal/revision"
 )
 
 func chatArtifactRoute(mux *http.ServeMux, s revision.Store) {
+	mux.HandleFunc("/api/browser-captures/{id}", apiRoute(func(w http.ResponseWriter, r *http.Request) {
+		c, err := factory.ReadBrowserCapture(s, r.PathValue("id"))
+		if errors.Is(err, factory.ErrNotFound) {
+			http.NotFound(w, r)
+			return
+		}
+		sendJSON(w, c, err)
+	}, "GET"))
 	secretLoader := secrets.New()
 	mux.HandleFunc("/api/chat/artifacts/{id}/{version}", apiRoute(func(w http.ResponseWriter, r *http.Request) {
 		version, err := strconv.Atoi(r.PathValue("version"))

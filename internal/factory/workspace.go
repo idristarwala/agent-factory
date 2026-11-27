@@ -50,16 +50,17 @@ type Price struct {
 	Output float64 `json:"output_per_million"`
 }
 type Review struct {
-	Lineage   *SourceLineage  `json:"lineage,omitempty"`
-	UpdatedAt time.Time       `json:"updated_at"`
-	ID        string          `json:"id"`
-	RecordID  string          `json:"entity_id"`
-	Status    string          `json:"status"`
-	Reason    string          `json:"reason"`
-	Feedback  string          `json:"feedback,omitempty"`
-	Proposal  *graph.Mutation `json:"proposal"`
-	Before    map[string]any  `json:"before"`
-	After     map[string]any  `json:"after"`
+	BrowserCapture string          `json:"browser_capture,omitempty"`
+	Lineage        *SourceLineage  `json:"lineage,omitempty"`
+	UpdatedAt      time.Time       `json:"updated_at"`
+	ID             string          `json:"id"`
+	RecordID       string          `json:"entity_id"`
+	Status         string          `json:"status"`
+	Reason         string          `json:"reason"`
+	Feedback       string          `json:"feedback,omitempty"`
+	Proposal       *graph.Mutation `json:"proposal"`
+	Before         map[string]any  `json:"before"`
+	After          map[string]any  `json:"after"`
 }
 type Run struct {
 	Audit            []obs.AuditEntry         `json:"audit,omitempty"`
@@ -312,7 +313,19 @@ func (w *Workspace) Execute(id string) error {
 		if lineage, ok := r.Lineage[e.ID]; ok {
 			origin = &lineage
 		}
-		mut, decision, evalErr := r.Plan.evaluate(&meter, r.Description, e, origin, goalEvidence, r.Tools)
+		recordEvidence := goalEvidence
+		var capture BrowserCapture
+		if tool := r.Plan.BrowserTool; tool != nil {
+			r.Tools[tool.Name]++
+			capture, err = tool.capture(w.Store, e, meter.deadline)
+			if err != nil {
+				r.Status = "failed"
+				r.Error = err.Error()
+				return w.checkpointEvaluation(&r)
+			}
+			recordEvidence = capture.evidence(recordEvidence)
+		}
+		mut, decision, evalErr := r.Plan.evaluate(&meter, r.Description, e, origin, recordEvidence, r.Tools)
 		r.Calls = append(r.Calls, meter.calls...)
 		meter.calls = nil
 		if evalErr != nil {
@@ -321,6 +334,7 @@ func (w *Workspace) Execute(id string) error {
 			return w.checkpointEvaluation(&r)
 		}
 		d := newReview(r.ID, i, e, mut, decision)
+		d.BrowserCapture = capture.ID
 		d.Lineage = origin
 		r.Decisions = append(r.Decisions, d)
 		if i+1 == len(r.Records) {

@@ -24,3 +24,5 @@ vendor/
 
 /ui-app/node_modules/
 /ui-app/dist/
+
+/extensions/browser-capture/node_modules/

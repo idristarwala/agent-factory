@@ -14,6 +14,8 @@ test('decision review displays typed values and actions only for pending changes
     assert.match(render(), /<td>priority<\/td><td>0<\/td><td>2<\/td>/)
     assert.match(render(), />Approve<\/button>/)
     decision.status = 'approved'
+    decision.browser_capture = 'capture-1'
+    assert.match(render(), /Rendered page capture/)
     decision.feedback = 'Use the source priority'
     decision.proposal = { Evidence: ['Source register'], AgentName: 'triage', AgentRevision: 2 }
     assert.match(render(), /Source register/)
