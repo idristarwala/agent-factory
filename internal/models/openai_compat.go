@@ -10,9 +10,7 @@ import (
 	"time"
 )
 
-// OpenAICompatGateway talks to any OpenAI-compatible endpoint
-// (Groq, Gemini OpenAI-compat, OpenRouter, etc.).
-// Model names per tier come from environment variables.
+// OpenAICompatGateway talks to any OpenAI-compatible endpoint.
 
 type OpenAICompatGateway struct {
 	BaseURL       string
@@ -51,11 +49,11 @@ type chatMessage struct {
 }
 
 type chatRequest struct {
-	Model          string                 `json:"model"`
-	Messages       []chatMessage          `json:"messages"`
-	Temperature    float64                `json:"temperature,omitempty"`
-	MaxTokens      int                    `json:"max_tokens,omitempty"`
-	ResponseFormat map[string]any         `json:"response_format,omitempty"`
+	Model          string         `json:"model"`
+	Messages       []chatMessage  `json:"messages"`
+	Temperature    float64        `json:"temperature,omitempty"`
+	MaxTokens      int            `json:"max_tokens,omitempty"`
+	ResponseFormat map[string]any `json:"response_format,omitempty"`
 }
 
 type chatResponse struct {
@@ -96,13 +94,13 @@ func (g *OpenAICompatGateway) Generate(req Request) (*Response, error) {
 	}
 	body.Messages = append(body.Messages, chatMessage{Role: "user", Content: req.User})
 
-	// Provider-enforced schema
-	if req.ResponseSchema != nil {
+	// Use the Schema field that exists on Request
+	if req.Schema != nil {
 		body.ResponseFormat = map[string]any{
 			"type": "json_schema",
 			"json_schema": map[string]any{
 				"name":   "attribute_update",
-				"schema": req.ResponseSchema,
+				"schema": req.Schema,
 				"strict": true,
 			},
 		}
