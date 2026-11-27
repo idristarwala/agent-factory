@@ -34,5 +34,19 @@ func (c *RecordingClient) Chat(ctx context.Context, req ChatRequest) (*ChatRespo
 }
 
 func (c *RecordingClient) Stream(ctx context.Context, req ChatRequest) (Stream, error) {
-	return c.Inner.Stream(ctx, req)
+	start := time.Now()
+	stream, err := c.Inner.Stream(ctx, req)
+	if c.Recorder != nil {
+		rec := UsageRecord{
+			Model:   req.Model,
+			Latency: time.Since(start),
+			Status:  200,
+		}
+		if err != nil {
+			rec.Status = 500
+			rec.Error = err.Error()
+		}
+		c.Recorder.Record(rec)
+	}
+	return stream, err
 }

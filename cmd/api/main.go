@@ -6,8 +6,11 @@ import (
 	"net/http"
 	"os"
 
+	_ "github.com/lib/pq" // Postgres driver for optional durable store
+
 	"github.com/idristarwala/agent-factory/internal/models"
 	"github.com/idristarwala/agent-factory/internal/rules"
+	"github.com/idristarwala/agent-factory/internal/store"
 )
 
 func main() {
@@ -17,9 +20,28 @@ func main() {
 		os.Exit(1)
 	}
 
+	st, err := store.NewFromEnv()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "store: %v\n", err)
+		os.Exit(1)
+	}
+	defer st.Close()
+
 	ruleEngine := rules.NewEngine()
 
 	mux := http.NewServeMux()
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		storeKind := "memory"
+		if os.Getenv("DATABASE_URL") != "" {
+			storeKind = "postgres"
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{
+			"status": "ok",
+			"store":  storeKind,
+		})
+	})
+
 	mux.HandleFunc("/api/chat", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
@@ -75,6 +97,10 @@ func main() {
 			return
 		}
 		rule := ruleEngine.FromFeedback(body.Note, body.Entity, "customer")
+		// Persist the rule if the store supports it (best-effort).
+		if rule.ID != "" {
+			_ = st.SaveRuleVersion(rule.ID, rule.Version, []byte(body.Note))
+		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]any{
 			"status":  "rule_created",
@@ -85,6 +111,13 @@ func main() {
 	})
 
 	addr := ":8080"
-	fmt.Println("API listening on", addr)
+	fmt.Println("API listening on", addr, "(store:", storeKindLabel(), ")")
 	http.ListenAndServe(addr, mux)
+}
+
+func storeKindLabel() string {
+	if os.Getenv("DATABASE_URL") != "" {
+		return "postgres"
+	}
+	return "memory"
 }
