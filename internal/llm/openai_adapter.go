@@ -157,24 +157,12 @@ func (s *sseStream) Recv() (*StreamEvent, error) {
 			continue
 		}
 		data := strings.TrimPrefix(line, "data: ")
-		if data == "[DONE]" {
+		if data == "[DONE]" || data == "" {
 			s.done = true
 			return &StreamEvent{FinishReason: "stop"}, nil
 		}
-		var payload struct {
-			Choices []struct {
-				Delta struct {
-					Content string `json:"content"`
-				} `json:"delta"`
-			} `json:"choices"`
-		}
-		if err := json.Unmarshal([]byte(data), &payload); err != nil {
-			continue
-		}
-		for _, c := range payload.Choices {
-			if c.Delta.Content != "" {
-				return &StreamEvent{TextDelta: c.Delta.Content}, nil
-			}
+		if text := extractTextDelta(data); text != "" {
+			return &StreamEvent{TextDelta: text}, nil
 		}
 	}
 	s.done = true
