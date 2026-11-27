@@ -60,6 +60,15 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 	for round := 1; round <= r.MaxRounds; round++ {
 		fmt.Printf("===== Round %d =====\n", round)
 
+		// Refresh active rules so workers created this round see learned rules
+		if smart, ok := r.Steward.(*agents.SmartSteward); ok && r.Rules != nil {
+			var active []agents.Rule
+			for _, vr := range r.Rules.Active() {
+				active = append(active, agents.Rule{Description: vr.Description})
+			}
+			smart.SetRuntime(smart.Gateway, smart.Graph, active)
+		}
+
 		uows, err := r.Steward.InterpretGoal(goal, r.Graph.Snapshot())
 		if err != nil {
 			return err
@@ -151,7 +160,6 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 		}
 		wg.Wait()
 
-		// Feed both decisions and worker failures into learning
 		if r.Learning != nil {
 			gaps := r.Learning.Review(decisions, failureMsgs)
 			updates := r.Learning.ProposeUpdates(gaps)
