@@ -2,6 +2,8 @@ package agents
 
 import (
 	"fmt"
+	"slices"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/idristarwala/agent-factory/internal/graph"
@@ -105,7 +107,12 @@ func (s *SmartSteward) InterpretGoal(goal string, graphSnapshot any) ([]*unitofw
 		return uows, nil
 	}
 
-	// Fallback when no graph is set
+	// A graphless plan has no record from which to infer a scope.
+	for i, name := range s.AllowedFields {
+		if strings.TrimSpace(name) == "" || name == "status" || slices.Contains(s.AllowedFields[:i], name) {
+			return nil, fmt.Errorf("invalid editable field %q", name)
+		}
+	}
 	chosen := s.PlanningPack
 	if chosen == nil {
 		chosen = &pack.Pack{Name: "general", WorkerRoles: []string{"worker"}}
@@ -116,6 +123,7 @@ func (s *SmartSteward) InterpretGoal(goal string, graphSnapshot any) ([]*unitofw
 		u := &unitofwork.UnitOfWork{
 			ID:             id,
 			GoalID:         "goal-" + id[:8],
+			AllowedFields:  slices.Clone(s.AllowedFields),
 			Description:    fmt.Sprintf("[%s] %s — role: %s", chosen.Name, goal, role),
 			ExpectedOutput: "graph mutation",
 			Mode:           "non_deterministic",

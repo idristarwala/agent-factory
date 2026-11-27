@@ -65,3 +65,5 @@ try {
 Read `entity_id`, `factory_revision`, `proposal` and `decision.Approved` from each JSON line. Diagnostics go to stderr. A successful process can return a rejected proposal. Inspect `decision.Reason` before using a proposed change. Check the process exit status as later records can fail after earlier results have been emitted.
 
 Replace the example files with your own record type, editable fields and records. The CLI evaluates the input file and writes decisions to stdout. For a persisted run with a human approval step, use the HTTP goals and decisions endpoints. [Example definition](../examples/service-desk/factory.json) · [Example records](../examples/service-desk/records.json) · [HTTP API](API.md)
+
+When embedding `SmartSteward` without a graph, set `AllowedFields` before calling `InterpretGoal`. Each role-based unit receives its own copy. Set the unit’s `InputSubgraph` to the target record ID before worker execution. A worker needs an explicit scope for an ambiguous multi-field record.

@@ -45,7 +45,10 @@ func main() {
 	registry := agents.NewStoredRegistry(definitions)
 
 	g := graph.NewMemoryGraph()
-	g.AddNode(graph.Node{ID: "item-1", Type: "item", Props: map[string]any{"status": "needs_fix", "title": "bad title"}})
+	g.AddNode(graph.Node{ID: "item-1", Type: "item", Props: map[string]any{
+		"status": "needs_fix", "title": "Untitled",
+		"source": "East Library opens at 10 AM on Saturday.",
+	}})
 
 	q := queue.NewMemoryQueue()
 	re := rules.NewStoredEngine(definitions)
@@ -58,6 +61,9 @@ func main() {
 	}
 	steward := agents.NewSmartSteward(store)
 	steward.Registry = registry
+	if len(fields) == 0 {
+		fields = []string{"title"}
+	}
 	steward.AllowedFields = fields
 
 	// Real or noop gateway so CreateWorker succeeds
@@ -142,7 +148,7 @@ func main() {
 	runner.SetBudget(swarm.Budget{MaxRounds: cfg.MaxRounds, MaxWallClock: time.Duration(cfg.MaxMinutes) * time.Minute, MaxTokens: cfg.MaxTokens, MaxFailures: cfg.MaxFailures, MaxRecordFailures: cfg.MaxRecordFailures})
 	fmt.Printf("Settings revision %d\n", version)
 
-	goal := "Fix all entities until clean"
+	goal := "Replace the placeholder title with a short headline giving the library name, opening time and day from the source."
 	if flag.NArg() > 0 {
 		goal = strings.Join(flag.Args(), " ")
 	}
@@ -208,5 +214,5 @@ func (j *demoJudge) Evaluate(m *graph.Mutation, rules []agents.Rule) (agents.Dec
 type noopGateway struct{}
 
 func (n *noopGateway) Generate(req models.Request) (*models.Response, error) {
-	return &models.Response{Content: `{"title":"fixed title","status":"fixed"}`, Model: "noop"}, nil
+	return &models.Response{Content: `{"title":"East Library opens at 10 AM on Saturday"}`, Model: "noop"}, nil
 }
