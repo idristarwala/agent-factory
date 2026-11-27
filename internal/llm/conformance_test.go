@@ -1,11 +1,23 @@
 package llm
 
-import "testing"
+import (
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+)
+
+type clientHarness struct{ client Client }
+
+func (h clientHarness) Client() Client { return h.client }
 
 func TestConformanceBasic(t *testing.T) {
-	server := NewFakeServer()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		io.WriteString(w, `{"choices":[{"message":{"content":"ok"}}]}`)
+	}))
 	t.Cleanup(server.Close)
-	RunBasicConformance(t, NewOpenAIAdapter(server.URL, "test-key", nil))
+	RunConformance(t, clientHarness{NewOpenAIAdapter(server.URL, "test-key", nil)})
 }
 
 func TestAdapterNoSetenv(t *testing.T) {

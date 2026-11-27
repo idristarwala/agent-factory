@@ -30,14 +30,3 @@ func New(name string, cfg map[string]string) (Client, error) {
 	}
 	return f(cfg)
 }
-
-// Adapters returns registered adapter names.
-func Adapters() []string {
-	regMu.RLock()
-	defer regMu.RUnlock()
-	names := make([]string, 0, len(registry))
-	for n := range registry {
-		names = append(names, n)
-	}
-	return names
-}
