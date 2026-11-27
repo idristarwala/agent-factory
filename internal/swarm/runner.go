@@ -141,7 +141,6 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 		var wg sync.WaitGroup
 		workerErrors := make([]error, r.Workers)
 		decisions := make([]agents.Decision, 0)
-		var failureMsgs []string
 		var failureErrs []error
 		var mu sync.Mutex
 
@@ -192,7 +191,6 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 					if err != nil {
 						r.Queue.Fail(ctx, uow.ID, "create worker: "+err.Error())
 						mu.Lock()
-						failureMsgs = append(failureMsgs, err.Error())
 						failureErrs = append(failureErrs, err)
 						mu.Unlock()
 						continue
@@ -201,7 +199,6 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 					if err != nil {
 						r.Queue.Fail(ctx, uow.ID, err.Error())
 						mu.Lock()
-						failureMsgs = append(failureMsgs, err.Error())
 						failureErrs = append(failureErrs, err)
 						if r.progress.RecordFailure(string(uow.InputSubgraph)) {
 							fmt.Printf("Unit %s blocked after repeated failures\n", uow.InputSubgraph)
@@ -243,24 +240,28 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 			budgets.TokensUsed = r.Usage.Tokens() - initialTokens
 		}
 
-		totalFailures += len(failureMsgs)
+		totalFailures += len(failureErrs)
 
 		if r.Learning != nil {
 			signals := CollectFailureSignals(nil, failureErrs)
-			gaps := r.Learning.Review(decisions, failureMsgs)
-			// Prefer structured signals for rule text when available.
-			for i := range gaps {
-				if len(signals) > 0 && gaps[i].Pattern != "" {
-					gaps[i].Evidence = append(gaps[i].Evidence, learning.BuildActionableRule(signals[0]))
-				}
-			}
+			gaps := r.Learning.ReviewSignals(decisions, signals)
 			updates := r.Learning.ProposeUpdates(gaps)
-			applied := r.Learning.Apply(updates)
+			applied, err := r.Learning.Apply(updates)
+			if err != nil {
+				return fmt.Errorf("save learned updates: %w", err)
+			}
 			for _, a := range applied {
 				fmt.Printf("Learning applied: %s\n", a)
 			}
-			if len(failureMsgs) > 0 {
-				fmt.Printf("Worker failures this round: %d (total %d)\n", len(failureMsgs), totalFailures)
+			approved := 0
+			for _, decision := range decisions {
+				if decision.Approved {
+					approved++
+				}
+			}
+			fmt.Printf("Round %d: %d units, %d approved, %d rejected, %d worker failures\n", round, len(uows), approved, len(decisions)-approved, len(failureErrs))
+			for _, signal := range signals {
+				fmt.Printf("Worker failure cause %s: %d\n", signal.Cause, signal.Count)
 			}
 		}
 

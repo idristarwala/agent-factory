@@ -31,6 +31,7 @@ type Graph interface {
 }
 
 type Mutation struct {
+	Goal          string         `json:",omitempty"`
 	AgentName     string         `json:",omitempty"`
 	AgentRevision int            `json:",omitempty"`
 	RuleRevisions map[string]int `json:",omitempty"`

@@ -1,18 +1,15 @@
 package learning
 
-import (
-	"fmt"
-)
-
-// BuildActionableRule builds a rule text from a structured failure signal.
-// Includes the failure cause and a concrete instruction instead of only a theme name.
+// BuildActionableRule turns a failure cause into guidance without copying provider diagnostics into a prompt.
 func BuildActionableRule(signal FailureSignal) string {
 	switch signal.Cause {
 	case "format":
-		return fmt.Sprintf("Return only the allowed fields as flat JSON. Previous failure: %s", signal.Detail)
+		return "Return only the allowed fields as flat JSON and use the types required by the response schema."
 	case "truncation":
 		return "Keep the response short and within the token limit. Do not echo the full entity."
+	case "provider":
+		return "If the model provider is unavailable, leave the record unchanged and report the failed evaluation."
 	default:
-		return fmt.Sprintf("Address the previous error: %s", signal.Detail)
+		return "When a unit cannot be evaluated, preserve its source record and report the failed step for review."
 	}
 }

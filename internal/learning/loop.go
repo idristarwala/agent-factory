@@ -1,12 +1,14 @@
 package learning
 
 import (
+	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	"strings"
 	"time"
 
 	"github.com/idristarwala/agent-factory/internal/agents"
+	"github.com/idristarwala/agent-factory/internal/revision"
 	"github.com/idristarwala/agent-factory/internal/rules"
 )
 
@@ -43,6 +45,14 @@ func NewLearningLoop(re *rules.Engine, reg *agents.Registry) *LearningLoop {
 }
 
 func (l *LearningLoop) Review(decisions []agents.Decision, learnings []string) []Gap {
+	var signals []FailureSignal
+	for _, msg := range learnings {
+		signals = RecordFailure(signals, errors.New(msg))
+	}
+	return l.ReviewSignals(decisions, signals)
+}
+
+func (l *LearningLoop) ReviewSignals(decisions []agents.Decision, signals []FailureSignal) []Gap {
 	if l.cumulative == nil {
 		l.cumulative = make(map[string]int)
 	}
@@ -66,23 +76,10 @@ func (l *LearningLoop) Review(decisions []agents.Decision, learnings []string) [
 			})
 		}
 	}
-	failCounts := map[string]int{}
-	for _, learning := range learnings {
-		lower := strings.ToLower(learning)
-		if strings.Contains(lower, "missing") || strings.Contains(lower, "gap") ||
-			strings.Contains(lower, "format") || strings.Contains(lower, "truncat") ||
-			strings.Contains(lower, "json") || strings.Contains(lower, "validation") {
-			failCounts[learning]++
-			l.cumulative[learning]++
-		}
-	}
-	for pattern := range failCounts {
-		gaps = append(gaps, Gap{
-			Pattern:     pattern,
-			Evidence:    []string{pattern},
-			Occurrences: l.cumulative[pattern],
-			Severity:    severity(l.cumulative[pattern]),
-		})
+	for _, signal := range signals {
+		pattern := "worker failure: " + signal.Cause
+		l.cumulative[pattern] += signal.Count
+		gaps = append(gaps, Gap{Pattern: pattern, Evidence: []string{BuildActionableRule(signal)}, Occurrences: l.cumulative[pattern], Severity: severity(l.cumulative[pattern])})
 	}
 	return gaps
 }
@@ -122,6 +119,9 @@ func ActionableRule(pattern string, evidence []string) string {
 }
 
 func actionableRule(pattern string, evidence []string) string {
+	if strings.HasPrefix(pattern, "worker failure: ") && len(evidence) > 0 {
+		return evidence[0]
+	}
 	lower := strings.ToLower(pattern)
 	switch {
 	case strings.Contains(lower, "title"):
@@ -144,7 +144,7 @@ func actionableRule(pattern string, evidence []string) string {
 	}
 }
 
-func (l *LearningLoop) Apply(updates []AgentUpdate) []string {
+func (l *LearningLoop) Apply(updates []AgentUpdate) ([]string, error) {
 	var applied []string
 	for _, u := range updates {
 		switch u.ChangeType {
@@ -153,32 +153,44 @@ func (l *LearningLoop) Apply(updates []AgentUpdate) []string {
 			if l.ReplayGate {
 				active = ShouldActivate(nil)
 			}
-			r := l.RuleEngine.Propose(rules.VersionedRule{
+			r, err := l.RuleEngine.Save(rules.VersionedRule{
 				ID:          uuid.NewSHA1(uuid.NameSpaceOID, []byte("steward-rule/"+u.Payload["pattern"])).String(),
 				Description: u.Payload["description"],
 				Source:      u.Payload["source"],
 				CreatedBy:   "steward",
 				CreatedAt:   time.Now(),
 				Active:      active,
-			})
+			}, 0)
+			if errors.Is(err, revision.ErrConflict) {
+				continue
+			}
+			if err != nil {
+				return applied, err
+			}
 			status := "active"
 			if !active {
 				status = "proposed (awaiting replay)"
 			}
 			applied = append(applied, fmt.Sprintf("rule %s v%d [%s]: %s", r.ID[:8], r.Version, status, r.Description))
 		case "new_agent":
-			l.Registry.Register(agents.AgentVersion{
+			_, err := l.Registry.Save(agents.AgentVersion{
 				Name:      u.Payload["role"],
 				CreatedBy: "steward",
 				Role:      "worker",
 				Version:   u.Payload["version"],
 				ModelTier: "cheap",
 				StartedAt: time.Now(),
-			})
+			}, 0)
+			if errors.Is(err, revision.ErrConflict) {
+				continue
+			}
+			if err != nil {
+				return applied, err
+			}
 			applied = append(applied, fmt.Sprintf("registered agent %s", u.Payload["role"]))
 		}
 	}
-	return applied
+	return applied, nil
 }
 
 func extractTheme(reason string) string {
