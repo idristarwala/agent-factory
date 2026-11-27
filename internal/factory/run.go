@@ -111,6 +111,13 @@ func (p Plan) evaluate(gw models.Gateway, goal string, e schema.Entity, origin *
 	}
 	sort.Strings(fields)
 	var evidence []string
+	if len(e.Relations) > 0 {
+		data, err := json.Marshal(e.Relations)
+		if err != nil {
+			return nil, agents.Decision{}, err
+		}
+		evidence = append(evidence, "Record relationships: "+string(data))
+	}
 	if origin != nil {
 		data, err := json.Marshal(origin)
 		if err != nil {
