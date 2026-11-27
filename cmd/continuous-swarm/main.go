@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/idristarwala/agent-factory/internal/settings"
 	factoryStore "github.com/idristarwala/agent-factory/internal/store"
 	"log"
 	"os"
@@ -62,11 +63,18 @@ func main() {
 
 	runner := swarm.NewContinuousRunner(steward, judge, q, g, re, ll)
 	runner.Workers = 2
-	runner.SetBudget(swarm.Budget{
-		MaxRounds:    5,
-		MaxWallClock: 10 * time.Minute,
-		MaxFailures:  20,
-	})
+	cfg, version, err := settings.Current(definitions)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if version == 0 {
+		cfg.MaxRounds = 5
+		cfg.MaxMinutes = 10
+	}
+	ll.ReplayGate = cfg.ReplayGate
+	runner.SetObserve(cfg.Observe)
+	runner.SetBudget(swarm.Budget{MaxRounds: cfg.MaxRounds, MaxWallClock: time.Duration(cfg.MaxMinutes) * time.Minute, MaxTokens: cfg.MaxTokens, MaxFailures: 20})
+	fmt.Printf("Settings revision %d\n", version)
 
 	goal := "Fix all entities until clean"
 	if len(os.Args) > 1 {

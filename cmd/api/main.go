@@ -65,6 +65,7 @@ func main() {
 	ruleEngine := rules.NewStoredEngine(definitions)
 
 	mux := http.NewServeMux()
+	configRoutes(mux, definitions)
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		storeKind := "sqlite"
 		if os.Getenv("DATABASE_URL") != "" {

@@ -13,3 +13,9 @@ Choose **Rules** to save a proposal, inspect its snapshot or activate a revision
 The API supports GET and POST on `/api/agents` and `/api/rules`. Request all rule revisions with `?history=true`. Filter rule history by `id` or agent history by `name`. Include the expected head revision in each write, using zero on creation. A concurrent edit returns HTTP 409. Reload before applying the intended change.
 
 The API and runners use PostgreSQL when `DATABASE_URL` is configured. Locally they share SQLite at `FACTORY_DB_PATH`, defaulting to `agent-factory/factory.sqlite` under the user configuration directory. Set `FACTORY_ID` consistently for the API and runner to isolate definitions by factory. API edits record a human actor class. The shared bearer-token authentication does not identify individual people. Store credential references in configuration and keep secret values in the secret store.
+
+## Versioned configuration
+
+**Settings** controls the continuous runner's wall clock, token and round limits, replay gate and observe mode. The runner reads a snapshot at startup. The connected gateway is configured by deployment environment. GET `/api/settings?history=true` retrieves the previous settings snapshots.
+
+Use `/api/definitions/{kind}/{id}` to store and read factory, pack, tool and experience configuration snapshots. POST a JSON object with `Expected` and `Data`. GET retrieves the ordered revisions. A declaration can be stored independently of runtime activation. File-based integrations need to resolve the chosen revision when loading a definition.

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import './App.css'
+import Settings from './Settings'
 import Definitions from './Definitions'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8080'
@@ -63,8 +64,8 @@ export default function App() {
       </header>
       <div className="layout">
         <main>
-          <nav aria-label="Factory navigation">{["Workspace","Rules","Agents"].map(name => <button aria-pressed={page===name} key={name} onClick={()=>setPage(name)}>{name}</button>)}</nav>
-          {page !== "Workspace" ? <Definitions api={API} kind={page.toLowerCase()} key={page} /> : <>
+          <nav aria-label="Factory navigation">{["Workspace","Rules","Agents","Settings"].map(name => <button aria-pressed={page===name} key={name} onClick={()=>setPage(name)}>{name}</button>)}</nav>
+          {page === "Settings" ? <Settings api={API} /> : page !== "Workspace" ? <Definitions api={API} kind={page.toLowerCase()} key={page} /> : <>
           <section className="card">
             <h2>Start a goal</h2>
             <div className="actions">

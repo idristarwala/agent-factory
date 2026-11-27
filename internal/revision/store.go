@@ -15,8 +15,9 @@ var ErrConflict = errors.New("definition has a newer revision")
 type Kind string
 
 const (
-	Agent Kind = "agent"
-	Rule  Kind = "rule"
+	Agent  Kind = "agent"
+	Rule   Kind = "rule"
+	Config Kind = "config"
 )
 
 type Snapshot struct {
@@ -72,6 +73,8 @@ func table(k Kind) (string, error) {
 	switch k {
 	case Agent:
 		return "agent_versions", nil
+	case Config:
+		return "config_versions", nil
 	case Rule:
 		return "rule_versions", nil
 	}
