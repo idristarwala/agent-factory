@@ -19,6 +19,7 @@ import (
 	"github.com/idristarwala/agent-factory/internal/models"
 	"github.com/idristarwala/agent-factory/internal/rules"
 	"github.com/idristarwala/agent-factory/internal/store"
+	"github.com/idristarwala/agent-factory/internal/tools"
 )
 
 type Usage struct {
@@ -50,6 +51,14 @@ func main() {
 	ruleEngine := rules.NewStoredEngine(definitions)
 
 	mux := http.NewServeMux()
+	var sampler sampleSource
+	if path := os.Getenv("FACTORY_SOURCE_CONFIG"); path != "" {
+		sampler, err = tools.LoadSourceSampler(path)
+		if err != nil {
+			log.Fatal("could not load FACTORY_SOURCE_CONFIG")
+		}
+	}
+	remoteSourceRoutes(mux, sampler)
 	sourceMappingRoutes(mux, definitions)
 	mux.HandleFunc("/api/sources/profile", apiRoute(profileSource, http.MethodPost))
 	configRoutes(mux, definitions)
