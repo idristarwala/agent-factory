@@ -19,9 +19,16 @@ jobs:
         options: --health-cmd pg_isready --health-interval 2s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-go@v5
         with:
           go-version: '1.26'
+      - name: Check new exported internal helpers for production callers
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: python3 scripts/check-unused-helpers.py "$BASE_SHA"
       - name: Vet
         run: go vet ./...
       - name: Test
