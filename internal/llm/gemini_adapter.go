@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 )
 
 // GeminiAdapter implements Client for Gemini-style endpoints.
@@ -25,10 +26,62 @@ func NewGeminiAdapter(baseURL, apiKey string, headers map[string]string) *Gemini
 	}
 }
 
-func (a *GeminiAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
-	parts := []map[string]any{{"text": req.Messages[len(req.Messages)-1].Content}}
-	body := map[string]any{
-		"contents": []map[string]any{{"parts": parts}},
+func geminiBody(req ChatRequest) ([]byte, error) {
+	var contents []map[string]any
+	var system []map[string]string
+	functions := map[string]string{}
+	for _, message := range req.Messages {
+		role := message.Role
+		var parts []map[string]any
+		switch role {
+		case "system":
+			system = append(system, map[string]string{"text": message.Content})
+			continue
+		case "assistant":
+			role = "model"
+		case "tool":
+			name := functions[message.ToolCallID]
+			if name == "" {
+				return nil, &Error{Type: "BAD_REQUEST", Message: "tool result must reference a previous function call"}
+			}
+			role = "user"
+			parts = append(parts, map[string]any{"functionResponse": map[string]any{"name": name, "response": map[string]any{"result": message.Content}}})
+		case "user":
+		default:
+			return nil, &Error{Type: "BAD_REQUEST", Message: "unsupported conversation role"}
+		}
+		if message.Role != "tool" && message.Content != "" {
+			parts = append(parts, map[string]any{"text": message.Content})
+		}
+		for _, call := range message.ToolCalls {
+			var args map[string]any
+			if err := json.Unmarshal([]byte(call.Arguments), &args); err != nil || args == nil {
+				return nil, &Error{Type: "BAD_REQUEST", Message: "function arguments must be an object"}
+			}
+			functions[call.ID] = call.Name
+			parts = append(parts, map[string]any{"functionCall": map[string]any{"name": call.Name, "args": args}})
+		}
+		if len(parts) == 0 {
+			return nil, &Error{Type: "BAD_REQUEST", Message: "empty conversation turn"}
+		}
+		contents = append(contents, map[string]any{"role": role, "parts": parts})
+	}
+	if len(contents) == 0 {
+		return nil, &Error{Type: "BAD_REQUEST", Message: "supply a conversation turn"}
+	}
+	body := map[string]any{"contents": contents}
+	if len(system) > 0 {
+		body["systemInstruction"] = map[string]any{"parts": system}
+	}
+	cfg := map[string]any{}
+	if req.MaxTokens > 0 {
+		cfg["maxOutputTokens"] = req.MaxTokens
+	}
+	if req.Temperature != nil {
+		cfg["temperature"] = *req.Temperature
+	}
+	if req.ResponseFormat == "json" {
+		cfg["responseMimeType"] = "application/json"
 	}
 	if len(req.Tools) > 0 {
 		decls := make([]map[string]any, len(req.Tools))
@@ -44,15 +97,26 @@ func (a *GeminiAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatRespons
 	if budgetStr, ok := req.Metadata["reasoning_budget"]; ok {
 		if budget, err := parseInt(budgetStr); err == nil {
 			if rb := ReasoningBudget("gemini", budget); rb != nil {
-				body["generationConfig"] = map[string]any{"thinkingConfig": rb}
+				cfg["thinkingConfig"] = rb
 			}
 		}
 	}
-	b, _ := json.Marshal(body)
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", a.BaseURL+"/models/"+req.Model+":generateContent?key="+a.APIKey, bytes.NewReader(b))
+	if len(cfg) > 0 {
+		body["generationConfig"] = cfg
+	}
+	return json.Marshal(body)
+}
+
+func (a *GeminiAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
+	b, err := geminiBody(req)
 	if err != nil {
 		return nil, err
 	}
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", a.BaseURL+"/models/"+req.Model+":generateContent", bytes.NewReader(b))
+	if err != nil {
+		return nil, err
+	}
+	httpReq.Header.Set("x-goog-api-key", a.APIKey)
 	httpReq.Header.Set("Content-Type", "application/json")
 	for k, v := range a.Headers {
 		httpReq.Header.Set(k, v)
@@ -69,6 +133,13 @@ func (a *GeminiAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatRespons
 	}
 
 	var out struct {
+		Model string `json:"modelVersion"`
+		Usage struct {
+			Input     int `json:"promptTokenCount"`
+			Output    int `json:"candidatesTokenCount"`
+			Reasoning int `json:"thoughtsTokenCount"`
+			Total     int `json:"totalTokenCount"`
+		} `json:"usageMetadata"`
 		Candidates []struct {
 			Content struct {
 				Parts []struct {
@@ -101,23 +172,22 @@ func (a *GeminiAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatRespons
 			}
 		}
 	}
-	return &ChatResponse{Content: content, ToolCalls: toolCalls}, nil
+	if len(out.Candidates) == 0 {
+		return nil, &Error{Type: "BAD_RESPONSE", Message: "no Gemini candidates"}
+	}
+	return &ChatResponse{Content: content, ToolCalls: toolCalls, Model: out.Model, LogicalModel: req.Model, Usage: Usage{Input: out.Usage.Input, Output: out.Usage.Output, Reasoning: out.Usage.Reasoning, Total: out.Usage.Total}}, nil
 }
 
 func (a *GeminiAdapter) Stream(ctx context.Context, req ChatRequest) (Stream, error) {
-	// Basic streaming: set streamGenerateContent and parse SSE text deltas.
-	// Falls back to one-shot if the endpoint does not support it.
-	body := map[string]any{
-		"contents": []map[string]any{{
-			"role": "user",
-			"parts": []map[string]any{{"text": req.Messages[len(req.Messages)-1].Content}},
-		}},
-		"generationConfig": map[string]any{
-			"maxOutputTokens": req.MaxTokens,
-		},
+	b, err := geminiBody(req)
+	if err != nil {
+		return nil, err
 	}
-	b, _ := json.Marshal(body)
-	url := a.BaseURL + "/v1beta/models/" + req.Model + ":streamGenerateContent?alt=sse"
+	base := strings.TrimRight(a.BaseURL, "/")
+	if !strings.HasSuffix(base, "/v1beta") {
+		base += "/v1beta"
+	}
+	url := base + "/models/" + req.Model + ":streamGenerateContent?alt=sse"
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(b))
 	if err != nil {
 		return nil, err
@@ -137,7 +207,6 @@ func (a *GeminiAdapter) Stream(ctx context.Context, req ChatRequest) (Stream, er
 	}
 	return &sseStream{r: resp.Body}, nil
 }
-
 
 func parseInt(s string) (int, error) {
 	var n int

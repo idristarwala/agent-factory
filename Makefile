@@ -19,7 +19,7 @@ release:
 
 .PHONY: test-gemini
 test-gemini:
-	go test -tags gemini_live -run '^TestLiveGeminiFactoryRun$$' -count=1 ./internal/factory
+	go test -tags gemini_live -run '^TestLiveGemini' -count=1 ./internal/factory ./internal/llm
 
 .PHONY: conformance
 conformance:

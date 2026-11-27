@@ -14,7 +14,7 @@ func TestGeminiAdapterAgainstFake(t *testing.T) {
 			http.Error(w, "bad path", http.StatusNotFound)
 			return
 		}
-		if r.URL.Query().Get("key") == "" {
+		if r.Header.Get("x-goog-api-key") != "test-key" || r.URL.Query().Has("key") {
 			http.Error(w, "no key", http.StatusUnauthorized)
 			return
 		}
