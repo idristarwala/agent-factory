@@ -37,6 +37,14 @@ metrics := grouping.ScorePairMetrics(entities, "group", predictedGroupByID)
 
 Pair-level precision/recall against a human-labelled set. Deterministic detector output is stable across runs (sorted entity IDs and group names).
 
+## Block then decide
+
+```go
+proposals := grouping.BlockThenDecide(ctx, llmClient, entities, "group")
+```
+
+Builds candidate neighbourhoods with the cheap signature, then asks the LLM for membership decisions inside each neighbourhood. Falls back to `SimpleDetector` on error or when no client is provided.
+
 ## Customer policies
 
 Plain-text decision trees become versioned rules:
