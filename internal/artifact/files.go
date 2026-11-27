@@ -24,6 +24,7 @@ type Ref struct {
 }
 
 type File struct {
+	Source   string    `json:"source,omitempty"`
 	Passages []passage `json:"passages,omitempty"`
 	Name     string    `json:"name"`
 	MIME     string    `json:"mime"`
@@ -32,6 +33,10 @@ type File struct {
 }
 
 func Save(s revision.Store, ref Ref, name string, data []byte) (Ref, error) {
+	return save(s, ref, name, data, "")
+}
+
+func save(s revision.Store, ref Ref, name string, data []byte, source string) (Ref, error) {
 	if name == "" || len(name) > 255 || strings.ContainsAny(name, "/\\") || strings.IndexFunc(name, unicode.IsControl) >= 0 {
 		return Ref{}, fmt.Errorf("invalid filename")
 	}
@@ -58,7 +63,13 @@ func Save(s revision.Store, ref Ref, name string, data []byte) (Ref, error) {
 			return Ref{}, fmt.Errorf("unrecognized image content")
 		}
 	default:
-		return Ref{}, fmt.Errorf("attach PDF, DOCX, TXT, Markdown, PNG, JPEG or WebP")
+		if source == "" {
+			return Ref{}, fmt.Errorf("attach PDF, DOCX, TXT, Markdown, PNG, JPEG or WebP")
+		}
+		if len(data) > 32<<10 || !utf8.Valid(data) || bytes.IndexByte(data, 0) >= 0 {
+			return Ref{}, fmt.Errorf("select a supported file or UTF-8 source file up to 32 KiB")
+		}
+		mime = "text/plain"
 	}
 	if err != nil {
 		return Ref{}, err
@@ -68,7 +79,7 @@ func Save(s revision.Store, ref Ref, name string, data []byte) (Ref, error) {
 	} else if uuid.Validate(ref.ID) != nil || ref.Version < 1 {
 		return Ref{}, fmt.Errorf("replacement requires an artifact ID and its current revision")
 	}
-	b, err := json.Marshal(File{Passages: passages, Name: name, MIME: mime, SHA256: fmt.Sprintf("%x", sha256.Sum256(data)), Data: data})
+	b, err := json.Marshal(File{Source: source, Passages: passages, Name: name, MIME: mime, SHA256: fmt.Sprintf("%x", sha256.Sum256(data)), Data: data})
 	if err != nil {
 		return Ref{}, err
 	}
@@ -109,6 +120,9 @@ func Read(s revision.Store, refs []Ref) (Evidence, error) {
 			return out, err
 		}
 		fmt.Fprintf(&context, "\nAttachment %q revision %d (sha256 %s)", f.Name, r.Version, f.SHA256)
+		if f.Source != "" {
+			fmt.Fprintf(&context, " from %s", f.Source)
+		}
 		if len(f.Passages) > 0 {
 			for _, part := range f.Passages {
 				fmt.Fprintf(&context, "\n[%s, %s] %s\n", f.Name, part.Location, part.Text)
