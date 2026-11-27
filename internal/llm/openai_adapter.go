@@ -65,7 +65,15 @@ func (a *OpenAIAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatRespons
 	var out struct {
 		Choices []struct {
 			Message struct {
-				Content string `json:"content"`
+				Content   string `json:"content"`
+				ToolCalls []struct {
+					ID       string `json:"id"`
+					Type     string `json:"type"`
+					Function struct {
+						Name      string `json:"name"`
+						Arguments string `json:"arguments"`
+					} `json:"function"`
+				} `json:"tool_calls"`
 			} `json:"message"`
 		} `json:"choices"`
 		Usage struct {
@@ -77,11 +85,20 @@ func (a *OpenAIAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatRespons
 		return nil, err
 	}
 	content := ""
+	var toolCalls []ToolCall
 	if len(out.Choices) > 0 {
 		content = out.Choices[0].Message.Content
+		for _, tc := range out.Choices[0].Message.ToolCalls {
+			toolCalls = append(toolCalls, ToolCall{
+				ID:        tc.ID,
+				Name:      tc.Function.Name,
+				Arguments: tc.Function.Arguments,
+			})
+		}
 	}
 	return &ChatResponse{
-		Content: content,
+		Content:   content,
+		ToolCalls: toolCalls,
 		Usage: Usage{
 			Input:  out.Usage.PromptTokens,
 			Output: out.Usage.CompletionTokens,
@@ -98,7 +115,11 @@ func (a *OpenAIAdapter) Stream(ctx context.Context, req ChatRequest) (Stream, er
 func BuildOpenAIBody(req ChatRequest) ([]byte, error) {
 	msgs := make([]map[string]any, len(req.Messages))
 	for i, m := range req.Messages {
-		msgs[i] = map[string]any{"role": m.Role, "content": m.Content}
+		m := map[string]any{"role": m.Role, "content": m.Content}
+		if len(m.ToolCalls) > 0 {
+			// placeholder; full tool message shaping is next
+		}
+		msgs[i] = m
 	}
 	body := map[string]any{
 		"model":    req.Model,
@@ -110,6 +131,20 @@ func BuildOpenAIBody(req ChatRequest) ([]byte, error) {
 	}
 	if req.Temperature != nil {
 		body["temperature"] = *req.Temperature
+	}
+	if len(req.Tools) > 0 {
+		tools := make([]map[string]any, len(req.Tools))
+		for i, t := range req.Tools {
+			tools[i] = map[string]any{
+				"type": "function",
+				"function": map[string]any{
+					"name":        t.Name,
+					"description": t.Description,
+					"parameters":  t.Parameters,
+				},
+			}
+		}
+		body["tools"] = tools
 	}
 	return json.Marshal(body)
 }
