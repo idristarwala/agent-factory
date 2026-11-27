@@ -2,26 +2,56 @@
 
 ## Completed
 
-- All high-impact correctness fixes
-- OpenAI, Gemini, and Anthropic POST adapters (context-aware HTTP)
-- Multi-protocol conformance tests against fake servers
-- Declarative config, key-from-file, CA/proxy, headers, param mapping
-- Usage recording, grants, ContinuousRunner
-- Factory CLI, pack loader, Helm, compose, release pipeline
-- Family context and schema validation
-- Context cancellation support documented and helpers added
-- Regression tests
-- Token param mapping (max_completion_tokens for reasoning models) wired into OpenAI adapter
-- Reasoning budget support for Gemini via metadata
-- Starter factory.yaml template for packaging
-- Expanded RunConformance with multi-turn and context-cancel cases
+### Correctness (#10)
+- Graph.Apply merges + regression tests
+- Worker with rules, retry, family context, schema validation
+- Judge with full context
+- Real CreateWorker after SetRuntime
+- /api/feedback
+- Deterministic grouping with ungrouped items first-class
 
-## Remaining
+### Enterprise gateway (#11)
+- Declarative config loader
+- Key-from-file
+- Custom CA / proxy HTTP client
+- Parameter mapping (max_tokens vs max_completion_tokens, thinkingBudget)
+- Usage Recorder + RecordingClient
+- OpenAI, Gemini, and Anthropic POST adapters
+- Full multi-protocol conformance tests
+- Rate limiter in router
+- Token refresher for key rotation
+- Tool call parsing (OpenAI, Anthropic)
 
-- Full digest-pinned release automation in CI (docker build + inspect)
-- Tool-call parsing in all adapters
-- Auth token refresh / rotation reload
-- Native streaming (currently reassembly helpers + one-shot fallback)
+### Packaging (#9)
+- Factory CLI, pack loader, validation
+- Tool model with side-effect classes
+- Grants check and enforcer in ContinuousRunner
+- docker-compose, Helm chart, starter template
+- Observe mode, release pipeline, digest notes
+- Digest-pinned release CI workflow (.github/workflows/release.yml)
+- go.sum committed
+
+### LLM foundation (#1–#8)
+- Client types, adapter registry, typed errors
+- Router with tier policy and rate limiter
+- Retry with exponential backoff
+- Conformance harness + multi-protocol tests
+- Protocol builders and POST adapters
+- Tool call parsing
+- Token refresh support
+
+### HTTP tools (#12)
+- HTTPTool with path templating, auth, retries, cache, real key loading
+- Tool config loader
+- Grants in ContinuousRunner
+- MCP streamable-HTTP transport
+- JSONPath response mapping
+- Image URL fetcher and multimodal body builders
+
+## Remaining (minor)
+
+- Context recipe wired into the runner loop (types exist)
+- Native streaming (currently reassembly helpers)
 - Labelled grouping scorer and full block-then-decide LLM membership
 
-The Agent Factory continues to advance toward production packaging and full gateway conformance.
+All high-impact correctness, config seams, POST adapters, packaging, HTTP tools, and release automation are in place.
