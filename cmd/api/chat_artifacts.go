@@ -51,7 +51,7 @@ func chatArtifactRoute(mux *http.ServeMux, s revision.Store) {
 			http.Error(w, "unknown citation location", 404)
 		}
 	}, "GET"))
-	mux.HandleFunc("/api/chat/github", apiRoute(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/chat/github", operatorRoute(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			http.Error(w, "use POST", 405)
 			return
@@ -64,7 +64,7 @@ func chatArtifactRoute(mux *http.ServeMux, s revision.Store) {
 			return
 		}
 		var github artifact.GitHub
-		if os.Getenv("API_TOKEN") != "" {
+		if apiCredentials().enabled() {
 			github.Token, _ = secretLoader.Get("factory-github-token")
 			github.Repositories = strings.Split(os.Getenv("FACTORY_GITHUB_REPOSITORIES"), ",")
 		}
@@ -75,7 +75,7 @@ func chatArtifactRoute(mux *http.ServeMux, s revision.Store) {
 		}
 		sendJSON(w, file, err)
 	}, "POST"))
-	mux.HandleFunc("/api/chat/artifacts", apiRoute(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/chat/artifacts", operatorRoute(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "use POST", 405)
 			return

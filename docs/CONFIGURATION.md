@@ -11,7 +11,9 @@ The API and CLI read deployment configuration from their process environment. Re
 | `FACTORY_DB_PATH` | File path, user config directory plus `agent-factory/factory.sqlite` | SQLite path when both higher-priority modes are absent. |
 | `FACTORY_ID` | String, unset | Workspace namespace for stored definitions and revisions. Use the same value in the API and CLI. |
 | `FACTORY_LISTEN_ADDR` | Host and port, `:8080` | API listener. Use `127.0.0.1:8080` for loopback only. |
-| `API_TOKEN` | Secret string, unset | Enables bearer authentication on API routes. Health stays public. |
+| `API_TOKEN` | Secret string, unset | Admin bearer token. Any configured role enables authentication. Tokens must be distinct. Health stays public. |
+| `FACTORY_OPERATOR_TOKEN` | Secret string, unset | Operator bearer token for running factories and reviewing work. |
+| `FACTORY_VIEWER_TOKEN` | Secret string, unset | Viewer bearer token for read access to workspace data. |
 | `CORS_ORIGIN` | Origin string, unset | Permits the configured browser origin or an explicit wildcard. |
 | `VITE_API_URL` | URL, `http://localhost:8080` | Operator UI’s API base URL. |
 | `FACTORY_DEFINITION`, `FACTORY_RECORDS` | ID and JSON file path, unset | Defaults for goal CLI flags `-factory` and `-records`. `-revision` defaults to 0, selecting the latest revision. |

@@ -1,6 +1,6 @@
 # Factory HTTP API
 
-Run `go run ./cmd/api`. The default address is `:8080`. Send JSON request bodies with `Content-Type: application/json`. When the server has `API_TOKEN` configured, every `/api/` route requires an `Authorization: Bearer <token>` header. `GET /health` is public. Set `CORS_ORIGIN` to the operator UI origin for cross-origin browser requests.
+Run `go run ./cmd/api`. The default address is `:8080`. Send JSON request bodies with `Content-Type: application/json`. When the server has any [API role token](../AUTH.md) configured, every `/api/` route requires an `Authorization: Bearer <token>` header. `GET /health` is public. Set `CORS_ORIGIN` to the operator UI origin for cross-origin browser requests.
 
 ## Goals and review
 

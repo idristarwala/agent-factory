@@ -42,7 +42,7 @@ func requestedRuns(ws *factory.Workspace, id string) ([]factory.Run, error) {
 }
 
 func runRoutes(mux *http.ServeMux, ws *factory.Workspace, engine *rules.Engine) {
-	mux.HandleFunc("/api/goals", apiRoute(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/goals", operatorRoute(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" {
 			list, err := ws.List()
 			runResponse(w, list, err)
@@ -59,7 +59,7 @@ func runRoutes(mux *http.ServeMux, ws *factory.Workspace, engine *rules.Engine) 
 		}
 		runResponse(w, run, nil)
 	}, "GET", "POST"))
-	mux.HandleFunc("/api/goals/{id}", apiRoute(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/goals/{id}", operatorRoute(func(w http.ResponseWriter, r *http.Request) {
 		var run factory.Run
 		var err error
 		if r.Method == "DELETE" {
@@ -69,7 +69,7 @@ func runRoutes(mux *http.ServeMux, ws *factory.Workspace, engine *rules.Engine) 
 		}
 		runResponse(w, run, err)
 	}, "GET", "DELETE"))
-	mux.HandleFunc("/api/decisions", apiRoute(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/decisions", operatorRoute(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" {
 			list, err := requestedRuns(ws, r.URL.Query().Get("run"))
 			if err != nil {

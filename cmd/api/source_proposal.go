@@ -14,7 +14,7 @@ import (
 )
 
 func sourceProposalRoutes(mux *http.ServeMux, store revision.Store, gateway models.Gateway) {
-	mux.HandleFunc("/api/sources/proposals/{id}", apiRoute(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/sources/proposals/{id}", operatorRoute(func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		if strings.TrimSpace(id) == "" || strings.Contains(id, "/") {
 			http.Error(w, "invalid proposal id", 400)
