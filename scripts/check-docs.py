@@ -43,8 +43,31 @@ def check_environment():
                 yield f"{path}: document {key} in docs/CONFIGURATION.md"
 
 
+def check_cli_and_frontend_settings():
+    reference = Path("docs/CONFIGURATION.md").read_text()
+    for directory in ("goal", "factory", "continuous-swarm"):
+        for path in tracked(f"cmd/{directory}/*.go"):
+            if path.name.endswith("_test.go"):
+                continue
+            code = path.read_text()
+            names = re.findall(r'\bflags?\.(?:String|Int|Bool|Func|Duration|Float64)\("([a-z][a-z0-9-]*)"', code)
+            options = {"-" + name for name in names}
+            options.update(re.findall(r'(?:==|!=)\s*"(--[a-z][a-z0-9-]*)"', code))
+            for option in options:
+                if f"`{option}`" not in reference:
+                    yield f"{path}: document {option} in docs/CONFIGURATION.md"
+
+    for pattern in ("ui-app/src/*", "extensions/*"):
+        for path in tracked(pattern):
+            if path.suffix not in {".js", ".jsx", ".mjs", ".ts", ".tsx"} or ".test." in path.name:
+                continue
+            for key in re.findall(r'(?:import\.meta|process)\.env\.([A-Z][A-Z0-9_]*)', path.read_text()):
+                if f"`{key}`" not in reference:
+                    yield f"{path}: document {key} in docs/CONFIGURATION.md"
+
+
 if __name__ == "__main__":
-    errors = sorted(set(check_guides()) | set(check_environment()))
+    errors = sorted(set(check_guides()) | set(check_environment()) | set(check_cli_and_frontend_settings()))
     for error in errors:
         print(error, file=sys.stderr)
     sys.exit(bool(errors))
