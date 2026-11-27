@@ -66,3 +66,9 @@ grants:
 POST `{}` to `/api/sources/case-review/case-feed/sample` to receive the collection and field profiles for one fresh response. Supply `{"query":{"cursor":"next-page"}}` to sample a particular page. Only configured query names are accepted. The HTTP limits, destination policy, TLS and credential-file options are shared with evidence tools.
 
 To use the sampled bytes for mapping preview or a pinned goal, request `{"include_sample":true}` and pass the returned `sample` as the mapping sample or goal source payload. The endpoint returns structural statistics by default and does not persist the raw sample.
+
+## Ask the steward for a mapping proposal
+
+POST `sample`, `goal`, `record_type` and `expected` to `/api/sources/proposals/{id}`. Start with expected draft revision zero. If the sample has multiple candidate collections, select the JSON Pointer returned in `collections` and resend it as `collection`. If identity is ambiguous, resend with `identity`, an ordered list of one or more field pointers. The server checks identity collisions before calling the model.
+
+The steward sees the goal, selected identity and field statistics. The server checks proposed paths against the sample and returns the normalized preview and immutable steward draft. GET the same route for draft history. To approve a draft, POST `sample`, `expected` (the current approved mapping revision) and `proposal_revision` to `/api/sources/mappings/{id}`. The approved mapping records the human approval and its draft revision. A run still selects an explicit approved mapping revision.
