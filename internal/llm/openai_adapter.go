@@ -114,9 +114,9 @@ func (a *OpenAIAdapter) Stream(ctx context.Context, req ChatRequest) (Stream, er
 // BuildOpenAIBody constructs the JSON body for an OpenAI-compatible request.
 func BuildOpenAIBody(req ChatRequest) ([]byte, error) {
 	msgs := make([]map[string]any, len(req.Messages))
-	for i, m := range req.Messages {
-		m := map[string]any{"role": m.Role, "content": m.Content}
-		if len(m.ToolCalls) > 0 {
+	for i, msg := range req.Messages {
+		m := map[string]any{"role": msg.Role, "content": msg.Content}
+		if len(msg.ToolCalls) > 0 {
 			// placeholder; full tool message shaping is next
 		}
 		msgs[i] = m
