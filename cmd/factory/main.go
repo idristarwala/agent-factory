@@ -111,11 +111,14 @@ func runReadiness() {
 	} else {
 		fmt.Printf("  secrets dir not found at %s (set SECRETS_DIR or mount it)\n", secretsDir)
 	}
-	if os.Getenv("DATABASE_URL") != "" {
-		fmt.Println("  DATABASE_URL set — Postgres store available via store.NewPostgresStore")
-	} else {
-		fmt.Println("  DATABASE_URL unset — using in-memory / SQLite store by default")
+	db, mode, err := store.OpenFromEnv()
+	if err != nil {
+		log.Fatal(err)
 	}
+	if err := db.Close(); err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("  workspace store: %s (opened successfully)\n", mode)
 	fmt.Println("Ready (grants enforced in ContinuousRunner; secrets by reference).")
 }
 

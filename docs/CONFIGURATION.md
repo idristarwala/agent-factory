@@ -6,9 +6,9 @@ The API and CLI read deployment configuration from their process environment. Re
 
 | Setting | Type and default | Scope and precedence |
 | --- | --- | --- |
-| `FACTORY_STORE_MODE` | String, unset | `memory` selects process-local state ahead of all database settings. |
-| `DATABASE_URL` | PostgreSQL connection string, unset | Selects PostgreSQL ahead of SQLite. Share the same database across processes that share work. |
-| `FACTORY_DB_PATH` | File path, user config directory plus `agent-factory/factory.sqlite` | SQLite path when both higher-priority modes are absent. |
+| `FACTORY_STORE_MODE` | String, unset | Select `memory`, `sqlite`, or `postgres` at process startup. Explicit selection takes precedence over inference. Unknown values fail startup. |
+| `DATABASE_URL` | PostgreSQL connection string, unset | Required for explicit PostgreSQL. Selects PostgreSQL when mode is unset. Share the same database across processes that share work. |
+| `FACTORY_DB_PATH` | File path, user config directory plus `agent-factory/factory.sqlite` | Used whenever SQLite is selected. |
 | `FACTORY_ID` | String, unset | Workspace namespace for stored definitions and revisions. Use the same value in the API and CLI. |
 | `FACTORY_LISTEN_ADDR` | Host and port, `:8080` | API listener. Use `127.0.0.1:8080` for loopback only. |
 | `COMPOSE_FILE` | Compose file path(s), unset | Used by Docker Compose for `factory up`. An explicit `-f FILE` takes precedence. |
@@ -79,7 +79,7 @@ For a Gemini worker with a GPT-4o judge, use `LLM_PROVIDER=gemini`, `LLM_JUDGE_P
 
 ## Factory memory files
 
-Set `FACTORY_STORE_MODE=memory` for an entirely process-local API, including runs, definitions and memory files. This takes precedence over database settings. Each process starts empty. For shared durable state, leave that variable unset and set `DATABASE_URL` to PostgreSQL. Without either setting the API uses SQLite.
+Set `FACTORY_STORE_MODE=memory` for an entirely process-local API, including runs, definitions and memory files. This takes precedence over database settings. Each process starts empty. For shared durable state, leave that variable unset and set `DATABASE_URL` to PostgreSQL. Without either setting the API uses SQLite. Explicit `FACTORY_STORE_MODE=sqlite` uses the local file even if a PostgreSQL URL is present. Set `FACTORY_STORE_MODE=postgres` and `DATABASE_URL` in production to require PostgreSQL. Changing the selector chooses a different store on restart. Moving existing data is a separate operation. `factory readiness` opens the selected store, initializes its schema, and reports the backend name.
 
 Memory uses relative virtual paths scoped to a factory. The following calls use the same API authentication as goals.
 

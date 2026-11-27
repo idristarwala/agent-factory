@@ -9,7 +9,7 @@ export PATH="$bin:$PATH"
 export LLM_PROVIDER=gemini
 ```
 
-Each example creates an isolated SQLite workspace. Two subprocesses need the same durable store. The import creates revision 1 with an expected prior revision of 0. The goal command selects that revision explicitly.
+Each example creates an isolated SQLite workspace. Set `FACTORY_STORE_MODE=sqlite` with a shared file for local harnesses, or `FACTORY_STORE_MODE=postgres` with `DATABASE_URL` for production. Two subprocesses need the same durable store. The import creates revision 1 with an expected prior revision of 0. The goal command selects that revision explicitly.
 
 ## Python
 
