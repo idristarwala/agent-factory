@@ -171,7 +171,14 @@ func BuildOpenAIBody(req ChatRequest) ([]byte, error) {
 	for i, msg := range req.Messages {
 		m := map[string]any{"role": msg.Role, "content": msg.Content}
 		if len(msg.ToolCalls) > 0 {
-			// placeholder; full tool message shaping is next
+			calls := make([]map[string]any, 0, len(msg.ToolCalls))
+			for _, call := range msg.ToolCalls {
+				calls = append(calls, map[string]any{"id": call.ID, "type": "function", "function": map[string]string{"name": call.Name, "arguments": call.Arguments}})
+			}
+			m["tool_calls"] = calls
+		}
+		if msg.ToolCallID != "" {
+			m["tool_call_id"] = msg.ToolCallID
 		}
 		msgs[i] = m
 	}
