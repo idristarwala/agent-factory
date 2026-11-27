@@ -59,3 +59,18 @@ The CLI checks the route names and distinct configured model IDs before work sta
 Both configuration forms use the same protocol adapters, typed gateway errors, bounded retries for HTTP 429 and 5xx, and metadata-only usage logs on stderr. Agent requests attach the work unit ID to each attempt's trace. CLI stdout remains available for result records.
 
 For optional object fields, environment-selected OpenAI-compatible routes send `strict: false`. YAML routes default to strict JSON Schema and accept `schema_mode: non_strict` on OpenAI and OpenAI-envelope routes. Environment-selected Anthropic routes force the `attribute_update` tool and validate its input. YAML Anthropic routes default to native structured output and accept `schema_mode: forced_tool` for models requiring tool-based output. Both modes validate the returned content locally.
+
+### Retry policy
+
+Set `retry` on a logical model route to tune that route independently.
+
+```yaml
+models:
+  cheap:
+    gateway: primary
+    protocol: openai
+    model: worker-model
+    retry: {attempts: 2, base_delay: 250ms, max_delay: 3s}
+```
+
+Omitted fields default to three total attempts, a 250ms initial backoff and a 5s ceiling. Backoff doubles after each attempt and honors a longer provider Retry-After. If the next wait exceeds the ceiling, the call returns the provider error immediately. A retry can occur before a stream opens. Once it opens, its events belong to that attempt. Worker retries for invalid output have a separate per-agent limit. [Environment settings and bounds](CONFIGURATION.md)

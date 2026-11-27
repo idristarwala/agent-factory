@@ -29,6 +29,7 @@ type gatewayConfig struct {
 	Proxy string
 }
 type modelConfig struct {
+	Retry                    retryOverrides      `yaml:"retry"`
 	SchemaMode               string              `yaml:"schema_mode"`
 	Envelope                 *llm.OpenAIEnvelope `yaml:"envelope"`
 	Gateway, Protocol, Model string
@@ -172,5 +173,9 @@ func buildRoute(m modelConfig, baseURL, key string, headers map[string]string, c
 	if m.ReasoningBudget != nil && (m.Protocol != "gemini" || *m.ReasoningBudget < 0) {
 		return route{}, errors.New("invalid reasoning_budget")
 	}
-	return route{m, retryClient{inner: &llm.RecordingClient{Inner: adapter, Logger: logger}}}, nil
+	policy, err := m.Retry.resolve()
+	if err != nil {
+		return route{}, err
+	}
+	return route{m, retryClient{policy: policy, inner: &llm.RecordingClient{Inner: adapter, Logger: logger}}}, nil
 }
