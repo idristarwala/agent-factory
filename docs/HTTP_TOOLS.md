@@ -62,7 +62,7 @@ FACTORY_EVIDENCE_CONFIG=./evidence.yaml FACTORY_PACK=review go run ./cmd/continu
 
 Scalar record properties are available to path and query parameters. The graph node ID supplies `id`. Relative key paths resolve from the configuration file's directory. The loader supports GET and explicitly read-only POST requests. With the variable unset, the command uses the seeded records alone.
 
-For visual evidence, set `context.media` to a field name in the entity tool's JSON object. For example, `media: attachments` reads an array of image URLs from `attachments`. Use an empty array for a record with no images. Both models receive the same downloaded bytes. Mutation evidence records each image's source tool, position and SHA-256 digest.
+For visual evidence, set `context.media` to a field name in the entity tool's JSON object. For example, `media: attachments` reads an array of image URLs from `attachments`. Use an empty array for a record with no images. Both models receive identical image parts. Up to ten images pass through unchanged. Records with 11–90 images are tiled in source order into at most ten JPEG contact sheets, with a sheet, row and column cited for each original. Mutation evidence records each image's source tool, position and SHA-256 digest.
 
 The runner accepts up to 10 PNG, JPEG or WebP images per record and 512 KiB per image. A missing field, unsupported content, failed download or exceeded limit fails evidence collection. Image requests use the public-network and host restrictions above and carry no tool authentication headers.
 

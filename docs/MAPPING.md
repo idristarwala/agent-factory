@@ -117,7 +117,7 @@ Select **Propose relationships between records** or set `include_relationships` 
 
 ### Use images from imported records
 
-In Goal builder, select **Propose an image attachment path** and inspect the source pointer and normalized URLs before approving the mapping. The proposal API accepts `include_images: true`. A mapping may also specify `image_path`, a record-relative JSON Pointer to an HTTP(S) URL or a list of up to ten URLs. Missing or null values yield no images. Drift checks cover the approved path.
+In Goal builder, select **Propose an image attachment path** and inspect the source pointer and normalized URLs before approving the mapping. The proposal API accepts `include_images: true`. A mapping may also specify `image_path`, a record-relative JSON Pointer to an HTTP(S) URL or a list of up to 90 URLs. Missing or null values yield no images. Drift checks cover the approved path.
 
 Preview and ingestion record the references. When a mapped record runs, the runtime downloads its images through the bounded public image transport and supplies the same bytes to the worker and judge. Each image must be PNG, JPEG or WebP within 512 KiB. The review records a SHA-256 digest per image. A later run can observe different bytes if an upstream URL changes. Use immutable source URLs for reproducible image content.
 

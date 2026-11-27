@@ -2,6 +2,9 @@ package llm
 
 import "encoding/base64"
 
+// MaxRecordImages bounds source downloads before tiling for multimodal providers.
+const MaxRecordImages = 90
+
 // ImagePart represents an image for multimodal models.
 // Adapters can include these in the request when the gateway supports vision.
 type ImagePart struct {
