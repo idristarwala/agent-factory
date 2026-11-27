@@ -2,6 +2,8 @@ package swarm
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -14,33 +16,46 @@ import (
 	"github.com/idristarwala/agent-factory/internal/tools"
 )
 
-// ContinuousRunner runs the factory until problems are resolved or max rounds hit.
+// Budget caps the continuous run.
+type Budget struct {
+	MaxRounds    int
+	MaxWallClock time.Duration
+	MaxFailures  int // stop if total failures exceed this
+}
+
+// ContinuousRunner runs until the goal is achieved or a limit is hit.
 type ContinuousRunner struct {
-	Steward   agents.Steward
-	Judge     agents.Judge
-	Queue     queue.WorkQueue
-	Graph     graph.Graph
-	Rules     *rules.Engine
-	Learning  *learning.LearningLoop
-	Workers   int
-	MaxRounds int
-	Observe   bool
-	Grants    []tools.Grant
-	Pack      string
-	Tools     map[string]*tools.HTTPTool
-	Recipe    tools.ContextRecipe
+	Steward     agents.Steward
+	Judge       agents.Judge
+	Queue       queue.WorkQueue
+	Graph       graph.Graph
+	Rules       *rules.Engine
+	Learning    *learning.LearningLoop
+	Workers     int
+	Budget      Budget
+	Observe     bool
+	Grants      []tools.Grant
+	Pack        string
+	Tools       map[string]*tools.HTTPTool
+	Recipe      tools.ContextRecipe
+	Stagnation  int // stop after this many unchanged rounds (default 2)
 }
 
 func NewContinuousRunner(s agents.Steward, j agents.Judge, q queue.WorkQueue, g graph.Graph, re *rules.Engine, ll *learning.LearningLoop) *ContinuousRunner {
 	return &ContinuousRunner{
-		Steward:   s,
-		Judge:     j,
-		Queue:     q,
-		Graph:     g,
-		Rules:     re,
-		Learning:  ll,
-		Workers:   4,
-		MaxRounds: 10,
+		Steward: s,
+		Judge:   j,
+		Queue:   q,
+		Graph:   g,
+		Rules:   re,
+		Learning: ll,
+		Workers: 4,
+		Budget: Budget{
+			MaxRounds:    10,
+			MaxWallClock: 30 * time.Minute,
+			MaxFailures:  100,
+		},
+		Stagnation: 2,
 	}
 }
 
@@ -56,11 +71,26 @@ func (r *ContinuousRunner) SetTools(reg map[string]*tools.HTTPTool, recipe tools
 	r.Recipe = recipe
 }
 
+func (r *ContinuousRunner) SetBudget(b Budget) { r.Budget = b }
+
 func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
-	for round := 1; round <= r.MaxRounds; round++ {
+	start := time.Now()
+	var lastHash string
+	stagnationCount := 0
+	totalFailures := 0
+
+	for round := 1; round <= r.Budget.MaxRounds; round++ {
+		// Budget checks
+		if r.Budget.MaxWallClock > 0 && time.Since(start) > r.Budget.MaxWallClock {
+			return fmt.Errorf("wall-clock budget exceeded")
+		}
+		if r.Budget.MaxFailures > 0 && totalFailures >= r.Budget.MaxFailures {
+			return fmt.Errorf("failure budget exceeded (%d)", totalFailures)
+		}
+
 		fmt.Printf("===== Round %d =====\n", round)
 
-		// Refresh active rules so workers created this round see learned rules
+		// Refresh active rules
 		if smart, ok := r.Steward.(*agents.SmartSteward); ok && r.Rules != nil {
 			var active []agents.Rule
 			for _, vr := range r.Rules.Active() {
@@ -74,8 +104,12 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 			return err
 		}
 		if len(uows) == 0 {
-			fmt.Println("No more units of work. Done.")
-			return nil
+			// Verifier gate: confirm the graph is truly clean
+			if r.verifyClean(goal) {
+				fmt.Println("Goal achieved. Graph verified clean.")
+				return nil
+			}
+			fmt.Println("Steward reports clean but verifier disagrees. Continuing.")
 		}
 
 		for _, uow := range uows {
@@ -160,6 +194,9 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 		}
 		wg.Wait()
 
+		totalFailures += len(failureMsgs)
+
+		// Learning
 		if r.Learning != nil {
 			gaps := r.Learning.Review(decisions, failureMsgs)
 			updates := r.Learning.ProposeUpdates(gaps)
@@ -168,9 +205,22 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 				fmt.Printf("Learning applied: %s\n", a)
 			}
 			if len(failureMsgs) > 0 {
-				fmt.Printf("Worker failures this round: %d\n", len(failureMsgs))
+				fmt.Printf("Worker failures this round: %d (total %d)\n", len(failureMsgs), totalFailures)
 			}
 		}
+
+		// Progress delta
+		currentHash := r.graphHash()
+		if currentHash == lastHash {
+			stagnationCount++
+			fmt.Printf("No progress (stagnation %d/%d)\n", stagnationCount, r.Stagnation)
+			if stagnationCount >= r.Stagnation {
+				return fmt.Errorf("stagnation: no progress for %d rounds", stagnationCount)
+			}
+		} else {
+			stagnationCount = 0
+		}
+		lastHash = currentHash
 
 		pending, _ := r.Queue.PendingCount(ctx)
 		if pending == 0 {
@@ -178,6 +228,20 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 		}
 	}
 	return fmt.Errorf("max rounds reached")
+}
+
+// graphHash returns a stable hash of the current graph state.
+func (r *ContinuousRunner) graphHash() string {
+	snap := r.Graph.Snapshot()
+	b, _ := json.Marshal(snap)
+	h := sha256.Sum256(b)
+	return fmt.Sprintf("%x", h[:8])
+}
+
+// verifyClean is the verifier gate. Returns true only if the Steward still sees no work.
+func (r *ContinuousRunner) verifyClean(goal string) bool {
+	uows, err := r.Steward.InterpretGoal(goal, r.Graph.Snapshot())
+	return err == nil && len(uows) == 0
 }
 
 func min(a, b int) int {
