@@ -5,7 +5,7 @@ package tools
 type Grant struct {
 	Pack        string   `json:"pack"`
 	Tools       []string `json:"tools"`
-	SideEffects []string `json:"side_effects"` // read-only, reversible, irreversible
+	SideEffects []string `json:"side_effects" yaml:"side_effects"` // read-only, reversible, irreversible
 }
 
 // CheckGrant returns true if the pack is allowed to use the tool with the given side effect.

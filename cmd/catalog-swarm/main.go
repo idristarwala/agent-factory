@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	factoryStore "github.com/idristarwala/agent-factory/internal/store"
+	"github.com/idristarwala/agent-factory/internal/tools"
 	"log"
 	"os"
 	"time"
@@ -33,6 +35,14 @@ func needsWork(n graph.Node) bool {
 }
 
 func main() {
+	var evidenceConfig *tools.EvidenceConfig
+	if path := os.Getenv("FACTORY_EVIDENCE_CONFIG"); path != "" {
+		config, err := tools.LoadEvidenceConfig(path, domain.CatalogPack().Name)
+		if err != nil {
+			log.Fatal(err)
+		}
+		evidenceConfig = config
+	}
 	database, err := factoryStore.NewFromEnv()
 	if err != nil {
 		log.Fatal(err)
@@ -114,12 +124,20 @@ func main() {
 		uow := uows[0]
 		uow.InputSubgraph = n.ID
 
+		if evidenceConfig != nil {
+			evidence, err := evidenceConfig.Gather(context.Background(), string(n.ID), n.Props)
+			if err != nil {
+				log.Fatalf("gather evidence for %s: %v", n.ID, err)
+			}
+			uow.Evidence = append(uow.Evidence, evidence...)
+		}
 		proposal, err := worker.Execute(uow)
 		if err != nil {
 			fmt.Printf("  Worker error: %v\n", err)
 			continue
 		}
 
+		proposal.Evidence = append(proposal.Evidence, uow.Evidence...)
 		decision, err := judge.Evaluate(proposal, ruleEngine.ToAgentsRules())
 		if err != nil {
 			fmt.Printf("  Judge error: %v\n", err)
