@@ -12,3 +12,5 @@ Open issues track work and its acceptance criteria. [Issue tracker](https://gith
 The continuous CLI processes work in an in-memory graph and queue and publishes terminal audit entries and model usage to the workspace store. Configured HTTP tools and mapped images use the evidence collector.
 
 Pull requests also compare exported internal Go helpers against the base revision and flag newly unreachable helpers. Run `make ci` before pushing. Install the repository hook with `git config core.hooksPath .githooks`. The Go module and its checksums are committed.
+
+The environment and YAML model routes share protocol adapters, retry handling, typed errors and per-attempt usage logs. The agent-facing request interface is in `internal/models`. Wire protocol implementations are in `internal/llm`. [Gateway configuration](ENTERPRISE_GATEWAY.md)

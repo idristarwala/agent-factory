@@ -8,8 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/idristarwala/agent-factory/internal/models"
 )
 
 func TestLiveOpenRouterMixedJudges(t *testing.T) {
@@ -32,7 +30,7 @@ func TestLiveOpenRouterMixedJudges(t *testing.T) {
 			t.Setenv("LLM_CHEAP_MODEL", router)
 			t.Setenv("LLM_JUDGE_PROVIDER", tc.judge)
 			t.Setenv("LLM_JUDGE_MODEL", tc.judgeModel)
-			gateway, err := models.NewGatewayFromEnv()
+			gateway, err := configuredgateway.NewFromEnv()
 			if err != nil {
 				t.Fatal(err)
 			}

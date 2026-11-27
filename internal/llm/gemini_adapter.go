@@ -191,10 +191,7 @@ func (a *GeminiAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatRespons
 	if len(out.Candidates) == 0 {
 		return nil, &Error{Type: "BAD_RESPONSE", Message: "no Gemini candidates"}
 	}
-	if err := validateOutput(schema, content); err != nil {
-		return nil, err
-	}
-	return &ChatResponse{Content: content, ToolCalls: toolCalls, FinishReason: out.Candidates[0].Finish, Model: out.Model, LogicalModel: req.Model, Usage: Usage{Input: out.Usage.Input, Output: out.Usage.Output, Reasoning: out.Usage.Reasoning, Total: out.Usage.Total}}, nil
+	return checkedResponse(schema, &ChatResponse{Content: content, ToolCalls: toolCalls, FinishReason: out.Candidates[0].Finish, Model: out.Model, LogicalModel: req.Model, Usage: Usage{Input: out.Usage.Input, Output: out.Usage.Output, Reasoning: out.Usage.Reasoning, Total: out.Usage.Total}})
 }
 
 func (a *GeminiAdapter) Stream(ctx context.Context, req ChatRequest) (Stream, error) {

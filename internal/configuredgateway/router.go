@@ -10,6 +10,7 @@ import (
 
 	"github.com/idristarwala/agent-factory/internal/llm"
 	"github.com/idristarwala/agent-factory/internal/models"
+	"github.com/idristarwala/agent-factory/internal/obs"
 )
 
 type route struct {
@@ -22,7 +23,7 @@ func NewFromEnv() (models.Gateway, error) {
 	if path := os.Getenv("LLM_GATEWAY_CONFIG"); path != "" {
 		return load(path)
 	}
-	return models.NewGatewayFromEnv()
+	return environmentRouter()
 }
 
 // CheckJudgeRoutes validates the complete panel before any model is called.
@@ -73,6 +74,9 @@ func (r *Router) resolve(req llm.ChatRequest) (llm.Client, llm.ChatRequest, erro
 	if entry.model.ReasoningBudget != nil {
 		req.Metadata["reasoning_budget"] = strconv.Itoa(*entry.model.ReasoningBudget)
 	}
+	if entry.model.SchemaMode != "" {
+		req.Metadata["schema_mode"] = entry.model.SchemaMode
+	}
 	if entry.model.TokenParam != "" {
 		req.Metadata["token_param"] = entry.model.TokenParam
 	}
@@ -85,7 +89,7 @@ func (r *Router) Chat(ctx context.Context, req llm.ChatRequest) (*llm.ChatRespon
 		return nil, err
 	}
 	resp, err := client.Chat(ctx, wire)
-	if err == nil {
+	if resp != nil {
 		resp.LogicalModel = r.logicalName(req)
 		if resp.Model == "" {
 			resp.Model = wire.Model
@@ -111,9 +115,9 @@ func (r *Router) Generate(req models.Request) (*models.Response, error) {
 		messages = append(messages, llm.Message{Role: "system", Content: req.System})
 	}
 	messages = append(messages, llm.Message{Role: "user", Content: req.User, Images: req.Images})
-	resp, err := r.Chat(context.Background(), llm.ChatRequest{Model: req.JudgeRoute, Messages: messages, CallerRole: llm.Role(req.CallerRole), Tier: llm.Tier(req.Tier), Temperature: &req.Temperature, MaxTokens: req.MaxTokens, ResponseSchema: req.Schema})
-	if err != nil {
+	resp, err := r.Chat(obs.WithTrace(context.Background(), req.UnitID), llm.ChatRequest{Model: req.JudgeRoute, Messages: messages, CallerRole: llm.Role(req.CallerRole), Tier: llm.Tier(req.Tier), Temperature: &req.Temperature, MaxTokens: req.MaxTokens, ResponseSchema: req.Schema})
+	if resp == nil {
 		return nil, err
 	}
-	return &models.Response{Content: resp.Content, Model: resp.Model, Usage: map[string]int{"prompt_tokens": resp.Usage.Input, "completion_tokens": resp.Usage.Output, "total_tokens": resp.Usage.Total}}, nil
+	return &models.Response{Content: resp.Content, Model: resp.Model, Usage: map[string]int{"prompt_tokens": resp.Usage.Input, "completion_tokens": resp.Usage.Output, "total_tokens": resp.Usage.Total}}, err
 }

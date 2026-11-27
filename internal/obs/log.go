@@ -40,7 +40,7 @@ type Logger struct {
 	mu  sync.Mutex
 }
 
-func New() *Logger { return &Logger{out: os.Stdout} }
+func New() *Logger { return &Logger{out: os.Stderr} }
 
 func (l *Logger) Info(ctx context.Context, msg string, attrs map[string]any) {
 	l.emit("info", ctx, msg, attrs, nil)

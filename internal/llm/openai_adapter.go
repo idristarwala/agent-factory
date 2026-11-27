@@ -92,10 +92,7 @@ func (a *OpenAIAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatRespons
 			Arguments: tc.Function.Arguments,
 		})
 	}
-	if err := validateOutput(schema, content); err != nil {
-		return nil, err
-	}
-	return &ChatResponse{
+	return checkedResponse(schema, &ChatResponse{
 		Content:      content,
 		FinishReason: out.Choices[0].Finish, Model: out.Model, LogicalModel: req.Model,
 		ToolCalls: toolCalls,
@@ -104,7 +101,7 @@ func (a *OpenAIAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatRespons
 			Output: out.Usage.CompletionTokens,
 			Total:  out.Usage.PromptTokens + out.Usage.CompletionTokens,
 		},
-	}, nil
+	})
 }
 
 func (a *OpenAIAdapter) Stream(ctx context.Context, req ChatRequest) (Stream, error) {
@@ -252,7 +249,7 @@ func buildOpenAIBody(req ChatRequest, stream bool) ([]byte, error) {
 	}
 	// Provider-enforced structured output (issue #10 / #8)
 	if req.ResponseSchema != nil {
-		body["response_format"] = map[string]any{"type": "json_schema", "json_schema": map[string]any{"name": "response", "strict": true, "schema": req.ResponseSchema}}
+		body["response_format"] = map[string]any{"type": "json_schema", "json_schema": map[string]any{"name": "response", "strict": req.Metadata["schema_mode"] != "non_strict", "schema": req.ResponseSchema}}
 	} else if req.ResponseFormat == "json" {
 		body["response_format"] = map[string]any{"type": "json_object"}
 	}

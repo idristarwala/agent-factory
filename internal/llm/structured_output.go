@@ -53,3 +53,13 @@ func validateOutput(schema *jsonschema.Schema, content string) error {
 	}
 	return nil
 }
+
+// ErrInvalidOutput identifies model content that failed its requested schema.
+var ErrInvalidOutput = errors.New("invalid structured model output")
+
+func checkedResponse(schema *jsonschema.Schema, resp *ChatResponse) (*ChatResponse, error) {
+	if err := validateOutput(schema, resp.Content); err != nil {
+		return &ChatResponse{Model: resp.Model, LogicalModel: resp.LogicalModel, Usage: resp.Usage, FinishReason: resp.FinishReason}, errors.Join(ErrInvalidOutput, err)
+	}
+	return resp, nil
+}

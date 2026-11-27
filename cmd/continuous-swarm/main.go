@@ -168,7 +168,7 @@ func continuousJudge(gw models.Gateway, meter *factory.ContinuousUsage, g graph.
 			names[i] = strings.TrimSpace(names[i])
 		}
 		router, ok := gw.(*configuredgateway.Router)
-		if !ok {
+		if !ok || os.Getenv("LLM_GATEWAY_CONFIG") == "" {
 			return nil, fmt.Errorf("FACTORY_JUDGE_ROUTES requires LLM_GATEWAY_CONFIG")
 		}
 		if err := router.CheckJudgeRoutes(names); err != nil {
