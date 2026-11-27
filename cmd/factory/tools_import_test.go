@@ -84,3 +84,54 @@ func TestImportReviewedEvidenceTool(t *testing.T) {
 		}
 	}
 }
+
+func TestImportEnvironmentCredential(t *testing.T) {
+	dir := t.TempDir()
+	spec := filepath.Join(dir, "openapi.yaml")
+	if err := os.WriteFile(spec, []byte(importSpec), 0600); err != nil {
+		t.Fatal(err)
+	}
+	const name = "FACTORY_IMPORT_TEST_KEY"
+	t.Setenv(name, "")
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-API-Key") != "runtime-only" {
+			t.Error("missing imported credential")
+		}
+		io.WriteString(w, "record")
+	}))
+	defer srv.Close()
+	var out bytes.Buffer
+	if err := importTools([]string{"import", "-operation", "lookup", "-server", srv.URL, "-key-env", name, spec}, &out, io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "tools.yaml")
+	if err := os.WriteFile(path, out.Bytes(), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := tools.ValidateEvidenceFile(path); err != nil {
+		t.Fatal(err)
+	}
+	out.WriteString("\ncontext: {entity: lookup}\ngrants: [{pack: desk, tools: [lookup], side_effects: [read-only]}]\n")
+	if err := os.WriteFile(path, out.Bytes(), 0600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := tools.LoadEvidenceConfig(path, "desk")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(name, "runtime-only")
+	cfg.Tools["lookup"].Client = srv.Client()
+	if _, err := cfg.Gather(t.Context(), "one", map[string]any{"team": "support"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{
+		{"-operation", "lookup", "-key-file", "token", "-key-env", name},
+		{"-operation", "lookup", "-key-env", "bad-name"},
+		{"-key-env", name},
+	} {
+		out.Reset()
+		if err := importTools(append(append([]string{"import"}, args...), spec), &out, io.Discard); err == nil || out.Len() != 0 {
+			t.Fatalf("expected invalid credential selection to fail without a draft: %v", args)
+		}
+	}
+}

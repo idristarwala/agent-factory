@@ -136,13 +136,19 @@ At run creation the factory checks the grant against the tool’s side-effect cl
 
 Run `factory tools import openapi.yaml > draft-tools.yaml` to generate a reviewable `tools` mapping from GET operations. The CLI accepts OpenAPI 3.0 or 3.1 JSON and YAML with local references. It resolves server overrides and scalar path and query parameters. Required parameters are checked before a request. Non-GET operations are listed on stderr. An unsupported selected operation or parameter returns a failing exit code.
 
-For an authenticated operation, select its operation ID and provide a credential **file path**:
+For an authenticated operation, select its operation ID and choose one credential source.
 
 ```sh
 factory tools import -operation getTicket -key-file secrets/tickets-token openapi.yaml > draft-tools.yaml
 ```
 
-The importer supports a single bearer or header API-key scheme for that operation. Use `-server https://tickets.example.com/v1` for a relative, templated, or ambiguous server. The generated file references the credential path relative to its deployed location. Review the destination and parameters, add a context recipe and an explicit pack grant as shown above, then point `FACTORY_EVIDENCE_CONFIG` at the reviewed file. Import runs offline and writes only to stdout.
+To use a deployment environment variable, pass its name literally. The variable can be unset while importing or validating.
+
+```sh
+factory tools import -operation getTicket -key-env TICKETS_API_TOKEN openapi.yaml > draft-tools.yaml
+```
+
+The importer supports a single bearer or header API-key scheme for that operation. Use `-server https://tickets.example.com/v1` for a relative, templated, or ambiguous server. The generated file records the variable name or the configured file path. Relative credential paths resolve from the deployed tool file. Review the destination and parameters, add a context recipe and an explicit pack grant as shown above, then point `FACTORY_EVIDENCE_CONFIG` at the reviewed file. Import runs offline and writes only to stdout.
 
 ## Validate an evidence tool file
 
