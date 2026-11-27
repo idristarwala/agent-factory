@@ -188,3 +188,13 @@ func (m SourceMapping) records(sample any) ([]any, error) {
 	}
 	return records, nil
 }
+
+// SourceValue looks up a JSON pointer without converting numeric tokens.
+func SourceValue(payload any, pointer string) (any, bool, error) {
+	parts, err := tokens(pointer)
+	if err != nil {
+		return nil, false, err
+	}
+	value, ok := lookup(payload, parts)
+	return value, ok, nil
+}

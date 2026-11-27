@@ -20,6 +20,7 @@ import (
 var ErrNotFound = errors.New("run not found")
 
 type RunRequest struct {
+	Import        *ImportPageRef  `json:"import,omitempty"`
 	Memory        []memory.Ref    `json:"memory,omitempty"`
 	Source        *SourceInput    `json:"source,omitempty"`
 	SelectedRules map[string]int  `json:"selected_rules"`
@@ -54,6 +55,7 @@ type Review struct {
 	After     map[string]any  `json:"after"`
 }
 type Run struct {
+	Import           *ImportPageRef    `json:"import,omitempty"`
 	ImportProblems   []ImportProblem   `json:"import_problems,omitempty"`
 	Source           *SourceRef        `json:"source,omitempty"`
 	ID               string            `json:"id"`
@@ -127,6 +129,24 @@ func (w *Workspace) Start(req RunRequest) (Run, error) {
 		return Run{}, fmt.Errorf("supply a goal, up to 100 source records and a nonnegative budget")
 	}
 	r := Run{ID: uuid.NewString(), Description: req.Description, Status: "created", CreatedAt: time.Now().UTC(), Records: req.Records}
+	if req.Import != nil {
+		if req.Source != nil || len(req.Records) != 0 || req.Factory == "" || req.Import.ID == "" || req.Import.Page < 1 {
+			return Run{}, fmt.Errorf("select one committed import page and its factory")
+		}
+		pages, err := w.ImportPages(req.Factory, req.Import.ID)
+		if err != nil {
+			return Run{}, err
+		}
+		if req.Import.Page > len(pages) {
+			return Run{}, fmt.Errorf("unknown import page")
+		}
+		page := pages[req.Import.Page-1]
+		req.Records = page.Records
+		r.Records = page.Records
+		r.ImportProblems = page.Problems
+		r.Source = &page.Spec.SourceRef
+		r.Import = req.Import
+	}
 	if req.Source != nil {
 		if len(req.Records) != 0 || req.Factory == "" {
 			return Run{}, fmt.Errorf("a mapped source requires a factory and cannot be combined with records")

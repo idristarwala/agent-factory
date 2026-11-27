@@ -238,7 +238,7 @@ func chatCommand(ws *factory.Workspace, message string, source *factory.RunReque
 		if goal == "" {
 			return "What should this run accomplish?", true, nil
 		}
-		if source == nil || (len(source.Records) == 0 && source.Source == nil) || source.Factory == "" {
+		if source == nil || (len(source.Records) == 0 && source.Source == nil && source.Import == nil) || source.Factory == "" {
 			return "Choose a factory and source records in the goal builder, then send Start with your goal.", true, nil
 		}
 		req := *source

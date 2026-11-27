@@ -78,6 +78,7 @@ func main() {
 		log.Fatal(err)
 	}
 	ws := &factory.Workspace{Store: definitions, Gateway: gw, Prices: modelPrices}
+	pagedImportRoutes(mux, ws, sampler)
 	runRoutes(mux, ws, ruleEngine)
 	definitionRoutes(mux, ruleEngine, agents.NewStoredRegistry(definitions))
 
