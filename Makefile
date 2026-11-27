@@ -11,7 +11,7 @@ ui-build:
 	npm --prefix ui-app test
 	npm --prefix ui-app run build
 
-ci: test build ui-build
+ci: test build ui-build conformance
 	go vet ./...
 
 release:
@@ -20,3 +20,8 @@ release:
 .PHONY: test-gemini
 test-gemini:
 	go test -tags gemini_live -run '^TestLiveGeminiFactoryRun$$' -count=1 ./internal/factory
+
+.PHONY: conformance
+conformance:
+	go test -race ./internal/llm/...
+	cd examples/out-of-tree-gateway && go test -race ./...

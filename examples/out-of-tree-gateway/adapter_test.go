@@ -6,11 +6,12 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/idristarwala/agent-factory/internal/llm"
+	"github.com/idristarwala/agent-factory/llm"
+	"github.com/idristarwala/agent-factory/llm/llmtest"
 )
 
 // TestCorpGatewayPassesConformance is a concrete out-of-tree test that
-// exercises llm.RunConformance against a real httptest server speaking
+// exercises llmtest.RunConformance against a real httptest server speaking
 // OpenAI-compatible responses. This is the pattern users copy into their
 // own module.
 func TestCorpGatewayPassesConformance(t *testing.T) {
@@ -39,7 +40,7 @@ func TestCorpGatewayPassesConformance(t *testing.T) {
 	gw.SetHTTPClient(srv.Client())
 
 	h := conformanceHarness{c: gw.Client()}
-	llm.RunConformance(t, h)
+	llmtest.RunConformance(t, h)
 }
 
 type conformanceHarness struct{ c llm.Client }

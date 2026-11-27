@@ -1,14 +1,14 @@
 // Package example shows an out-of-tree gateway adapter that reuses the
-// in-repo OpenAI adapter and is intended to pass llm.RunConformance.
+// in-repo OpenAI adapter and is intended to pass llmtest.RunConformance.
 //
 // Users place this (or a similar file) in their own module and depend on
-// github.com/idristarwala/agent-factory/internal/llm.
+// github.com/idristarwala/agent-factory/llm.
 package example
 
 import (
 	"net/http"
 
-	"github.com/idristarwala/agent-factory/internal/llm"
+	"github.com/idristarwala/agent-factory/llm"
 )
 
 // CorpGateway is a thin wrapper that points at a corporate LLM gateway
