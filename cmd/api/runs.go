@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/idristarwala/agent-factory/internal/factory"
@@ -41,10 +42,30 @@ func requestedRuns(ws *factory.Workspace, id string) ([]factory.Run, error) {
 	return []factory.Run{run}, nil
 }
 
+func addArgumentText(runs []factory.Run) error {
+	for _, run := range runs {
+		for i := range run.Decisions {
+			decision := &run.Decisions[i]
+			if decision.Proposal == nil || decision.Proposal.ToolProposal == nil {
+				continue
+			}
+			text, err := json.MarshalIndent(decision.Proposal.ToolProposal.Arguments, "", "  ")
+			if err != nil {
+				return err
+			}
+			decision.ArgumentText = string(text)
+		}
+	}
+	return nil
+}
+
 func runRoutes(mux *http.ServeMux, ws *factory.Workspace, engine *rules.Engine) {
 	mux.HandleFunc("/api/goals", operatorRoute(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" {
 			list, err := ws.List()
+			if err == nil && r.URL.Query().Get("view") == "review" {
+				err = addArgumentText(list)
+			}
 			runResponse(w, list, err)
 			return
 		}

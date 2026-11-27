@@ -50,6 +50,8 @@ type Price struct {
 	Output float64 `json:"output_per_million"`
 }
 type Review struct {
+	// ArgumentText is populated only for the API's browser review representation.
+	ArgumentText   string          `json:"argument_text,omitempty"`
 	BrowserCapture string          `json:"browser_capture,omitempty"`
 	Lineage        *SourceLineage  `json:"lineage,omitempty"`
 	UpdatedAt      time.Time       `json:"updated_at"`
