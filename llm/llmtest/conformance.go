@@ -1,0 +1,16 @@
+// Package llmtest provides the shared gateway contract tests for adapter authors.
+package llmtest
+
+import (
+	"testing"
+
+	core "github.com/idristarwala/agent-factory/internal/llm"
+	"github.com/idristarwala/agent-factory/llm"
+)
+
+type Harness interface{ Client() llm.Client }
+
+func RunConformance(t *testing.T, h Harness) {
+	t.Helper()
+	core.RunConformance(t, h)
+}
