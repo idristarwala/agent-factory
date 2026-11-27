@@ -25,9 +25,8 @@ func main() {
 	ll := learning.NewLearningLoop(re, reg)
 
 	store := unitofwork.NewMemoryStore()
-	steward := agents.NewStubSteward(store)
-	// Real steward path (gateway would be set in a full run)
-	// For this demo we still use a stub worker that actually changes the graph
+	steward := agents.NewSmartSteward(store)
+	steward.Graph = g // enables graph-clean detection
 
 	judge := &demoJudge{}
 
@@ -40,6 +39,7 @@ func main() {
 		goal = os.Args[1]
 	}
 
+	fmt.Println("Continuous swarm with SmartSteward (stops when graph is clean)")
 	if err := runner.Run(context.Background(), goal); err != nil {
 		fmt.Println("Runner finished:", err)
 	}
