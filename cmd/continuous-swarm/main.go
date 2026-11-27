@@ -16,17 +16,24 @@ import (
 
 func main() {
 	g := graph.NewMemoryGraph()
+	// Seed a node that needs fixing
+	g.Upsert(graph.Node{ID: "item-1", Type: "item", Props: map[string]any{"status": "needs_fix", "title": "bad title"}})
+
 	q := queue.NewMemoryQueue()
 	re := rules.NewEngine()
 	reg := agents.NewRegistry()
 	ll := learning.NewLearningLoop(re, reg)
 
-	steward := &stubSteward{}
-	judge := &stubJudge{}
+	store := unitofwork.NewMemoryStore()
+	steward := agents.NewStubSteward(store)
+	// Real steward path (gateway would be set in a full run)
+	// For this demo we still use a stub worker that actually changes the graph
+
+	judge := &demoJudge{}
 
 	runner := swarm.NewContinuousRunner(steward, judge, q, g, re, ll)
 	runner.Workers = 2
-	runner.MaxRounds = 3
+	runner.MaxRounds = 5
 
 	goal := "Fix all entities until clean"
 	if len(os.Args) > 1 {
@@ -36,40 +43,14 @@ func main() {
 	if err := runner.Run(context.Background(), goal); err != nil {
 		fmt.Println("Runner finished:", err)
 	}
+	fmt.Println("Final graph snapshot:")
+	for _, n := range g.Snapshot() {
+		fmt.Printf("  %s: %v\n", n.ID, n.Props)
+	}
 }
 
-type stubSteward struct{}
+type demoJudge struct{}
 
-func (s *stubSteward) InterpretGoal(goal string, snap any) ([]*unitofwork.UnitOfWork, error) {
-	return []*unitofwork.UnitOfWork{{
-		ID:          "demo-uow-1",
-		Description: goal,
-	}}, nil
-}
-
-func (s *stubSteward) CreateWorker(spec agents.WorkerSpec) (agents.Worker, error) {
-	return &stubWorker{}, nil
-}
-
-func (s *stubSteward) SetAutonomyMode(mode string) error { return nil }
-
-type stubWorker struct{}
-
-func (w *stubWorker) Claim(u *unitofwork.UnitOfWork) error { return nil }
-
-func (w *stubWorker) Execute(u *unitofwork.UnitOfWork) (*graph.Mutation, error) {
-	return &graph.Mutation{
-		UnitOfWorkID: u.ID,
-		Updates: []graph.Node{{
-			ID:   "demo-entity",
-			Type: "entity",
-			Props: map[string]any{"status": "fixed"},
-		}},
-	}, nil
-}
-
-type stubJudge struct{}
-
-func (j *stubJudge) Evaluate(m *graph.Mutation, rules []agents.Rule) (agents.Decision, error) {
+func (j *demoJudge) Evaluate(m *graph.Mutation, rules []agents.Rule) (agents.Decision, error) {
 	return agents.Decision{Approved: true, Reason: "demo approve"}, nil
 }
