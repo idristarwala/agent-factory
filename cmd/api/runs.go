@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/idristarwala/agent-factory/internal/factory"
@@ -233,19 +232,4 @@ func chatCommand(ws *factory.Workspace, message string, source *factory.RunReque
 		return "Started run " + r.ID + " using factory revision " + strconv.Itoa(r.Plan.Revision) + ".", true, nil
 	}
 	return "", false, nil
-}
-func prices(raw string) (map[string]factory.Price, error) {
-	p := map[string]factory.Price{}
-	if raw == "" {
-		return p, nil
-	}
-	if err := json.Unmarshal([]byte(raw), &p); err != nil {
-		return nil, err
-	}
-	for _, v := range p {
-		if v.Input < 0 || v.Output < 0 {
-			return nil, fmt.Errorf("negative model price")
-		}
-	}
-	return p, nil
 }

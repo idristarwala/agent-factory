@@ -39,7 +39,11 @@ type ContinuousRunner struct {
 	Tools      map[string]*tools.HTTPTool
 	Recipe     tools.ContextRecipe
 	Stagnation int
-	progress   *Progress
+	Usage      interface {
+		Tokens() int
+		RecordTool(string)
+	}
+	progress *Progress
 }
 
 func NewContinuousRunner(s agents.Steward, j agents.Judge, q queue.WorkQueue, g graph.Graph, re *rules.Engine, ll *learning.LearningLoop) *ContinuousRunner {
@@ -87,6 +91,10 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 	}
 	r.progress.MaxStagnant = r.Stagnation
 	budgets := NewBudgets(r.Budget.MaxRounds, r.Budget.MaxWallClock, r.Budget.MaxTokens)
+	initialTokens := 0
+	if r.Usage != nil {
+		initialTokens = r.Usage.Tokens()
+	}
 	totalFailures := 0
 
 	for round := 1; round <= r.Budget.MaxRounds; round++ {
@@ -231,8 +239,9 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 		if err := errors.Join(workerErrors...); err != nil {
 			return err
 		}
-		// Retain the existing per-decision estimate until gateways report actual usage.
-		budgets.AddTokens(800 * len(decisions))
+		if r.Usage != nil {
+			budgets.TokensUsed = r.Usage.Tokens() - initialTokens
+		}
 
 		totalFailures += len(failureMsgs)
 

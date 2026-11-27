@@ -59,6 +59,7 @@ type Review struct {
 	After     map[string]any  `json:"after"`
 }
 type Run struct {
+	Runner           string                   `json:"runner,omitempty"`
 	Tools            map[string]int           `json:"tool_calls_by_name,omitempty"`
 	Lineage          map[string]SourceLineage `json:"lineage,omitempty"`
 	Import           *ImportPageRef           `json:"import,omitempty"`
@@ -273,21 +274,10 @@ func (m *measured) Generate(req models.Request) (*models.Response, error) {
 		req.MaxTokens = m.remaining
 	}
 	resp, err := m.gateway.Generate(req)
-	if err != nil {
-		m.calls = append(m.calls, Call{Role: req.CallerRole, Failed: true})
-		return nil, err
-	}
-	c := Call{Role: req.CallerRole, Model: resp.Model, Input: resp.Usage["prompt_tokens"], Output: resp.Usage["completion_tokens"], Total: resp.Usage["total_tokens"]}
-	if c.Total == 0 {
-		c.Total = c.Input + c.Output
-	}
-	if p, ok := m.prices[c.Model]; ok {
-		c.Priced = true
-		c.Cost = (float64(c.Input)*p.Input + float64(c.Output)*p.Output) / 1e6
-	}
+	c := modelCall(req, resp, err, m.prices)
 	m.calls = append(m.calls, c)
 	m.remaining -= c.Total
-	return resp, nil
+	return resp, err
 }
 func (w *Workspace) Execute(id string) error {
 	r, err := w.Get(id)

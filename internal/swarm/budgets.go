@@ -28,7 +28,7 @@ func (b *Budgets) Exhausted(round int) string {
 	if b.MaxWallClock > 0 && time.Since(b.Started) > b.MaxWallClock {
 		return "wall clock"
 	}
-	if b.MaxTokens > 0 && b.TokensUsed > b.MaxTokens {
+	if b.MaxTokens > 0 && b.TokensUsed >= b.MaxTokens {
 		return "token budget"
 	}
 	return ""

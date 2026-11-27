@@ -78,7 +78,7 @@ func main() {
 		})
 	})
 
-	modelPrices, err := prices(os.Getenv("FACTORY_MODEL_PRICES"))
+	modelPrices, err := factory.ParsePrices(os.Getenv("FACTORY_MODEL_PRICES"))
 	if err != nil {
 		log.Fatal(err)
 	}
