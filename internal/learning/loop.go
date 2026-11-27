@@ -29,7 +29,7 @@ type AgentUpdate struct {
 type LearningLoop struct {
 	RuleEngine *rules.Engine
 	Registry   *agents.Registry
-	ReplayGate bool // if true, rules are proposed but not activated until replay passes
+	ReplayGate bool
 }
 
 func NewLearningLoop(re *rules.Engine, reg *agents.Registry) *LearningLoop {
@@ -55,18 +55,23 @@ func (l *LearningLoop) Review(decisions []agents.Decision, learnings []string) [
 			})
 		}
 	}
+	// Group failure strings so identical causes do not create duplicate rules
+	failCounts := map[string]int{}
 	for _, learning := range learnings {
 		lower := strings.ToLower(learning)
 		if strings.Contains(lower, "missing") || strings.Contains(lower, "gap") ||
 			strings.Contains(lower, "format") || strings.Contains(lower, "truncat") ||
 			strings.Contains(lower, "json") || strings.Contains(lower, "validation") {
-			gaps = append(gaps, Gap{
-				Pattern:     learning,
-				Evidence:    []string{learning},
-				Occurrences: 1,
-				Severity:    "medium",
-			})
+			failCounts[learning]++
 		}
+	}
+	for pattern, count := range failCounts {
+		gaps = append(gaps, Gap{
+			Pattern:     pattern,
+			Evidence:    []string{pattern},
+			Occurrences: count,
+			Severity:    severity(count),
+		})
 	}
 	return gaps
 }
@@ -74,8 +79,7 @@ func (l *LearningLoop) Review(decisions []agents.Decision, learnings []string) [
 func (l *LearningLoop) ProposeUpdates(gaps []Gap) []AgentUpdate {
 	var updates []AgentUpdate
 	for _, g := range gaps {
-		// Generate actionable rule content, not just a theme name
-		actionable := actionableRule(g.Pattern, g.Evidence)
+		actionable := ActionableRule(g.Pattern, g.Evidence)
 		updates = append(updates, AgentUpdate{
 			TargetAgent: "rules",
 			ChangeType:  "rule",
@@ -101,7 +105,11 @@ func (l *LearningLoop) ProposeUpdates(gaps []Gap) []AgentUpdate {
 	return updates
 }
 
-// actionableRule turns a pattern into an instruction the worker can follow.
+// ActionableRule is the exported form used by the learning path.
+func ActionableRule(pattern string, evidence []string) string {
+	return actionableRule(pattern, evidence)
+}
+
 func actionableRule(pattern string, evidence []string) string {
 	lower := strings.ToLower(pattern)
 	switch {
@@ -130,15 +138,23 @@ func (l *LearningLoop) Apply(updates []AgentUpdate) []string {
 	for _, u := range updates {
 		switch u.ChangeType {
 		case "rule":
+			// Use ShouldActivate as the replay gate
+			active := true
+			if l.ReplayGate {
+				active = ShouldActivate(nil) // no signals here; default to hold
+				if !active {
+					active = false
+				}
+			}
 			r := l.RuleEngine.Propose(rules.VersionedRule{
 				Description: u.Payload["description"],
 				Source:      u.Payload["source"],
 				CreatedBy:   "steward",
 				CreatedAt:   time.Now(),
-				Active:      !l.ReplayGate, // if replay gate is on, propose but don't activate
+				Active:      active,
 			})
 			status := "active"
-			if l.ReplayGate {
+			if !active {
 				status = "proposed (awaiting replay)"
 			}
 			applied = append(applied, fmt.Sprintf("rule %s v%d [%s]: %s", r.ID[:8], r.Version, status, r.Description))
