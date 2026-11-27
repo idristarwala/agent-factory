@@ -30,7 +30,7 @@ func NewOpenAICompatFromEnv() (*OpenAICompatGateway, error) {
 	}
 	cheap := os.Getenv("LLM_CHEAP_MODEL")
 	if cheap == "" {
-		cheap = "llama-3.1-8b-instant" // common Groq free default
+		cheap = "llama-3.1-8b-instant"
 	}
 	frontier := os.Getenv("LLM_FRONTIER_MODEL")
 	if frontier == "" {
@@ -51,10 +51,11 @@ type chatMessage struct {
 }
 
 type chatRequest struct {
-	Model       string        `json:"model"`
-	Messages    []chatMessage `json:"messages"`
-	Temperature float64       `json:"temperature,omitempty"`
-	MaxTokens   int           `json:"max_tokens,omitempty"`
+	Model          string                 `json:"model"`
+	Messages       []chatMessage          `json:"messages"`
+	Temperature    float64                `json:"temperature,omitempty"`
+	MaxTokens      int                    `json:"max_tokens,omitempty"`
+	ResponseFormat map[string]any         `json:"response_format,omitempty"`
 }
 
 type chatResponse struct {
@@ -94,6 +95,18 @@ func (g *OpenAICompatGateway) Generate(req Request) (*Response, error) {
 		body.Messages = append(body.Messages, chatMessage{Role: "system", Content: req.System})
 	}
 	body.Messages = append(body.Messages, chatMessage{Role: "user", Content: req.User})
+
+	// Provider-enforced schema
+	if req.ResponseSchema != nil {
+		body.ResponseFormat = map[string]any{
+			"type": "json_schema",
+			"json_schema": map[string]any{
+				"name":   "attribute_update",
+				"schema": req.ResponseSchema,
+				"strict": true,
+			},
+		}
+	}
 
 	raw, err := json.Marshal(body)
 	if err != nil {
@@ -141,7 +154,6 @@ func (g *OpenAICompatGateway) Generate(req Request) (*Response, error) {
 	}, nil
 }
 
-// NewOpenAICompat creates a gateway from explicit parameters (no env).
 func NewOpenAICompat(baseURL, apiKey, cheapModel, frontierModel string) *OpenAICompatGateway {
 	if cheapModel == "" {
 		cheapModel = "gpt-4o-mini"
