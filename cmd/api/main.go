@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -72,14 +74,7 @@ func main() {
 		})
 	})
 
-	mux.HandleFunc("/api/goals", auth(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", os.Getenv("CORS_ORIGIN"))
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
+	mux.HandleFunc("/api/goals", apiRoute(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			var body struct {
 				Description string `json:"description"`
@@ -106,48 +101,37 @@ func main() {
 		goalsMu.Unlock()
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(list)
-	}))
+	}, "GET", "POST"))
 
-	mux.HandleFunc("/api/decisions", auth(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", os.Getenv("CORS_ORIGIN"))
+	mux.HandleFunc("/api/decisions", apiRoute(func(w http.ResponseWriter, r *http.Request) {
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(decisions)
-	}))
+	}, "GET"))
 
-	mux.HandleFunc("/api/usage", auth(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", os.Getenv("CORS_ORIGIN"))
+	mux.HandleFunc("/api/usage", apiRoute(func(w http.ResponseWriter, r *http.Request) {
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(usageTotals)
-	}))
+	}, "GET"))
 
-	mux.HandleFunc("/api/rules", auth(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", os.Getenv("CORS_ORIGIN"))
+	mux.HandleFunc("/api/rules", apiRoute(func(w http.ResponseWriter, r *http.Request) {
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(ruleEngine.Active())
-	}))
+	}, "GET"))
 
-	mux.HandleFunc("/api/graph", auth(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", os.Getenv("CORS_ORIGIN"))
+	mux.HandleFunc("/api/graph", apiRoute(func(w http.ResponseWriter, r *http.Request) {
+
 		w.Header().Set("Content-Type", "application/json")
 		// Placeholder graph snapshot for the UI explorer
 		json.NewEncoder(w).Encode(map[string]any{
 			"nodes": []map[string]string{},
 			"edges": []map[string]string{},
 		})
-	}))
+	}, "GET"))
 
-	mux.HandleFunc("/api/chat", auth(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", os.Getenv("CORS_ORIGIN"))
-		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		if r.Method != http.MethodPost {
-			http.Error(w, "POST only", http.StatusMethodNotAllowed)
-			return
-		}
+	mux.HandleFunc("/api/chat", apiRoute(func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			Message string `json:"message"`
 		}
@@ -170,20 +154,9 @@ func main() {
 		usageTotals.EstimatedUSD += 0.0003
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"reply": resp.Content})
-	}))
+	}, "POST"))
 
-	mux.HandleFunc("/api/feedback", auth(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", os.Getenv("CORS_ORIGIN"))
-		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		if r.Method != http.MethodPost {
-			http.Error(w, "POST only", http.StatusMethodNotAllowed)
-			return
-		}
+	mux.HandleFunc("/api/feedback", apiRoute(func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
 			Note   string `json:"note"`
 			Entity string `json:"entity_id"`
@@ -203,7 +176,7 @@ func main() {
 			"version": rule.Version,
 			"source":  "feedback",
 		})
-	}))
+	}, "POST"))
 
 	addr := ":8080"
 	fmt.Println("API listening on", addr, "(store:", storeKindLabel(), ")")
@@ -220,8 +193,25 @@ func main() {
 	}
 }
 
-func auth(next http.HandlerFunc) http.HandlerFunc {
+func apiRoute(next http.HandlerFunc, methods ...string) http.HandlerFunc {
+	allow := strings.Join(append(methods, http.MethodOptions), ", ")
 	return func(w http.ResponseWriter, r *http.Request) {
+		origin := os.Getenv("CORS_ORIGIN")
+		w.Header().Add("Vary", "Origin")
+		if origin != "" && (origin == "*" || origin == r.Header.Get("Origin")) {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Methods", allow)
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		}
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		if !slices.Contains(methods, r.Method) {
+			w.Header().Set("Allow", allow)
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
 		token := os.Getenv("API_TOKEN")
 		if token == "" {
 			next(w, r)

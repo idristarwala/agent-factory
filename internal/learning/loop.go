@@ -75,7 +75,7 @@ func (l *LearningLoop) Review(decisions []agents.Decision, learnings []string) [
 			l.cumulative[learning]++
 		}
 	}
-	for pattern, count := range failCounts {
+	for pattern := range failCounts {
 		gaps = append(gaps, Gap{
 			Pattern:     pattern,
 			Evidence:    []string{pattern},

@@ -70,17 +70,12 @@ func (e *Engine) Activate(id string, version int) error {
 	if !ok {
 		return fmt.Errorf("rule not found: %s", id)
 	}
-	found := false
-	for i := range versions {
-		if versions[i].Version == version {
-			versions[i].Active = true
-			found = true
-		} else {
-			versions[i].Active = false
-		}
-	}
-	if !found {
+	// Propose assigns contiguous, one-based version numbers.
+	if version < 1 || version > len(versions) {
 		return fmt.Errorf("version %d not found for rule %s", version, id)
+	}
+	for i := range versions {
+		versions[i].Active = versions[i].Version == version
 	}
 	e.active[id] = version
 	return nil

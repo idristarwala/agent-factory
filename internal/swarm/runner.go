@@ -2,6 +2,7 @@ package swarm
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -39,18 +40,17 @@ type ContinuousRunner struct {
 	Recipe     tools.ContextRecipe
 	Stagnation int
 	progress   *Progress
-	tokenBudgets *Budgets
 }
 
 func NewContinuousRunner(s agents.Steward, j agents.Judge, q queue.WorkQueue, g graph.Graph, re *rules.Engine, ll *learning.LearningLoop) *ContinuousRunner {
 	return &ContinuousRunner{
-		Steward: s,
-		Judge:   j,
-		Queue:   q,
-		Graph:   g,
-		Rules:   re,
+		Steward:  s,
+		Judge:    j,
+		Queue:    q,
+		Graph:    g,
+		Rules:    re,
 		Learning: ll,
-		Workers: 4,
+		Workers:  4,
 		Budget: Budget{
 			MaxRounds:    10,
 			MaxWallClock: 30 * time.Minute,
@@ -59,7 +59,6 @@ func NewContinuousRunner(s agents.Steward, j agents.Judge, q queue.WorkQueue, g 
 		},
 		Stagnation: 2,
 		progress:   NewProgress(),
-		tokenBudgets: NewBudgets(10, 30*time.Minute, 1000000),
 	}
 }
 
@@ -77,13 +76,6 @@ func (r *ContinuousRunner) SetTools(reg map[string]*tools.HTTPTool, recipe tools
 
 func (r *ContinuousRunner) SetBudget(b Budget) {
 	r.Budget = b
-	if r.tokenBudgets == nil {
-		r.tokenBudgets = NewBudgets(b.MaxRounds, b.MaxWallClock, b.MaxTokens)
-	} else {
-		r.tokenBudgets.MaxRounds = b.MaxRounds
-		r.tokenBudgets.MaxWallClock = b.MaxWallClock
-		r.tokenBudgets.MaxTokens = b.MaxTokens
-	}
 }
 
 func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
@@ -91,15 +83,11 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 		r.progress = NewProgress()
 	}
 	r.progress.MaxStagnant = r.Stagnation
-	if r.tokenBudgets == nil {
-		r.tokenBudgets = NewBudgets(r.Budget.MaxRounds, r.Budget.MaxWallClock, r.Budget.MaxTokens)
-	}
-
-	start := time.Now()
+	budgets := NewBudgets(r.Budget.MaxRounds, r.Budget.MaxWallClock, r.Budget.MaxTokens)
 	totalFailures := 0
 
 	for round := 1; round <= r.Budget.MaxRounds; round++ {
-		if reason := r.tokenBudgets.Exhausted(round); reason != "" {
+		if reason := budgets.Exhausted(round); reason != "" {
 			return fmt.Errorf("budget exceeded: %s", reason)
 		}
 		if r.Budget.MaxFailures > 0 && totalFailures >= r.Budget.MaxFailures {
@@ -143,6 +131,7 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 		}
 
 		var wg sync.WaitGroup
+		workerErrors := make([]error, r.Workers)
 		decisions := make([]agents.Decision, 0)
 		var failureMsgs []string
 		var failureErrs []error
@@ -154,7 +143,11 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 				defer wg.Done()
 				for {
 					uow, err := r.Queue.Claim(ctx, fmt.Sprintf("worker-%d", workerID), 30*time.Second)
-					if err != nil || uow == nil {
+					if err != nil {
+						workerErrors[workerID] = fmt.Errorf("claim work: %w", err)
+						return
+					}
+					if uow == nil {
 						return
 					}
 
@@ -212,12 +205,17 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 						r.Queue.Fail(ctx, uow.ID, err.Error())
 						continue
 					}
-					// Rough token estimate
-			r.tokenBudgets.AddTokens(800)
-				if decision.Approved && !r.Observe {
-					r.Graph.Apply(mutation)
-				}
-					r.Queue.Complete(ctx, uow.ID)
+					if decision.Approved && !r.Observe {
+						if err := r.Graph.Apply(mutation); err != nil {
+							writeErr := fmt.Errorf("apply mutation for unit %s: %w", uow.ID, err)
+							workerErrors[workerID] = errors.Join(writeErr, r.Queue.Fail(ctx, uow.ID, writeErr.Error()))
+							return
+						}
+					}
+					if err := r.Queue.Complete(ctx, uow.ID); err != nil {
+						workerErrors[workerID] = fmt.Errorf("complete unit %s: %w", uow.ID, err)
+						return
+					}
 					mu.Lock()
 					decisions = append(decisions, decision)
 					mu.Unlock()
@@ -225,6 +223,11 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 			}(i)
 		}
 		wg.Wait()
+		if err := errors.Join(workerErrors...); err != nil {
+			return err
+		}
+		// Retain the existing per-decision estimate until gateways report actual usage.
+		budgets.AddTokens(800 * len(decisions))
 
 		totalFailures += len(failureMsgs)
 
