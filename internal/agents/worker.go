@@ -53,7 +53,6 @@ func (w *LLMWorker) Execute(uow *unitofwork.UnitOfWork) (*graph.Mutation, error)
 		ruleText.WriteString("(no active rules)\n")
 	}
 
-	// Family context
 	var familyNote string
 	if uow.InputSubgraph != "" {
 		fam, err := GatherFamily(w.Graph, uow.InputSubgraph, "group")
@@ -65,7 +64,6 @@ func (w *LLMWorker) Execute(uow *unitofwork.UnitOfWork) (*graph.Mutation, error)
 		familyNote = "If this item has siblings, apply consistent wording across the family."
 	}
 
-	// Context recipe evidence
 	var evidenceNote string
 	if len(uow.Evidence) > 0 {
 		evidenceNote = "Gathered evidence:\n" + strings.Join(uow.Evidence, "\n") + "\n"
@@ -97,7 +95,7 @@ Respond ONLY with valid JSON of this form:
 			System:      "You produce structured attribute updates that obey the provided rules and evidence. Output JSON only.",
 			User:        prompt,
 			Temperature: 0.2,
-			MaxTokens:   800,
+			MaxTokens:   4000, // raised to avoid truncation from reasoning tokens
 		})
 		if err != nil {
 			lastErr = err
@@ -107,7 +105,7 @@ Respond ONLY with valid JSON of this form:
 
 		updates, err := ParseAndValidate(resp.Content, allowed)
 		if err != nil {
-			lastErr = fmt.Errorf("worker validation failed: %w", err)
+			lastErr = fmt.Errorf("worker validation failed (finish may be truncated): %w; content length=%d", err, len(resp.Content))
 			continue
 		}
 
