@@ -38,7 +38,9 @@ func main() {
 	var judge agents.Judge = &demoJudge{}
 	if _, ok := gw.(*noopGateway); !ok {
 		// Prefer real LLM judge when a real gateway is available
-		judge = agents.NewLLMJudge(gw, g)
+		lmJudge := agents.NewLLMJudge(gw, g)
+		// Use QuorumJudge with two independent evaluations when a real gateway is present
+		judge = agents.NewQuorumJudge([]agents.Judge{lmJudge, lmJudge}, 2)
 	}
 
 	runner := swarm.NewContinuousRunner(steward, judge, q, g, re, ll)
