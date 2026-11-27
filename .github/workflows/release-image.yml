@@ -28,6 +28,8 @@ jobs:
       - name: Push all roles to the disposable registry
         run: GITHUB_REF_NAME=smoke sh scripts/push-release-images.sh
       - name: Verify the manifest and run each pinned image
+        env:
+          FIXTURE_REVISION: ${{ github.event.pull_request.base.sha || github.sha }}
         run: |
           mkdir -p dist
           cp LICENSE dist/
@@ -40,8 +42,8 @@ jobs:
               engine) docker run --rm --env FACTORY_STORE_MODE=memory --entrypoint factory "$image" readiness ;;
               worker) docker run --rm "$image" -help 2>&1 | grep -- '-records' ;;
               connector)
-                cat > sources.yaml <<'YAML'
-          tools: {lookup: {url: "https://records.example.com/records"}}
+                cat > sources.yaml <<YAML
+          tools: {lookup: {url: "https://raw.githubusercontent.com/$GITHUB_REPOSITORY/$FIXTURE_REVISION/schemas/pack.schema.json"}}
           grants: [{pack: review, tools: [lookup], side_effects: [read-only]}]
           YAML
                 run_connector() {
@@ -50,6 +52,7 @@ jobs:
                 if run_connector unknown 2>error.log; then exit 1; fi
                 grep -F 'source unavailable for this factory' error.log
                 if run_connector review undeclared=one 2>error.log; then exit 1; fi
-                grep -F 'unsupported source query parameter' error.log ;;
+                grep -F 'unsupported source query parameter' error.log
+                run_connector review | jq -e '.type == "object" and (.required | index("worker_roles") != null)' ;;
             esac
           done
