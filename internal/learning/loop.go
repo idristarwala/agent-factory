@@ -29,6 +29,7 @@ type AgentUpdate struct {
 type LearningLoop struct {
 	RuleEngine *rules.Engine
 	Registry   *agents.Registry
+	ReplayGate bool // if true, rules are proposed but not activated until replay passes
 }
 
 func NewLearningLoop(re *rules.Engine, reg *agents.Registry) *LearningLoop {
@@ -55,7 +56,10 @@ func (l *LearningLoop) Review(decisions []agents.Decision, learnings []string) [
 		}
 	}
 	for _, learning := range learnings {
-		if strings.Contains(strings.ToLower(learning), "missing") || strings.Contains(strings.ToLower(learning), "gap") {
+		lower := strings.ToLower(learning)
+		if strings.Contains(lower, "missing") || strings.Contains(lower, "gap") ||
+			strings.Contains(lower, "format") || strings.Contains(lower, "truncat") ||
+			strings.Contains(lower, "json") || strings.Contains(lower, "validation") {
 			gaps = append(gaps, Gap{
 				Pattern:     learning,
 				Evidence:    []string{learning},
@@ -70,13 +74,16 @@ func (l *LearningLoop) Review(decisions []agents.Decision, learnings []string) [
 func (l *LearningLoop) ProposeUpdates(gaps []Gap) []AgentUpdate {
 	var updates []AgentUpdate
 	for _, g := range gaps {
+		// Generate actionable rule content, not just a theme name
+		actionable := actionableRule(g.Pattern, g.Evidence)
 		updates = append(updates, AgentUpdate{
 			TargetAgent: "rules",
 			ChangeType:  "rule",
-			Description: fmt.Sprintf("Add rule to address: %s", g.Pattern),
+			Description: actionable,
 			Payload: map[string]string{
-				"description": g.Pattern,
+				"description": actionable,
 				"source":      "steward-learning",
+				"pattern":     g.Pattern,
 			},
 		})
 		if g.Severity == "high" {
@@ -94,6 +101,30 @@ func (l *LearningLoop) ProposeUpdates(gaps []Gap) []AgentUpdate {
 	return updates
 }
 
+// actionableRule turns a pattern into an instruction the worker can follow.
+func actionableRule(pattern string, evidence []string) string {
+	lower := strings.ToLower(pattern)
+	switch {
+	case strings.Contains(lower, "title"):
+		return "When correcting titles, keep the original product name and only fix obvious errors. Do not invent attributes."
+	case strings.Contains(lower, "description"):
+		return "When correcting descriptions, preserve factual claims from the original. Do not add marketing language."
+	case strings.Contains(lower, "format"), strings.Contains(lower, "json"), strings.Contains(lower, "validation"):
+		return "Return ONLY valid JSON with the changed fields. Do not wrap in markdown. Do not echo the entire entity."
+	case strings.Contains(lower, "truncat"), strings.Contains(lower, "token"):
+		return "Keep the response short. Return only the fields that changed. Avoid repeating the full entity."
+	case strings.Contains(lower, "brand"):
+		return "If brand is missing, leave it empty rather than guessing. Only fill brand when evidence is present."
+	case strings.Contains(lower, "attribute"):
+		return "Only fill attributes that are present in the evidence. Do not invent values."
+	default:
+		if len(evidence) > 0 {
+			return fmt.Sprintf("Address this pattern: %s. Evidence: %s", pattern, evidence[0])
+		}
+		return fmt.Sprintf("Address this pattern: %s", pattern)
+	}
+}
+
 func (l *LearningLoop) Apply(updates []AgentUpdate) []string {
 	var applied []string
 	for _, u := range updates {
@@ -104,8 +135,13 @@ func (l *LearningLoop) Apply(updates []AgentUpdate) []string {
 				Source:      u.Payload["source"],
 				CreatedBy:   "steward",
 				CreatedAt:   time.Now(),
+				Active:      !l.ReplayGate, // if replay gate is on, propose but don't activate
 			})
-			applied = append(applied, fmt.Sprintf("rule %s v%d: %s", r.ID[:8], r.Version, r.Description))
+			status := "active"
+			if l.ReplayGate {
+				status = "proposed (awaiting replay)"
+			}
+			applied = append(applied, fmt.Sprintf("rule %s v%d [%s]: %s", r.ID[:8], r.Version, status, r.Description))
 		case "new_agent":
 			l.Registry.Register(agents.AgentVersion{
 				Name:      u.Payload["role"],
@@ -133,6 +169,12 @@ func extractTheme(reason string) string {
 	}
 	if strings.Contains(lower, "brand") {
 		return "brand missing"
+	}
+	if strings.Contains(lower, "format") || strings.Contains(lower, "json") {
+		return "format failure"
+	}
+	if strings.Contains(lower, "truncat") || strings.Contains(lower, "token") {
+		return "truncation"
 	}
 	return "general rejection"
 }
