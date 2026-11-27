@@ -13,6 +13,7 @@ import (
 // Fails closed: any model error or unclear reply rejects the proposal.
 // Now receives the full proposed mutation so it can see facts and original context.
 type LLMJudge struct {
+	Route      string
 	Definition AgentVersion
 	Gateway    models.Gateway
 	Graph      graph.Graph
@@ -72,7 +73,7 @@ REJECT: <reason>`, ruleText.String(), original, proposalJSON)
 		return Decision{}, err
 	}
 	resp, err := j.Gateway.Generate(models.Request{
-		UnitID:     proposal.UnitOfWorkID,
+		UnitID: proposal.UnitOfWorkID, JudgeRoute: j.Route,
 		CallerRole: "judge",
 		Tier:       models.TierFrontier,
 		System:     "You are a strict judge. Output only APPROVE: or REJECT: followed by a short reason.",
@@ -87,10 +88,10 @@ REJECT: <reason>`, ruleText.String(), original, proposalJSON)
 	line := strings.TrimSpace(resp.Content)
 	upper := strings.ToUpper(line)
 	if strings.HasPrefix(upper, "APPROVE") {
-		return Decision{Approved: true, Reason: line}, nil
+		return Decision{Approved: true, Reason: line, Model: resp.Model}, nil
 	}
 	if strings.HasPrefix(upper, "REJECT") {
-		return Decision{Approved: false, Reason: line}, nil
+		return Decision{Approved: false, Reason: line, Model: resp.Model}, nil
 	}
-	return Decision{Approved: false, Reason: "unclear response, fail closed: " + line}, nil
+	return Decision{Approved: false, Reason: "unclear response, fail closed: " + line, Model: resp.Model}, nil
 }

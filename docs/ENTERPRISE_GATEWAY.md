@@ -40,3 +40,16 @@ models:
 Configured routes emit a structured `gateway call` log record for each attempt, including the requested or served model, elapsed milliseconds, status, error type, and input, output and total tokens. Streaming usage is recorded when the stream ends or closes. Prompts, response text and credentials are excluded.
 
 An HTTP 429 or 5xx can trigger up to two retries with 250 ms and 500 ms backoff. A longer `Retry-After` takes precedence. Delays over five seconds return the typed provider error to the caller immediately. Cancellation interrupts the wait. Once streaming begins, an error ends that stream.
+
+## Independent judge panels
+
+For a continuous run, give each judge its own logical model route. For example, add two entries under the routing file’s `models` key. Replace the provider-specific model IDs with models available to your gateway.
+
+```yaml
+  reviewer-a: {gateway: corp, protocol: openai, model: first-model}
+  reviewer-b: {gateway: corp, protocol: openai, model: second-model}
+```
+
+Set `FACTORY_JUDGE_ROUTES=reviewer-a,reviewer-b` on the CLI and set `judge_evaluations` to 2 in workspace Settings. Set `judge_approvals` to the number of approving votes required. A new workspace defaults to one evaluation and one required approval. A workspace with a saved two-vote policy keeps that threshold. Configure two distinct routes before starting it. An environment-only gateway supports one judge.
+
+The CLI checks the route names and distinct configured model IDs before work starts. The decision journal records each judge’s verdict and identifies its model in the feedback. Run usage records each route with its returned model ID. Duplicate model identities in a panel fail the review.

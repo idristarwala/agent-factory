@@ -98,14 +98,10 @@ func main() {
 	}
 	var judge agents.Judge = &demoJudge{}
 	if realGateway {
-		// Prefer real LLM judge when a real gateway is available
-		lmJudge := agents.NewLLMJudge(meter, g)
-		lmJudge.Definition = judgeDefinition
-		evaluations := make([]agents.Judge, cfg.JudgeEvaluations)
-		for i := range evaluations {
-			evaluations[i] = lmJudge
+		judge, err = continuousJudge(gw, meter, g, judgeDefinition, cfg, os.Getenv("FACTORY_JUDGE_ROUTES"))
+		if err != nil {
+			log.Fatal(err)
 		}
-		judge = agents.NewQuorumJudge(evaluations, cfg.JudgeApprovals)
 	}
 
 	runner := swarm.NewContinuousRunner(steward, judge, q, g, re, ll)
@@ -138,6 +134,34 @@ func main() {
 		fmt.Fprintln(os.Stderr, "Runner finished:", runErr)
 		os.Exit(1)
 	}
+}
+
+func continuousJudge(gw models.Gateway, meter *factory.ContinuousUsage, g graph.Graph, definition agents.AgentVersion, cfg settings.Settings, panel string) (agents.Judge, error) {
+	names := []string{""}
+	if panel != "" {
+		names = strings.Split(panel, ",")
+		for i := range names {
+			names[i] = strings.TrimSpace(names[i])
+		}
+		router, ok := gw.(*configuredgateway.Router)
+		if !ok {
+			return nil, fmt.Errorf("FACTORY_JUDGE_ROUTES requires LLM_GATEWAY_CONFIG")
+		}
+		if err := router.CheckJudgeRoutes(names); err != nil {
+			return nil, err
+		}
+	}
+	if len(names) != cfg.JudgeEvaluations {
+		return nil, fmt.Errorf("configure %d distinct FACTORY_JUDGE_ROUTES for this workspace's quorum", cfg.JudgeEvaluations)
+	}
+	panelJudges := make([]agents.Judge, 0, len(names))
+	for _, name := range names {
+		judge := agents.NewLLMJudge(meter, g)
+		judge.Definition = definition
+		judge.Route = name
+		panelJudges = append(panelJudges, judge)
+	}
+	return agents.NewQuorumJudge(panelJudges, cfg.JudgeApprovals), nil
 }
 
 func configureEvidence(runner *swarm.ContinuousRunner, path, pack string) error {

@@ -14,7 +14,7 @@
     "worker_count": {"type":"integer","minimum":1,"maximum":256,"default":2,"description":"Concurrent workers claiming units during each round."},
     "max_failures": {"type":"integer","minimum":1,"default":20,"description":"Stop before another round after reaching this many worker failures."},
     "stagnant_rounds": {"type":"integer","minimum":1,"default":2,"description":"Stop after this many successive comparisons find the graph unchanged."},
-    "judge_evaluations": {"type":"integer","minimum":1,"maximum":32,"default":2,"description":"Number of calls to the configured judge per proposal when a model is connected."},
-    "judge_approvals": {"type":"integer","minimum":1,"maximum":32,"default":2,"description":"Minimum approving evaluations. Must be at most judge_evaluations."}
+    "judge_evaluations": {"type":"integer","minimum":1,"maximum":32,"default":1,"description":"Number of distinct judge routes per continuous proposal. A panel requires FACTORY_JUDGE_ROUTES."},
+    "judge_approvals": {"type":"integer","minimum":1,"maximum":32,"default":1,"description":"Minimum approving evaluations. Must be at most judge_evaluations."}
   }
 }

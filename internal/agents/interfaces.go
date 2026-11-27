@@ -17,6 +17,7 @@ type Judge interface {
 }
 
 type Decision struct {
+	Model    string `json:",omitempty"`
 	Approved bool
 	Reason   string
 	Feedback string

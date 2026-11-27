@@ -34,15 +34,16 @@ type RunRequest struct {
 	MaxTokens        int             `json:"max_tokens"`
 }
 type Call struct {
-	UnitID string  `json:"unit_id,omitempty"`
-	Failed bool    `json:"failed,omitempty"`
-	Role   string  `json:"role,omitempty"`
-	Model  string  `json:"model"`
-	Input  int     `json:"input_tokens"`
-	Output int     `json:"output_tokens"`
-	Total  int     `json:"tokens"`
-	Cost   float64 `json:"estimated_usd"`
-	Priced bool    `json:"priced"`
+	JudgeRoute string  `json:"judge_route,omitempty"`
+	UnitID     string  `json:"unit_id,omitempty"`
+	Failed     bool    `json:"failed,omitempty"`
+	Role       string  `json:"role,omitempty"`
+	Model      string  `json:"model"`
+	Input      int     `json:"input_tokens"`
+	Output     int     `json:"output_tokens"`
+	Total      int     `json:"tokens"`
+	Cost       float64 `json:"estimated_usd"`
+	Priced     bool    `json:"priced"`
 }
 type Price struct {
 	Input  float64 `json:"input_per_million"`

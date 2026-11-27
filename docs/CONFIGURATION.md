@@ -27,6 +27,7 @@ The API and CLI read deployment configuration from their process environment. Re
 
 | Setting | Type and default | Scope and precedence |
 | --- | --- | --- |
+| `FACTORY_JUDGE_ROUTES` | Comma-separated logical model route names, unset | Continuous multi-judge panel. Provide one distinct configured model per evaluation. [Panel configuration](ENTERPRISE_GATEWAY.md#independent-judge-panels) |
 | `LLM_GATEWAY_CONFIG` | YAML path, unset | Selects configured logical routes before environment-only provider selection. [Gateway guide](ENTERPRISE_GATEWAY.md) |
 | `LLM_PROVIDER` | Provider name, autodetected | Supports Gemini, Anthropic, OpenAI-compatible, Groq and OpenRouter. With no explicit provider or base URL, a Gemini or generic key selects Gemini. |
 | `LLM_BASE_URL`, `LLM_API_KEY` | Endpoint URL and credential, unset | Used together for environment-only OpenAI-compatible endpoints. The generic key can also supply the Gemini credential. |
@@ -52,10 +53,10 @@ Read `GET /api/settings/schema` for a machine-readable JSON Schema with types, b
 | `worker_count` | Integer 1–256, default 2 | Concurrent continuous workers per round. |
 | `max_failures` | Positive integer, 20 | Cumulative worker failures before stopping at the next round boundary. |
 | `stagnant_rounds` | Positive integer, 2 | Consecutive unchanged graph comparisons before stopping. |
-| `judge_evaluations` | Integer 1–32, default 2 | Evaluations by the configured judge per continuous proposal when using a live gateway. Each can incur model cost. |
-| `judge_approvals` | Integer 1 through `judge_evaluations`, default 2 | Required number of approving evaluations. |
+| `judge_evaluations` | Integer 1–32, default 1 | Distinct judge evaluations per continuous proposal when using a live gateway. Each can incur model cost. |
+| `judge_approvals` | Integer 1 through `judge_evaluations`, default 1 | Required number of approving evaluations. |
 
-Old revisions without these five fields load their original behavior. Older clients editing the original settings preserve the current values for omitted continuous-runner fields.
+Stored revisions without quorum fields retain their original two-evaluation, two-approval requirement. Supply distinct judge routes for those workspaces or save a new settings revision to change the policy. Older clients editing the original settings preserve the current values for omitted continuous-runner fields.
 
 Factory schemas, source mappings, rules, tool grants and evidence recipes have their own scoped contracts. [Definition API](API.md) · [Source mappings](MAPPING.md) · [Tool limits](HTTP_TOOLS.md)
 
