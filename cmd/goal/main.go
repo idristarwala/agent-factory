@@ -8,8 +8,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/idristarwala/agent-factory/internal/configuredgateway"
 	"github.com/idristarwala/agent-factory/internal/factory"
-	"github.com/idristarwala/agent-factory/internal/models"
 	"github.com/idristarwala/agent-factory/internal/schema"
 	"github.com/idristarwala/agent-factory/internal/store"
 )
@@ -50,7 +50,7 @@ func main() {
 		}
 		seen[e.ID] = true
 	}
-	gw, err := models.NewGatewayFromEnv()
+	gw, err := configuredgateway.NewFromEnv()
 	if err != nil {
 		log.Fatal(err)
 	}

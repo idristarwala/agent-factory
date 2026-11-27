@@ -220,6 +220,9 @@ func buildOpenAIBody(req ChatRequest, stream bool) ([]byte, error) {
 	}
 	if req.MaxTokens > 0 {
 		param := MapTokenParam("openai", req.Model)
+		if override := req.Metadata["token_param"]; override == "max_tokens" || override == "max_completion_tokens" {
+			param = override
+		}
 		body[param] = req.MaxTokens
 	}
 	if req.Temperature != nil {
