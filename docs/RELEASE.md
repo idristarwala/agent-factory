@@ -2,7 +2,7 @@
 
 Run `make release` to build the goal runner (`agent-factory`), management CLI (`factory`), and HTTP server (`api`) in `dist/`. Published targets are Linux amd64, macOS amd64 and arm64, and Windows amd64. The container builds the same three programs for its target platform.
 
-A version tag triggers the release workflow. It builds the binaries, publishes engine, worker and connector containers, records their digests and the binary filenames in the release manifest, and attaches the artifacts to the GitHub release. Ordinary pull requests run vet, race tests, the Go build, and the frontend build.
+Develop and review engine source in this repository. To ship a revision, update the full SHA in the starter repository’s `engine.commit`. Its pull request builds the binaries and exercises all three role images by digest against a disposable registry. A reviewed `v*` tag in the starter publishes those images under `ghcr.io/idristarwala/agent-factory-starter` and attaches the binaries, license and manifest to a starter GitHub Release. The manifest records both the engine source commit and starter build commit. [Starter release workflow](https://github.com/idristarwala/agent-factory-starter/blob/main/.github/workflows/release.yml)
 
 Use the fully qualified references under `images.engine`, `images.worker` and `images.connector` in `release-manifest.json`. The original `image` field refers to the engine. The engine retains the goal CLI entry point and includes the API and management CLI. The worker runs the same goal CLI as a batch job. Give it a versioned factory definition, a shared database, records and a model route. [Deployment](DEPLOYMENT.md)
 

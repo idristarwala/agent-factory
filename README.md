@@ -1,5 +1,7 @@
 # Agent Factory
 
+This is the engine development repository. The separate starter pins a reviewed engine commit and builds the release images. [Image builds and releases](https://github.com/idristarwala/agent-factory-starter)
+
 **Domain-agnostic multi-agent execution fabric.**
 
 Give it a goal in plain language. A Steward decomposes it into units of work, specialized agents propose changes to a central graph, a Judge approves or rejects against versioned rules, and the system continues until the outcome is achieved — improving itself from every rejection.

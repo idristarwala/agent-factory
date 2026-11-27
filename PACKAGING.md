@@ -20,7 +20,7 @@ The Kubernetes Job expects a pre-imported definition, `factory-run` and `factory
 `.github/workflows/ci.yml` runs `go vet`, `go test -race`, and `go build` on every PR.
 `go.sum` is committed so clean clones build.
 
-`.github/workflows/release.yml` builds binaries, pushes the engine, worker and connector images to GHCR, writes a release manifest containing their digests, and creates a GitHub release on `v*` tags.
+The starter repository builds release binaries and images from the reviewed engine revision in `engine.commit`. Tag the starter to publish its engine, worker and connector digests. [Starter repository](https://github.com/idristarwala/agent-factory-starter)
 
 See `docs/RELEASE.md`.
 
