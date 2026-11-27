@@ -3,7 +3,10 @@ replicaCount: 1
 image:
   repository: ghcr.io/idristarwala/agent-factory
   tag: latest
+  digest: ""  # Takes precedence over tag
   pullPolicy: IfNotPresent
+
+containerPort: 8080
 
 service:
   type: ClusterIP
@@ -11,10 +14,14 @@ service:
 
 env:
   SECRETS_DIR: /etc/secrets
-  # DATABASE_URL: postgres://factory:factory@postgres:5432/factory?sslmode=disable
+
+# Environment variable -> {name: existing Kubernetes Secret, key: data key}
+secretEnv: {}
 
 secrets:
   # Mounted at SECRETS_DIR
   enabled: true
+  name: ""
+  optional: true
 
 resources: {}
