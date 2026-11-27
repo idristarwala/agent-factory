@@ -77,6 +77,7 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 
 		var wg sync.WaitGroup
 		decisions := make([]agents.Decision, 0)
+		var failureMsgs []string
 		var mu sync.Mutex
 
 		for i := 0; i < r.Workers; i++ {
@@ -89,7 +90,6 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 						return
 					}
 
-					// Grants check
 					if len(r.Grants) > 0 && r.Pack != "" {
 						if !tools.CheckGrant(r.Grants, r.Pack, "propose", "read-only") {
 							r.Queue.Fail(ctx, uow.ID, "grant denied")
@@ -97,7 +97,6 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 						}
 					}
 
-					// Gather context and attach full result as evidence
 					var evidence []string
 					if r.Tools != nil && (r.Recipe.Entity != "" || r.Recipe.Neighbours != "") {
 						args := map[string]string{"id": string(uow.InputSubgraph)}
@@ -109,11 +108,9 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 							if neigh, ok := ctxResult["neighbours"].(string); ok && neigh != "" {
 								evidence = append(evidence, "neighbours: "+neigh[:min(200, len(neigh))])
 							}
-							fmt.Printf("context gathered for %s\n", uow.ID)
 						}
 					}
 
-					// Inject evidence into the unit so the worker prompt sees it
 					if len(evidence) > 0 {
 						uow.Evidence = evidence
 					}
@@ -121,11 +118,17 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 					worker, err := r.Steward.CreateWorker(agents.WorkerSpec{Name: "generic", Role: "worker", ModelTier: "cheap"})
 					if err != nil {
 						r.Queue.Fail(ctx, uow.ID, "create worker: "+err.Error())
+						mu.Lock()
+						failureMsgs = append(failureMsgs, err.Error())
+						mu.Unlock()
 						continue
 					}
 					mutation, err := worker.Execute(uow)
 					if err != nil {
 						r.Queue.Fail(ctx, uow.ID, err.Error())
+						mu.Lock()
+						failureMsgs = append(failureMsgs, err.Error())
+						mu.Unlock()
 						continue
 					}
 					if mutation != nil {
@@ -148,12 +151,16 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 		}
 		wg.Wait()
 
-		if r.Learning != nil && len(decisions) > 0 {
-			gaps := r.Learning.Review(decisions, nil)
+		// Feed both decisions and worker failures into learning
+		if r.Learning != nil {
+			gaps := r.Learning.Review(decisions, failureMsgs)
 			updates := r.Learning.ProposeUpdates(gaps)
 			applied := r.Learning.Apply(updates)
 			for _, a := range applied {
 				fmt.Printf("Learning applied: %s\n", a)
+			}
+			if len(failureMsgs) > 0 {
+				fmt.Printf("Worker failures this round: %d\n", len(failureMsgs))
 			}
 		}
 
