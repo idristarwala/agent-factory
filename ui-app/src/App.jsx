@@ -19,7 +19,7 @@ export default function App(){
   useEffect(()=>{refresh().catch(e=>setMessage(e.message));const id=setInterval(()=>refresh().catch(e=>setMessage(e.message)),5000);return ()=>clearInterval(id)},[refresh])
   async function send(e){e.preventDefault();if(!input.trim()||sending)return;setSending(true)
     try{const text=input.trim();const body={message:text}
-      if(/^start\b/i.test(text)&&source.factory) body.source={factory:source.factory,records:JSON.parse(source.records),max_tokens:Number(source.budget)}
+      if(/^start\b/i.test(text)&&source.factory) body.source={factory:source.factory,records:JSON.parse(source.records),selected_rules:source.rules,max_tokens:Number(source.budget)}
       const reply=await request('/api/chat',body);setChat(c=>[...c,{role:'user',text},{role:'bot',text:reply.reply}]);setInput('');await refresh()
     }catch(err){setMessage(err.message)}finally{setSending(false)}}
   return <div className="app"><header><h1>Agent Factory</h1><span>{usage.tokens_used} tokens · {usage.model_calls || 0} run model calls</span></header>
