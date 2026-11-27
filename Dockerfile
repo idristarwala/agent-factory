@@ -1,3 +1,14 @@
+FROM node:24-alpine AS ui-build
+WORKDIR /ui
+COPY ui-app/package.json ui-app/package-lock.json ./
+RUN npm ci
+COPY ui-app/index.html ui-app/vite.config.js ./
+COPY ui-app/src ./src
+RUN VITE_API_URL=/ npm run build
+
+FROM scratch AS workspace-assets
+COPY --from=ui-build /ui/dist/ /
+
 FROM golang:1.26-alpine AS build
 WORKDIR /src
 COPY go.mod go.sum ./
@@ -21,3 +32,5 @@ FROM worker AS engine
 RUN apk add --no-cache poppler-utils
 COPY --from=build /out/factory /usr/local/bin/factory
 COPY --from=build /out/api /usr/local/bin/api
+COPY --from=workspace-assets / /usr/share/agent-factory/ui/
+ENV FACTORY_UI_DIR=/usr/share/agent-factory/ui

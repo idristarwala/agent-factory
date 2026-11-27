@@ -2,6 +2,8 @@
 
 Use the Helm chart to run the HTTP API against a shared PostgreSQL database. The API evaluates submitted workspace runs in its own process. Before an upgrade, let active runs reach review or completion. Production data and revision history reside in PostgreSQL. [Workspace behavior](API.md) · [Storage and configuration](CONFIGURATION.md)
 
+The engine serves the compiled operator UI at the root of the API service. Route both the workspace and its API through the same origin. [Operator workspace](UI.md)
+
 ## Prepare a release
 
 1. Select a tested engine release image. Copy its repository and digest from the release manifest or from your registry after building and publishing the image. Keep the manifest with the deployment revision. [Release artifacts](RELEASE.md)
