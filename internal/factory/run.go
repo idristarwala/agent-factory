@@ -28,6 +28,7 @@ type Criterion struct {
 	Citations []artifact.Citation `json:"citations"`
 }
 type Spec struct {
+	ProposeTool     string            `json:"propose_tool,omitempty"`
 	Goal            string            `json:"goal,omitempty"`
 	Criteria        []Criterion       `json:"criteria,omitempty"`
 	ProposalVersion int               `json:"proposal_version,omitempty"`
@@ -38,6 +39,7 @@ type Spec struct {
 	Worker          string            `json:"worker"`
 }
 type Plan struct {
+	ProposalTool           *ProposalTool `json:"proposal_tool,omitempty"`
 	UseGoalArtifacts       bool          `json:"use_goal_artifacts,omitempty"`
 	Memory                 []memory.File `json:"memory,omitempty"`
 	Factory                string        `json:"factory"`
@@ -88,6 +90,12 @@ func Prepare(st revision.Store, name string, number int) (Plan, error) {
 	}
 	registry := agents.NewStoredRegistry(st)
 	plan := Plan{Factory: name, Revision: number, Spec: def}
+	if def.ProposeTool != "" {
+		plan.ProposalTool, err = pinProposalTool(st, name, def.ProposeTool)
+		if err != nil {
+			return Plan{}, err
+		}
+	}
 	for _, item := range []struct {
 		key, role, tier, actor string
 		dest                   *agents.AgentVersion
@@ -138,6 +146,9 @@ func (p Plan) evaluate(gw models.Gateway, goal string, e schema.Entity, origin *
 		}
 	}
 	evidence := media.Text
+	if tool := p.ProposalTool; tool != nil {
+		evidence = append(evidence, fmt.Sprintf("Propose field changes for tool %q revision %d (%s). The judge and human reviewer will review the external change.", tool.Name, tool.ToolRevision, tool.SideEffect))
+	}
 	for _, criterion := range p.Spec.Criteria {
 		evidence = append(evidence, "Approved acceptance criterion: "+criterion.Text)
 	}
@@ -166,6 +177,12 @@ func (p Plan) evaluate(gw models.Gateway, goal string, e schema.Entity, origin *
 	mutation, err := worker.Execute(&unitofwork.UnitOfWork{ID: e.ID, InputSubgraph: graph.NodeID(e.ID), Evidence: evidence, Images: media.Images, Description: goal, AllowedFields: fields, RequiredFields: p.Spec.Required, FieldTypes: p.Spec.Fields, PreserveStatus: true})
 	if err != nil {
 		return nil, agents.Decision{}, err
+	}
+	if tool := p.ProposalTool; tool != nil {
+		mutation.ToolProposal = &graph.ToolProposal{
+			Name: tool.Name, ToolRevision: tool.ToolRevision, Pack: p.Factory, PackRevision: tool.PackRevision, SideEffect: tool.SideEffect,
+			Arguments: map[string]any{tool.RecordArgument: e.ID, tool.ChangesArgument: mutation.Updates[0].Props},
+		}
 	}
 	mutation.Evidence = append(mutation.Evidence, "Requested goal: "+goal)
 	mutation.Evidence = append(mutation.Evidence, evidence...)

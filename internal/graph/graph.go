@@ -30,7 +30,18 @@ type Graph interface {
 	Snapshot() any
 }
 
+// ToolProposal describes an external change submitted for review.
+type ToolProposal struct {
+	Name         string         `json:"name"`
+	ToolRevision int            `json:"tool_revision"`
+	Pack         string         `json:"pack"`
+	PackRevision int            `json:"pack_revision"`
+	SideEffect   string         `json:"side_effect"`
+	Arguments    map[string]any `json:"arguments"`
+}
+
 type Mutation struct {
+	ToolProposal  *ToolProposal  `json:"tool_proposal,omitempty"`
 	Goal          string         `json:",omitempty"`
 	AgentName     string         `json:",omitempty"`
 	AgentRevision int            `json:",omitempty"`
