@@ -28,6 +28,7 @@ func main() {
 	store := unitofwork.NewMemoryStore()
 	steward := agents.NewSmartSteward(store)
 
+	// Real or noop gateway so CreateWorker succeeds
 	var gw models.Gateway = &noopGateway{}
 	if g2, err := models.NewOpenAICompatFromEnv(); err == nil {
 		gw = g2
@@ -36,6 +37,7 @@ func main() {
 
 	var judge agents.Judge = &demoJudge{}
 	if _, ok := gw.(*noopGateway); !ok {
+		// Prefer real LLM judge when a real gateway is available
 		judge = agents.NewLLMJudge(gw, g)
 	}
 
