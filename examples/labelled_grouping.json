@@ -1,0 +1,11 @@
+{
+  "description": "Small labelled grouping fixture for scoring. Labels are human ground truth groups.",
+  "entities": [
+    {"id": "1", "attributes": {"brand": "Nike", "title": "Air Max 90 Red", "group": "g-shoes-1"}},
+    {"id": "2", "attributes": {"brand": "Nike", "title": "Air Max 90 Blue", "group": "g-shoes-1"}},
+    {"id": "3", "attributes": {"brand": "Nike", "title": "Air Force 1 White", "group": "g-shoes-2"}},
+    {"id": "4", "attributes": {"brand": "Adidas", "title": "Stan Smith Green", "group": "g-shoes-3"}},
+    {"id": "5", "attributes": {"brand": "Adidas", "title": "Stan Smith Black", "group": "g-shoes-3"}},
+    {"id": "6", "attributes": {"brand": "Nike", "title": "Air Max 90 Red", "group": ""}}
+  ]
+}

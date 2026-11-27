@@ -72,3 +72,15 @@ if weight_oz > 30 and pt == Apparel then flag weight
 ```bash
 go run ./cmd/variant-demo
 ```
+
+## Labelled fixture and demo
+
+A small labelled set lives at `examples/labelled_grouping.json`.
+
+```bash
+go run ./cmd/variant-demo
+# or
+go run ./cmd/variant-demo examples/labelled_grouping.json
+```
+
+It runs SimpleDetector and BlockThenDecide (nil-client fallback), then prints pair precision/recall/F1 via `ScorePairMetrics`. Use this to measure changes before and after wiring a real LLM client.

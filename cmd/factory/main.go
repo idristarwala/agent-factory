@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 )
 
 func main() {
@@ -14,19 +15,34 @@ func main() {
 	switch cmd {
 	case "validate":
 		fmt.Println("Validating packs, rules, and config...")
-		// Skeleton: real pack loader and JSON Schema validation live in internal/domain and internal/tools.
-		// CI runs go test which covers the contracts.
-		fmt.Println("All checks passed (skeleton — full schema validation wired in pack loader).")
+		// Check for common pack locations
+		paths := []string{"packs", "examples/starter", "."}
+		found := false
+		for _, p := range paths {
+			if _, err := os.Stat(filepath.Join(p, "pack.yaml")); err == nil {
+				fmt.Printf("  found pack.yaml in %s\n", p)
+				found = true
+			}
+			if _, err := os.Stat(filepath.Join(p, "factory.yaml")); err == nil {
+				fmt.Printf("  found factory.yaml in %s\n", p)
+				found = true
+			}
+		}
+		if !found {
+			fmt.Println("  (no pack.yaml/factory.yaml found in default locations — OK for library mode)")
+		}
+		fmt.Println("All checks passed (skeleton — full schema validation in internal/domain and internal/tools).")
 	case "test":
 		fmt.Println("Running fixture tests with fake LLM gateway...")
-		fmt.Println("All tests passed (skeleton — use go test ./... for full suite including conformance).")
+		fmt.Println("All tests passed (skeleton — use `go test ./...` for full suite including conformance and grouping scorer).")
 	case "readiness":
 		fmt.Println("Checking tools, credentials, grants, and connectivity...")
-		fmt.Println("Ready (skeleton — grants enforced in ContinuousRunner; secrets by reference).")
+		fmt.Println("Ready (skeleton — grants enforced in ContinuousRunner; secrets by reference via SECRETS_DIR).")
 	case "up":
 		fmt.Println("Starting factory (docker-compose recommended for full stack).")
 		fmt.Println("Use: docker-compose up")
 		fmt.Println("Or: go run ./cmd/api for the API process.")
+		fmt.Println("Or: go run ./cmd/variant-demo for grouping scoring demo.")
 	case "publish":
 		fmt.Println("Publishing pack revision as proposed release...")
 		fmt.Println("Proposed (skeleton — see deploy/release.sh and .github/workflows/release.yml for digest pinning).")

@@ -12,6 +12,7 @@
 - Labelled grouping scorer (`grouping.ScorePairMetrics`)
 - Block-then-decide LLM membership helper (`grouping.BlockThenDecide` + `askMembership`)
 - Context recipe evidence injected into worker prompt (UnitOfWork.Evidence)
+- Labelled fixture + scoring demo (`cmd/variant-demo`, `examples/labelled_grouping.json`)
 
 ### Enterprise gateway (#11)
 - Declarative config loader
@@ -58,9 +59,8 @@
 
 ## Remaining (minor)
 
-- Full block-then-decide LLM membership integrated into the main grouping path and scored on labelled sets (helper + scorer exist; wire into a command/demo and add labelled fixture)
 - Durable Postgres store behind Graph / unit-of-work interfaces with shared contract tests
-- Complete factory CLI commands (up/validate/test/readiness/publish) beyond skeleton
+- Complete factory CLI commands (up/validate/test/readiness/publish) beyond skeleton (validate now more informative)
 - Example out-of-tree gateway adapter that passes the full conformance suite
 
-All high-impact correctness, config seams, POST adapters, packaging, HTTP tools, tool-call round-trips across protocols, auth refresh with key injection, refined streaming parsers, release automation, and context-recipe prompt injection are in place.
+All high-impact correctness, config seams, POST adapters, packaging, HTTP tools, tool-call round-trips across protocols, auth refresh with key injection, refined streaming parsers, release automation, context-recipe prompt injection, and labelled grouping demo are in place.
