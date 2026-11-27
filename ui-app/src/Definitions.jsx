@@ -69,6 +69,16 @@ export default function Definitions({ fetchAPI, kind }) {
   const field = (key, label, locked = false) => <label key={key}>{label}
     <input required={['Description','Name','Role'].includes(key)} value={draft[key] || ''}
       disabled={locked || saving} onChange={event => setDraft({ ...draft, [key]: event.target.value })} /></label>
+  function limitInput(key, label, fallback) {
+    return <label>{label}<input type="number" min="1" max={key === 'max_attempts' ? 16 : undefined}
+      placeholder={String(fallback)} value={draft.Config?.[key] ?? ''} disabled={saving}
+      onChange={event => {
+        const Config = {...draft.Config}
+        if (event.target.value) Config[key] = event.target.value
+        else delete Config[key]
+        setDraft({...draft, Config})
+      }}/></label>
+  }
   return <section className="definitions" aria-label={isRule ? 'Rule manager' : 'Agent definitions'}>
     <h2>{isRule ? 'Rule manager' : 'Agent definitions'}</h2>
     <div className="definition-layout"><div><button disabled={!ready || saving} onClick={() => select('')}>New {isRule ? 'rule' : 'agent'}</button>
@@ -78,6 +88,9 @@ export default function Definitions({ fetchAPI, kind }) {
         {isRule ? [field('Description','Rule'), field('Condition','Condition'), field('Action','Action')] :
           [field('Name','Agent name',Boolean(selected)),field('Role','Role'),field('ModelTier','Model tier'),
             field('Version','Build version'),field('instructions','Instructions')]}
+        {!isRule && ['worker', 'judge'].includes(draft.Role) &&
+          limitInput('max_output_tokens', 'Maximum output tokens per call', draft.Role === 'judge' ? 300 : 16000)}
+        {!isRule && draft.Role === 'worker' && limitInput('max_attempts', 'Maximum worker attempts', 2)}
         {!isRule && selected && <label><input type="checkbox" checked={draft.Retired} onChange={e => setDraft({...draft, Retired:e.target.checked})} /> Retired</label>}
         <button className="ok" disabled={!ready || saving}>{isRule ? 'Save proposal' : 'Save definition'}</button>
       </form>

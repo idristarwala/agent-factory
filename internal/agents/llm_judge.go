@@ -67,6 +67,10 @@ REJECT: <reason>`, ruleText.String(), original, proposalJSON)
 	if extra := j.Definition.Config["instructions"]; extra != "" {
 		prompt += "\nJudge instructions: " + extra
 	}
+	tokens, _, err := inferenceLimits("judge", j.Definition.Config)
+	if err != nil {
+		return Decision{}, err
+	}
 	resp, err := j.Gateway.Generate(models.Request{
 		UnitID:     proposal.UnitOfWorkID,
 		CallerRole: "judge",
@@ -74,7 +78,7 @@ REJECT: <reason>`, ruleText.String(), original, proposalJSON)
 		System:     "You are a strict judge. Output only APPROVE: or REJECT: followed by a short reason.",
 		User:       prompt, Images: proposal.Images,
 		Temperature: 0.0,
-		MaxTokens:   300,
+		MaxTokens:   tokens,
 	})
 	if err != nil {
 		return Decision{Approved: false, Reason: "gateway error, fail closed: " + err.Error()}, nil

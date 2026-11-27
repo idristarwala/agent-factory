@@ -55,6 +55,9 @@ func (r *Registry) Save(v AgentVersion, expected int) (AgentVersion, error) {
 	if len(h) != expected {
 		return AgentVersion{}, revision.ErrConflict
 	}
+	if _, _, err := inferenceLimits(v.Role, v.Config); err != nil {
+		return AgentVersion{}, err
+	}
 	if expected > 0 {
 		last := h[len(h)-1]
 		if v.Role == last.Role && v.Version == last.Version && v.ModelTier == last.ModelTier && v.Retired == last.Retired && maps.Equal(v.Config, last.Config) && slices.Equal(v.Tools, last.Tools) {

@@ -69,7 +69,8 @@ func main() {
 	meter := &factory.ContinuousUsage{Gateway: gw, Prices: prices}
 	steward.SetRuntime(meter, g, nil)
 
-	if _, err := registry.Resolve(agents.AgentVersion{Name: "judge", Role: "judge", ModelTier: "frontier", CreatedBy: "system"}); err != nil {
+	judgeDefinition, err := registry.Resolve(agents.AgentVersion{Name: "judge", Role: "judge", ModelTier: "frontier", CreatedBy: "system"})
+	if err != nil {
 		log.Fatal(err)
 	}
 	cfg, version, err := settings.Current(definitions)
@@ -87,6 +88,7 @@ func main() {
 	if realGateway {
 		// Prefer real LLM judge when a real gateway is available
 		lmJudge := agents.NewLLMJudge(meter, g)
+		lmJudge.Definition = judgeDefinition
 		evaluations := make([]agents.Judge, cfg.JudgeEvaluations)
 		for i := range evaluations {
 			evaluations[i] = lmJudge
