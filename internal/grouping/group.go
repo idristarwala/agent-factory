@@ -85,6 +85,10 @@ func (d *SimpleDetector) Detect(entities []schema.Entity, groupField string) []P
 			}
 		}
 	}
+	// Stable order for determinism across runs
+	sort.Slice(proposals, func(i, j int) bool {
+		return proposals[i].EntityID < proposals[j].EntityID
+	})
 	return proposals
 }
 
@@ -93,7 +97,7 @@ func signature(e schema.Entity) string {
 	title, _ := e.Attributes["title"].(string)
 	ptype, _ := e.Attributes["product_type"].(string)
 	if brand == "" && title == "" && ptype == "" {
-		return e.ID
+		return "id:" + e.ID
 	}
 	return strings.ToLower(brand) + "|" + strings.ToLower(ptype) + "|" + firstToken(strings.ToLower(title))
 }
