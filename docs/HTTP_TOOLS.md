@@ -80,7 +80,9 @@ find-related:
   limits: {timeout: 5s, retries: 2, cache_ttl: 0s}
 ```
 
-For HTTP Basic authentication, set `auth.type: basic`, `auth.username` and a password in `auth.key_file`. Credentials are reread for each HTTP attempt. The timeout applies per attempt. Cancellation interrupts retry waits. Only successful GET responses without a request body are cached. A custom CA adds trust for that tool's TLS connection. Destination restrictions still apply.
+For bearer, custom-header or basic authentication on HTTP and MCP tools, choose one credential reference per tool. Set `auth.key_file` to a mounted file or `auth.key_env` to a process environment variable name, for example `auth: {type: bearer, key_env: RECORDS_API_TOKEN}`. Tool validation checks the reference syntax offline. Readiness checks for a nonempty value. Each outgoing request reads the configured source again. A deployment that injects variables at process startup must restart the process to pick up an external rotation.
+
+For HTTP Basic authentication, set `auth.type: basic`, `auth.username` and a password from the selected credential source. Credentials are reread for each HTTP attempt. The timeout applies per attempt. Cancellation interrupts retry waits. Only successful GET responses without a request body are cached. A custom CA adds trust for that tool's TLS connection. Destination restrictions still apply.
 
 ## Select fields from a response
 

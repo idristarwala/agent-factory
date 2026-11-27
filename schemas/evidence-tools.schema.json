@@ -37,8 +37,9 @@
           "timeout": {"type": "string"}, "cache_ttl": {"type": "string"}, "retries": {"type": "integer", "minimum": 0}
         }},
         "auth": {
-          "type": "object", "additionalProperties": false, "required": ["type", "key_file"],
-          "properties": {"type": {"enum": ["bearer", "header", "basic"]}, "name": {"type": "string", "minLength": 1}, "username": {"type": "string", "minLength": 1}, "key_file": {"type": "string", "minLength": 1}},
+          "type": "object", "additionalProperties": false, "required": ["type"],
+          "oneOf": [{"required": ["key_file"]}, {"required": ["key_env"]}],
+          "properties": {"type": {"enum": ["bearer", "header", "basic"]}, "name": {"type": "string", "minLength": 1}, "username": {"type": "string", "minLength": 1}, "key_file": {"type": "string", "minLength": 1}, "key_env": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"}},
           "allOf": [
             {"if": {"properties": {"type": {"const": "basic"}}}, "then": {"required": ["username"]}},
             {"if": {"properties": {"type": {"const": "header"}}}, "then": {"required": ["name"]}}

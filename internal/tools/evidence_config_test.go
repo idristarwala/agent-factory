@@ -59,3 +59,46 @@ grants:
 		}
 	}
 }
+
+func TestEnvironmentCredential(t *testing.T) {
+	const name = "FACTORY_TEST_RECORD_TOKEN"
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer "+os.Getenv(name) {
+			t.Error("incorrect bearer credential")
+		}
+		fmt.Fprint(w, "record")
+	}))
+	defer srv.Close()
+	path := filepath.Join(t.TempDir(), "tools.yaml")
+	for _, auth := range []string{"type: bearer", "type: bearer, key_env: bad-name", "type: bearer, key_env: TOKEN, key_file: key", "type: bearer, key_env: " + name} {
+		config := fmt.Sprintf("tools: {source: {url: %q, auth: {%s}}}\ncontext: {entity: source}\ngrants: [{pack: review, tools: [source], side_effects: [read-only]}]", srv.URL, auth)
+		if err := os.WriteFile(path, []byte(config), 0600); err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv(name, "")
+		validation := ValidateEvidenceFile(path)
+		cfg, err := LoadEvidenceConfig(path, "review")
+		if !strings.HasSuffix(auth, name) {
+			if validation == nil || err == nil {
+				t.Fatal("accepted invalid credential reference")
+			}
+			continue
+		}
+		if validation != nil || err != nil {
+			t.Fatalf("offline validation %v, load %v", validation, err)
+		}
+		if cfg.CheckCredentials() == nil {
+			t.Fatal("accepted empty credential at readiness")
+		}
+		cfg.Tools["source"].Client = srv.Client()
+		for _, value := range []string{"first", "second"} {
+			t.Setenv(name, value)
+			if err := cfg.CheckCredentials(); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := cfg.Gather(t.Context(), value, nil); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+}
