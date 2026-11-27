@@ -1,0 +1,25 @@
+# Example GitLab CI pipeline for an Agent Factory user repo.
+# Runs validation and fixture tests without requiring live model keys.
+# See docs/GETTING_STARTED.md and issue #9.
+
+stages:
+  - validate
+  - test
+
+variables:
+  GO_VERSION: "1.26"
+
+validate:
+  stage: validate
+  image: golang:${GO_VERSION}
+  script:
+    - go run ./cmd/factory validate examples/starter/factory.yaml
+    - go run ./cmd/factory readiness || true   # readiness may warn on missing secrets in CI
+
+test:
+  stage: test
+  image: golang:${GO_VERSION}
+  script:
+    - go run ./cmd/factory test
+  # For a pure user pack repo that vendors only the engine binary, replace with:
+  # - factory test
