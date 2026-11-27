@@ -56,10 +56,10 @@ type geminiContent struct {
 type geminiRequest struct {
 	Contents         []geminiContent `json:"contents"`
 	GenerationConfig *struct {
-		Temperature      float64        `json:"temperature,omitempty"`
-		MaxOutputTokens  int            `json:"maxOutputTokens,omitempty"`
-		ResponseMimeType string         `json:"responseMimeType,omitempty"`
-		ResponseSchema   map[string]any `json:"responseSchema,omitempty"`
+		Temperature        float64        `json:"temperature,omitempty"`
+		MaxOutputTokens    int            `json:"maxOutputTokens,omitempty"`
+		ResponseMimeType   string         `json:"responseMimeType,omitempty"`
+		ResponseJSONSchema map[string]any `json:"responseJsonSchema,omitempty"`
 	} `json:"generationConfig,omitempty"`
 }
 
@@ -114,10 +114,10 @@ func (g *GeminiGateway) Generate(req Request) (*Response, error) {
 
 	body := geminiRequest{Contents: contents}
 	cfg := &struct {
-		Temperature      float64        `json:"temperature,omitempty"`
-		MaxOutputTokens  int            `json:"maxOutputTokens,omitempty"`
-		ResponseMimeType string         `json:"responseMimeType,omitempty"`
-		ResponseSchema   map[string]any `json:"responseSchema,omitempty"`
+		Temperature        float64        `json:"temperature,omitempty"`
+		MaxOutputTokens    int            `json:"maxOutputTokens,omitempty"`
+		ResponseMimeType   string         `json:"responseMimeType,omitempty"`
+		ResponseJSONSchema map[string]any `json:"responseJsonSchema,omitempty"`
 	}{}
 	if req.Temperature > 0 {
 		cfg.Temperature = req.Temperature
@@ -127,7 +127,7 @@ func (g *GeminiGateway) Generate(req Request) (*Response, error) {
 	}
 	if len(req.Schema) > 0 {
 		cfg.ResponseMimeType = "application/json"
-		cfg.ResponseSchema = req.Schema
+		cfg.ResponseJSONSchema = req.Schema
 	}
 	if cfg.Temperature > 0 || cfg.MaxOutputTokens > 0 || cfg.ResponseMimeType != "" {
 		body.GenerationConfig = cfg
@@ -138,12 +138,13 @@ func (g *GeminiGateway) Generate(req Request) (*Response, error) {
 		return nil, err
 	}
 
-	url := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s", model, g.APIKey)
+	url := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent", model)
 	httpReq, err := http.NewRequest("POST", url, bytes.NewReader(raw))
 	if err != nil {
 		return nil, err
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("x-goog-api-key", g.APIKey)
 
 	resp, err := g.HTTPClient.Do(httpReq)
 	if err != nil {

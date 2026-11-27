@@ -16,3 +16,7 @@ ci: test build ui-build
 
 release:
 	./deploy/release.sh
+
+.PHONY: test-gemini
+test-gemini:
+	go test -tags gemini_live -run '^TestLiveGeminiFactoryRun$$' -count=1 ./internal/factory
