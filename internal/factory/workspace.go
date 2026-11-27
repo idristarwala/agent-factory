@@ -131,6 +131,7 @@ func (w *Workspace) Start(req RunRequest) (Run, error) {
 		return Run{}, fmt.Errorf("supply a goal, up to 100 source records and a nonnegative budget")
 	}
 	r := Run{ID: uuid.NewString(), Description: req.Description, Status: "created", CreatedAt: time.Now().UTC(), Records: req.Records}
+	var editableFields *[]string
 	if req.Import != nil {
 		if req.Source != nil || len(req.Records) != 0 || req.Factory == "" || req.Import.ID == "" || req.Import.Page < 1 {
 			return Run{}, fmt.Errorf("select one committed import page and its factory")
@@ -147,6 +148,11 @@ func (w *Workspace) Start(req RunRequest) (Run, error) {
 		r.Records = page.Records
 		r.Lineage = page.Lineage
 		r.ImportProblems = page.Problems
+		m, err := w.approvedMapping(page.Spec.SourceRef)
+		if err != nil {
+			return Run{}, err
+		}
+		editableFields = m.EditableFields
 		r.Source = &page.Spec.SourceRef
 		r.Import = req.Import
 	}
@@ -158,6 +164,7 @@ func (w *Workspace) Start(req RunRequest) (Run, error) {
 		if err != nil {
 			return Run{}, err
 		}
+		editableFields = batch.editableFields
 		req.Records = batch.records
 		r.Records = batch.records
 		r.ImportProblems = batch.problems
@@ -184,6 +191,23 @@ func (w *Workspace) Start(req RunRequest) (Run, error) {
 		plan, err := Prepare(w.Store, req.Factory, req.Revision)
 		if err != nil {
 			return Run{}, err
+		}
+		if editableFields != nil {
+			fields := map[string]string{}
+			for _, key := range *editableFields {
+				if typ, ok := plan.Spec.Fields[key]; ok {
+					fields[key] = typ
+				}
+			}
+			if len(fields) == 0 {
+				return Run{}, fmt.Errorf("mapping and factory have no editable fields in common")
+			}
+			for _, key := range plan.Spec.Required {
+				if _, ok := fields[key]; !ok {
+					return Run{}, fmt.Errorf("mapping excludes required factory field %q", key)
+				}
+			}
+			plan.Spec.Fields = fields
 		}
 		if req.SelectedRules != nil {
 			selected := plan.Rules[:0]

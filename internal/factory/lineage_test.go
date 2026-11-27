@@ -12,7 +12,7 @@ import (
 func TestReviewedRecordLineage(t *testing.T) {
 	s := revision.NewMemory()
 	ws := Workspace{Store: s, Gateway: scripted{}}
-	for key, data := range map[string]string{"factory/desk": `{"record_type":"case","fields":{"priority":"integer"}}`, "source-mapping/m": `{"record_type":"case","collection":"/rows","identity":["/id"],"fields":{"priority":"/priority"}}`} {
+	for key, data := range map[string]string{"factory/desk": `{"record_type":"case","fields":{"priority":"integer","team":"string"}}`, "source-mapping/m": `{"record_type":"case","collection":"/rows","identity":["/id"],"fields":{"priority":"/priority","team":"/team"},"editable_fields":["priority"]}`} {
 		if _, err := revision.SaveDocument(s, key, 0, "human", []byte(data)); err != nil {
 			t.Fatal(err)
 		}
@@ -32,6 +32,9 @@ func TestReviewedRecordLineage(t *testing.T) {
 	r, err := ws.Start(req)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if len(r.Plan.Spec.Fields) != 1 || r.Plan.Spec.Fields["priority"] != "integer" {
+		t.Fatal("incorrect effective worker fields", r.Plan.Spec.Fields)
 	}
 	if err = ws.Execute(r.ID); err != nil {
 		t.Fatal(err)
@@ -54,5 +57,37 @@ func TestReviewedRecordLineage(t *testing.T) {
 	}
 	if _, err = ws.verifiedFeed("other", receipt, sample); err == nil {
 		t.Fatal("accepted cross-factory receipt")
+	}
+}
+
+func TestMappingCannotWidenFactoryPermissions(t *testing.T) {
+	for _, tc := range []struct {
+		name, edits string
+		valid       bool
+	}{
+		{"legacy", "", true},
+		{"read-only", `,"editable_fields":[]`, false},
+		{"required excluded", `,"editable_fields":["note"]`, false},
+		{"outside factory", `,"editable_fields":["priority","note"]`, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := revision.NewMemory()
+			for k, v := range map[string]string{
+				"factory/desk":     `{"record_type":"case","fields":{"priority":"integer"},"required":["priority"]}`,
+				"source-mapping/m": `{"record_type":"case","collection":"","identity":["/id"],"fields":{"priority":"/priority","note":"/note"}` + tc.edits + "}",
+			} {
+				if _, err := revision.SaveDocument(s, k, 0, "human", []byte(v)); err != nil {
+					t.Fatal(err)
+				}
+			}
+			w := Workspace{Store: s}
+			r, err := w.Start(RunRequest{Factory: "desk", Description: "review", Source: &SourceInput{SourceRef: SourceRef{Mapping: "m", Revision: 1}, Payload: json.RawMessage(`{"id":"C","priority":1,"note":"read only"}`)}})
+			if (err == nil) != tc.valid {
+				t.Fatal(err)
+			}
+			if tc.valid && (len(r.Plan.Spec.Fields) != 1 || r.Plan.Spec.Fields["priority"] != "integer") {
+				t.Fatal(r.Plan.Spec.Fields)
+			}
+		})
 	}
 }

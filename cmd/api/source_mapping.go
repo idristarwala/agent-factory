@@ -30,6 +30,7 @@ func sourceMappingRoutes(mux *http.ServeMux, store revision.Store) {
 			}
 			var req struct {
 				Sample           any                    `json:"sample"`
+				EditableFields   *[]string              `json:"editable_fields"`
 				ProposalRevision *int                   `json:"proposal_revision"`
 				Mapping          *mapping.SourceMapping `json:"mapping"`
 				Expected         *int                   `json:"expected"`
@@ -63,6 +64,17 @@ func sourceMappingRoutes(mux *http.ServeMux, store revision.Store) {
 			}
 			if req.Mapping == nil {
 				http.Error(w, "supply a mapping", 400)
+				return
+			}
+			if req.EditableFields != nil {
+				if req.ProposalRevision == nil {
+					http.Error(w, "editable field overrides require a proposal revision", 400)
+					return
+				}
+				req.Mapping.EditableFields = req.EditableFields
+			}
+			if err := req.Mapping.ValidateEditableFields(); err != nil {
+				http.Error(w, err.Error(), 422)
 				return
 			}
 			if path := req.Mapping.NextPath; path != "" {

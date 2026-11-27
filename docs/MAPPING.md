@@ -104,3 +104,9 @@ After choosing a collection, compare the declared types and required properties 
 New mapped runs and decisions expose source lineage for each accepted record. The lineage includes the pinned mapping name and revision, its original JSON Pointer and the SHA-256 of the source row, including unmapped fields. To reproduce the digest, decode the source JSON using exact number tokens, then hash the compact bytes returned by Go's `encoding/json.Marshal` for the row. Rejected rows keep their place in the source indexing. For committed pages, lineage also identifies the configured feed, import ID and page number.
 
 A remote sample returned with `include_sample` includes a `sample_receipt`. Pass that receipt with the unchanged payload in the goal's `source` to retain verified feed attribution. The server stores the factory, feed and payload digest, and checks them at import. Goal builder does this automatically. Pasted or edited payloads retain their row fingerprints and mapping revision and are labeled as submitted payloads. Older decisions can be reviewed without a lineage field.
+
+### Control which imported fields a worker may edit
+
+Goal builder sends the factory's editable field names as `editable_candidates`. The steward selects mapped destination fields for the goal. Review the checkboxes before approving. Approval stores the human selection and its steward draft revision. Identity paths and their enclosing objects stay read-only.
+
+A run started from a payload or an import page uses the intersection of the pinned factory and mapping permissions. If that intersection is empty or excludes a required factory field, the editing run cannot start. An empty `editable_fields` list allows read-only ingestion. Earlier mapping revisions that omit the property use the factory's existing field permissions. These local edit permissions grant no upstream write access.
