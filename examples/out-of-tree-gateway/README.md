@@ -11,3 +11,13 @@ Call `llmtest.RunHTTPConformance(t, newClient)` with a constructor that uses the
 Set `ChatRequest.ResponseSchema` to request a JSON value matching a schema. The one-shot adapters validate the returned value and expose a typed `BAD_RESPONSE` for malformed or out-of-schema output. Use local references for reusable schema definitions. With a schema, streaming returns `ErrStreamingUnsupported` so the caller can use `Chat` for a validated result. Use `llmtest.RunStructuredConformance` to check the wire format and validation behavior for a compatible provider.
 
 Use `llmtest.NewProtocolHarness(t, protocol, newClient)` with `llmtest.RunConformance` to run the basic conversation, cancellation, 50 concurrent calls, HTTP failure and schema cases together. Built-in fixtures cover OpenAI, wrapped OpenAI (`openai-envelope` with `params_key: params`), Anthropic and Gemini.
+
+To register the example adapter in a host application, pass its constructor to the public registry at startup:
+
+```go
+llm.Register("corp", func(cfg map[string]string) (llm.Client, error) {
+    return NewCorpGateway(cfg["base_url"], cfg["api_key"], nil).Client(), nil
+})
+```
+
+For live checks, run `make test-gemini` with `GEMINI_API_KEY`, or `make test-mixed-judges` with both `GEMINI_API_KEY` and `OPENROUTER_API_KEY`. The live checks exercise tool continuation, structured responses and factory reviews. Deliberate error responses and key-rotation scenarios use local HTTP fixtures.

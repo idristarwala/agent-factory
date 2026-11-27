@@ -19,7 +19,10 @@ func TestLiveOpenRouterToolResult(t *testing.T) {
 	if model == "" {
 		model = "openai/gpt-4o"
 	}
-	gw := NewOpenAIAdapter("https://openrouter.ai/api/v1", key, nil)
+	gw, err := New("openrouter", map[string]string{"api_key": key, "cheap_model": model})
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
 	defer cancel()
 	req := ChatRequest{Model: model, MaxTokens: 150, Messages: []Message{

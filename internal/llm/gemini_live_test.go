@@ -20,7 +20,10 @@ func TestLiveGeminiConversation(t *testing.T) {
 	if model == "" {
 		model = "gemini-3.5-flash-lite"
 	}
-	gateway := NewGeminiAdapter("https://generativelanguage.googleapis.com/v1beta", key, nil)
+	gateway, err := New("gemini", map[string]string{"api_key": key, "cheap_model": model})
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 	request := ChatRequest{Model: model, MaxTokens: 150, Messages: []Message{

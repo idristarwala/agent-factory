@@ -16,5 +16,6 @@ func RunConformance(t *testing.T, h Harness) {
 	if p, ok := h.(*ProtocolHarness); ok {
 		RunHTTPConformance(t, p.NewClient)
 		RunStructuredConformance(t, p.Protocol, p.NewClient)
+		t.Run("conversation_and_stream", func(t *testing.T) { checkConversation(t, p) })
 	}
 }
