@@ -129,3 +129,15 @@ A workspace factory can route its worker’s proposed field changes to a named e
 | `factory/service-desk` | `{"record_type":"request","fields":{"assigned_team":"string"},"propose_tool":"update-case"}` |
 
 At run creation the factory checks the grant against the tool’s side-effect class and pins both definition revisions. Each worker patch becomes a proposed tool call with the record ID and validated changed fields bound to the configured argument names. The judge evaluates that exact call. The Decisions screen and API expose its arguments alongside the evidence. A human approval or rejection is stored in the run history. Approval can apply the workspace record update according to observe mode. Delivery to the external service is separate. Preparing and reviewing a proposal sends zero requests to that service.
+
+## Generate tool definitions from OpenAPI
+
+Run `factory tools import openapi.yaml > draft-tools.yaml` to generate a reviewable `tools` mapping from GET operations. The CLI accepts OpenAPI 3.0 or 3.1 JSON and YAML with local references. It resolves server overrides and scalar path and query parameters. Required parameters are checked before a request. Non-GET operations are listed on stderr. An unsupported selected operation or parameter returns a failing exit code.
+
+For an authenticated operation, select its operation ID and provide a credential **file path**:
+
+```sh
+factory tools import -operation getTicket -key-file secrets/tickets-token openapi.yaml > draft-tools.yaml
+```
+
+The importer supports a single bearer or header API-key scheme for that operation. Use `-server https://tickets.example.com/v1` for a relative, templated, or ambiguous server. The generated file references the credential path relative to its deployed location. Review the destination and parameters, add a context recipe and an explicit pack grant as shown above, then point `FACTORY_EVIDENCE_CONFIG` at the reviewed file. Import runs offline and writes only to stdout.

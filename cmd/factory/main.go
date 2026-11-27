@@ -47,6 +47,10 @@ func main() {
 			log.Fatal(err)
 		}
 		fmt.Printf("%s revision %d\n", doc.ID, doc.Version)
+	case "tools":
+		if err := importTools(os.Args[2:], os.Stdout, os.Stderr); err != nil {
+			log.Fatal(err)
+		}
 	case "validate":
 		if err := validateFiles(os.Args[2:]); err != nil {
 			log.Fatal(err)
@@ -143,5 +147,6 @@ func printUsage() {
 	fmt.Println("  validate --rule FILE...   Check standalone rules against the published schema")
 	fmt.Println("  test [PATH...]   Run pack fixtures (and engine contracts in the engine checkout)")
 	fmt.Println("  readiness  Check environment readiness")
+	fmt.Println("  tools import [flags] FILE   Generate reviewable GET evidence tools from OpenAPI")
 	fmt.Println("  publish -pack FILE -evidence FILE -expected N   Publish a proposed revision")
 }
