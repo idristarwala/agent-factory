@@ -70,4 +70,7 @@ func TestPreserveOriginalWordingRuleStrengthensPrompt(t *testing.T) {
 	if !strings.Contains(req.User, "Keep original wording") {
 		t.Error("rule text missing from user prompt")
 	}
+	if !strings.Contains(req.User, "IMPORTANT: A customer rule requires preserving original wording") {
+		t.Error("strong preservation note missing from user prompt")
+	}
 }

@@ -129,3 +129,10 @@ The [issue tracker](https://github.com/idristarwala/agent-factory/issues) record
 - Worker system prompt is strengthened when any active rule mentions preserving original wording / not rewriting (addresses the 0.89 vs 0.90 original-wording-kept gap from the #10 field re-run).
 - Added `TestPreserveOriginalWordingRuleStrengthensPrompt` which verifies the system prompt and that the rule text reaches the user prompt.
 - Advances the customer-rule influence criterion without requiring a live gateway.
+
+## Stronger wording-preservation prompt (2026-11-27)
+
+- Expanded detection of preserve-wording rules (added "preserve original", "keep original", "seller wording").
+- When triggered, the worker now injects a strong "IMPORTANT" note into the user prompt in addition to the strengthened system prompt.
+- Updated TestPreserveOriginalWordingRuleStrengthensPrompt to assert the new user-prompt note.
+- Further advances the original-wording-kept criterion for the #10 field re-run without requiring a live gateway.
