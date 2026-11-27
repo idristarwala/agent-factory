@@ -152,7 +152,7 @@ func runReadiness(args ...string) error {
 		if err := cfg.CheckCredentials(); err != nil {
 			problems = append(problems, err)
 		} else {
-			fmt.Println("continuous evidence: recipe, grants and credential files ready")
+			fmt.Println("continuous evidence: recipe, grants and credentials ready")
 		}
 	}
 	if path := os.Getenv("FACTORY_SOURCE_CONFIG"); path != "" {
@@ -162,7 +162,7 @@ func runReadiness(args ...string) error {
 		} else if err := sampler.CheckCredentials(); err != nil {
 			problems = append(problems, err)
 		} else {
-			fmt.Println("API sources: configuration and credential files ready")
+			fmt.Println("API sources: configuration and credentials ready")
 		}
 	}
 	if len(args) == 1 {

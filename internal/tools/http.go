@@ -27,6 +27,7 @@ type HTTPTool struct {
 	QueryParams    []string // param names that go to query string
 	AuthType       string
 	KeyFile        string
+	KeyEnv         string
 	AuthHeader     string
 	Username       string
 	Headers        map[string]string
@@ -197,11 +198,17 @@ func (t *HTTPTool) Call(ctx context.Context, params map[string]string) (string, 
 }
 
 func (t *HTTPTool) credential() (string, error) {
-	data, err := os.ReadFile(t.KeyFile)
-	if err != nil {
-		return "", fmt.Errorf("read key file: %w", err)
+	var value string
+	if t.KeyEnv != "" {
+		value = os.Getenv(t.KeyEnv)
+	} else {
+		data, err := os.ReadFile(t.KeyFile)
+		if err != nil {
+			return "", fmt.Errorf("read key file: %w", err)
+		}
+		value = string(data)
 	}
-	value := strings.TrimSpace(string(data))
+	value = strings.TrimSpace(value)
 	if value == "" {
 		return "", fmt.Errorf("empty tool credential")
 	}

@@ -13,12 +13,15 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
 )
+
+var envName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
 // EvidenceConfig is an operator-supplied recipe for the pack selected by the caller.
 type EvidenceConfig struct {
@@ -70,7 +73,7 @@ func (c *EvidenceConfig) CheckCredentials() error {
 		t := c.Tools[name]
 		if t.AuthType != "" {
 			if _, err := t.credential(); err != nil {
-				problems = append(problems, fmt.Errorf("tool %q needs a readable nonempty key_file", name))
+				problems = append(problems, fmt.Errorf("tool %q needs a nonempty credential from its configured source", name))
 			}
 		}
 	}
@@ -105,11 +108,12 @@ func parseHTTPConfig(path string, data []byte, deployed bool) (*EvidenceConfig, 
 				Timeout  *time.Duration
 				CacheTTL *time.Duration `yaml:"cache_ttl"`
 			}
-			Auth struct {
+			Auth *struct {
 				Type     string
 				Name     string
 				Username string
-				KeyFile  string `yaml:"key_file"`
+				KeyFile  *string `yaml:"key_file"`
+				KeyEnv   *string `yaml:"key_env"`
 			}
 			SideEffect string `yaml:"side_effect"`
 		}
@@ -208,7 +212,7 @@ func parseHTTPConfig(path string, data []byte, deployed bool) (*EvidenceConfig, 
 			}
 			t.CacheTTL = *v
 		}
-		if def.Auth.Type != "" || def.Auth.KeyFile != "" {
+		if def.Auth != nil {
 			switch def.Auth.Type {
 			case "bearer":
 			case "basic":
@@ -222,12 +226,23 @@ func parseHTTPConfig(path string, data []byte, deployed bool) (*EvidenceConfig, 
 			default:
 				return nil, fmt.Errorf("unsupported authentication for tool %q", name)
 			}
-			if def.Auth.KeyFile == "" {
-				return nil, fmt.Errorf("missing auth key file for tool %q", name)
+			if (def.Auth.KeyFile == nil) == (def.Auth.KeyEnv == nil) {
+				return nil, fmt.Errorf("tool %q requires exactly one of key_file and key_env", name)
 			}
-			t.AuthType, t.KeyFile, t.AuthHeader, t.Username = def.Auth.Type, def.Auth.KeyFile, def.Auth.Name, def.Auth.Username
-			if !filepath.IsAbs(t.KeyFile) {
-				t.KeyFile = filepath.Join(filepath.Dir(path), t.KeyFile)
+			t.AuthType, t.AuthHeader, t.Username = def.Auth.Type, def.Auth.Name, def.Auth.Username
+			if def.Auth.KeyEnv != nil {
+				t.KeyEnv = *def.Auth.KeyEnv
+				if !envName.MatchString(t.KeyEnv) {
+					return nil, fmt.Errorf("invalid key_env name for tool %q", name)
+				}
+			} else {
+				t.KeyFile = *def.Auth.KeyFile
+				if t.KeyFile == "" {
+					return nil, fmt.Errorf("empty key_file for tool %q", name)
+				}
+				if !filepath.IsAbs(t.KeyFile) {
+					t.KeyFile = filepath.Join(filepath.Dir(path), t.KeyFile)
+				}
 			}
 		}
 		registry[name] = t
