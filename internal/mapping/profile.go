@@ -14,10 +14,11 @@ type FieldProfile struct {
 	UniqueInSample bool           `json:"unique_in_sample"`
 }
 type CollectionProfile struct {
-	Path    string         `json:"path"`
-	Records int            `json:"records"`
-	Sampled int            `json:"sampled"`
-	Fields  []FieldProfile `json:"fields"`
+	CompositeKeys [][]string     `json:"composite_keys,omitempty"`
+	Path          string         `json:"path"`
+	Records       int            `json:"records"`
+	Sampled       int            `json:"sampled"`
+	Fields        []FieldProfile `json:"fields"`
 }
 
 func pointer(parent, name string) string {
@@ -124,7 +125,9 @@ func profileRows(path string, count int, rows []map[string]any) (CollectionProfi
 				kind = "boolean"
 			case string:
 				kind = "string"
-				key = x
+				if strings.TrimSpace(x) != "" {
+					key = x
+				}
 			case json.Number:
 				kind = "number"
 				if !strings.ContainsAny(x.String(), ".eE") {
@@ -154,5 +157,67 @@ func profileRows(path string, count int, rows []map[string]any) (CollectionProfi
 		c.Fields = append(c.Fields, *f)
 	}
 	sort.Slice(c.Fields, func(i, j int) bool { return c.Fields[i].Path < c.Fields[j].Path })
+	if count == len(rows) {
+		c.CompositeKeys = suggestPairs(c.Fields, rows)
+	}
 	return c, nil
+}
+
+// Suggest only minimal pairs: each column repeats, but their combination is unique.
+func suggestPairs(fields []FieldProfile, rows []map[string]any) [][]string {
+	type column struct {
+		path  string
+		codes []int
+	}
+	var columns []column
+	for _, field := range fields {
+		if field.UniqueInSample || field.Missing != 0 || len(field.Types) != 1 ||
+			(field.Types["string"] == 0 && field.Types["number"] == 0) {
+			continue
+		}
+		path, err := tokens(field.Path)
+		if err != nil {
+			continue
+		}
+		codes := make([]int, 0, len(rows))
+		distinct := map[string]int{}
+		for _, row := range rows {
+			id, err := recordID(row, [][]string{path})
+			if err != nil {
+				break
+			}
+			code, ok := distinct[id]
+			if !ok {
+				code = len(distinct)
+				distinct[id] = code
+			}
+			codes = append(codes, code)
+		}
+		if len(codes) == len(rows) && len(distinct) > 1 && len(distinct) < len(rows) {
+			columns = append(columns, column{field.Path, codes})
+			if len(columns) == 16 {
+				break
+			}
+		}
+	}
+	var pairs [][]string
+	for i, col := range columns {
+		for _, other := range columns[i+1:] {
+			seen := map[[2]int]bool{}
+			for j, code := range col.codes {
+				pair := [2]int{code, other.codes[j]}
+				if seen[pair] {
+					break
+				}
+				seen[pair] = true
+			}
+			if len(seen) == len(rows) {
+				pairs = append(pairs, []string{col.path, other.path})
+				if len(pairs) == 4 {
+					return pairs
+				}
+			}
+		}
+	}
+	return pairs
 }
