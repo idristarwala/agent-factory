@@ -3,6 +3,7 @@ package llm
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"net/http"
 	"os"
 	"time"
@@ -20,15 +21,23 @@ func NewHTTPClient(caFile, proxy string) (*http.Client, error) {
 		if err != nil {
 			return nil, err
 		}
-		caPool := x509.NewCertPool()
-		caPool.AppendCertsFromPEM(caCert)
+		caPool, err := x509.SystemCertPool()
+		if err != nil {
+			return nil, err
+		}
+		if !caPool.AppendCertsFromPEM(caCert) {
+			return nil, fmt.Errorf("gateway CA file contains no valid certificates")
+		}
 		transport.TLSClientConfig = &tls.Config{RootCAs: caPool}
 	}
 
-	if proxy == "none" {
-		transport.Proxy = nil
+	switch proxy {
+	case "", "env":
+		transport.Proxy = http.ProxyFromEnvironment
+	case "none": // Direct connections, including when the process has proxy settings.
+	default:
+		return nil, fmt.Errorf("unknown proxy mode %q", proxy)
 	}
-	// else uses environment proxy by default
 
 	return &http.Client{
 		Transport: transport,
