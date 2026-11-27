@@ -10,6 +10,7 @@ import (
 )
 
 func configRoutes(mux *http.ServeMux, s revision.Store) {
+	releaseReviewRoutes(mux, s)
 	mux.HandleFunc("/api/releases/{id}", apiRoute(func(w http.ResponseWriter, r *http.Request) {
 		history, err := revision.Documents(s, "pack-release/"+r.PathValue("id"))
 		sendJSON(w, history, err)

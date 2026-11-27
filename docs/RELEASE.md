@@ -18,3 +18,15 @@ factory publish -pack packs/support/pack.yaml -evidence test-evidence.json -expe
 The first publication uses expected revision zero. Use the latest revision for a subsequent change. A retry of the same publication returns the existing revision. Conflicting writes fail. The command prints the saved revision as JSON. Its data contains the commit, the SHA-256 digests, the original pack and evidence bytes (base64), and the status `proposed`. Publishing leaves activation to review.
 
 The CLI and API must share the SQLite file or PostgreSQL database and the same factory scope. Process-local memory cannot retain a publication after CLI exit. Fetch the immutable history with `GET /api/releases/{pack-name}`. [Storage configuration](CONFIGURATION.md)
+
+## Review a workspace pack
+
+Read the proposed revision with `GET /api/releases/{pack-name}`. Inspect its commit, pack bytes, SHA-256 and CI receipt. An administrator can then send the exact proposal revision and a decision to `POST /api/releases/{pack-name}/review`.
+
+```json
+{"expected":1,"decision":"approve","note":"Reviewed the fixture evidence for this commit."}
+```
+
+Use `reject` to record a rejection. A successful review appends a human-authored revision with the original bytes and a `proposal_revision` reference. Repeating the same decision and note while it is the latest review returns the existing revision. A stale or conflicting edit returns HTTP 409.
+
+Deployment harnesses can fetch `GET /api/releases/{pack-name}/active` with viewer access to obtain the most recently approved snapshot. Before the first approval this returns HTTP 404. A newer proposal or rejection leaves the previous approval available. Pin the returned version and digests when deploying the pack. Workspace pack approval does not publish an engine tag or change swarm execution mode.
