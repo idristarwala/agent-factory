@@ -128,3 +128,17 @@ Gateway retry settings resolve at process startup. With `LLM_GATEWAY_CONFIG`, ea
 Run `factory readiness` with the same environment and mounted files as the deployment. It opens the workspace store and checks any configured continuous evidence recipe, pack grants (including `propose`), API source configuration and referenced tool credential files. A failed check exits nonzero. Both a missing and an empty tool key fail the check. The CLI reports the tool name without printing credential values. Runtime calls reread the file so rotation takes effect.
 
 With tool and source configuration unset, readiness checks the store alone. To validate model credentials or upstream permissions, run a representative goal against that deployment. The readiness command makes no tool or model requests.
+
+### Verified storage deployments
+
+| Mode | Tested topology | Operating guidance |
+| --- | --- | --- |
+| `memory` | One API process | Use for disposable sessions. A restart resets state and each replica has its own workspace. |
+| `sqlite` | Two API processes opening one file on a local filesystem | Use for a single-host durable workspace. Protect the database and its directory with OS permissions. The bundled Go driver supplies SQLite 3.54.1 in this build. |
+| `postgres` | Two API processes connecting to PostgreSQL 16.16 | Use for replicas sharing a durable workspace. Supply `DATABASE_URL` from a deployment secret. See the [Helm deployment guide](DEPLOYMENT.md). |
+
+Both durable drivers create missing tables when opening the store. Run `factory readiness` with the deployment's settings to exercise initialization and check the effective driver. Back up durable data before upgrading. The local test did not measure mixed-version rolling migrations, shared network filesystems or multi-region latency.
+
+At revision `9217fd1`, two API processes raced to update the same definition through 20 successive expected revisions on each durable backend. Each round returned one success and one HTTP 409. Across the 40 requests per backend, median and p95 latency were 4.6 and 10.8 ms on SQLite and 4.2 and 10.7 ms on PostgreSQL. These are local measurements. A reviewed service-desk run and its revision history survived an API restart on both stores. [SQLite field results](https://github.com/idristarwala/agent-factory/issues/144) · [PostgreSQL field results](https://github.com/idristarwala/agent-factory/issues/143)
+
+SQLite allows one writer at a time. Each Factory SQLite store uses one connection and configures a five-second busy timeout on opening it. If another writer holds the lock beyond the timeout, the store can return a busy error. Retry after the writer releases the lock. A revision conflict means a newer revision already exists. Read the current history and reconcile the edit before resubmitting.
