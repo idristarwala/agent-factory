@@ -16,6 +16,7 @@ import (
 
 // HTTPTool is a config-driven HTTP tool for issue #12.
 type HTTPTool struct {
+	mcpTool      string
 	response     *responseMapping
 	Name         string
 	Description  string
@@ -90,6 +91,22 @@ func (t *HTTPTool) Call(ctx context.Context, params map[string]string) (string, 
 			return string(encoded[1 : len(encoded)-1])
 		})
 	}
+	if t.mcpTool != "" {
+		var args map[string]any
+		if body != "" {
+			dec := json.NewDecoder(strings.NewReader(body))
+			dec.UseNumber()
+			if err := dec.Decode(&args); err != nil {
+				return "", fmt.Errorf("invalid configured MCP arguments")
+			}
+		}
+		transport := streamableHTTP{tool: t}
+		result, err := transport.CallTool(ctx, urlStr, t.mcpTool, args)
+		if err == nil && t.response != nil {
+			return t.response.apply([]byte(result))
+		}
+		return result, err
+	}
 	cacheable := t.CacheTTL > 0 && body == "" && t.Method == http.MethodGet
 	if cacheable {
 		t.mu.Lock()
@@ -122,25 +139,8 @@ func (t *HTTPTool) Call(ctx context.Context, params map[string]string) (string, 
 		if err != nil {
 			return "", err
 		}
-		for k, v := range t.Headers {
-			req.Header.Set(k, v)
-		}
-		if t.AuthType != "" {
-			key, err := os.ReadFile(t.KeyFile)
-			if err != nil {
-				return "", fmt.Errorf("read key file: %w", err)
-			}
-			value := strings.TrimSpace(string(key))
-			switch t.AuthType {
-			case "bearer":
-				req.Header.Set("Authorization", "Bearer "+value)
-			case "header":
-				req.Header.Set(t.AuthHeader, value)
-			case "basic":
-				req.SetBasicAuth(t.Username, value)
-			default:
-				return "", fmt.Errorf("unsupported HTTP tool authentication")
-			}
+		if err := t.applyHeaders(req); err != nil {
+			return "", err
 		}
 
 		resp, err := t.Client.Do(req)
@@ -188,6 +188,31 @@ func (t *HTTPTool) Call(ctx context.Context, params map[string]string) (string, 
 		return result, nil
 	}
 	return "", lastErr
+}
+
+func (t *HTTPTool) applyHeaders(req *http.Request) error {
+	for k, v := range t.Headers {
+		req.Header.Set(k, v)
+	}
+	if t.AuthType != "" {
+		key, err := os.ReadFile(t.KeyFile)
+		if err != nil {
+			return fmt.Errorf("read key file: %w", err)
+		}
+		value := strings.TrimSpace(string(key))
+		switch t.AuthType {
+		case "bearer":
+			req.Header.Set("Authorization", "Bearer "+value)
+		case "header":
+			req.Header.Set(t.AuthHeader, value)
+		case "basic":
+			req.SetBasicAuth(t.Username, value)
+		default:
+			return fmt.Errorf("unsupported HTTP tool authentication")
+		}
+	}
+
+	return nil
 }
 
 func NewHTTPTool(name, method, urlTemplate string) *HTTPTool {

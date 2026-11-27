@@ -95,3 +95,25 @@ response:
 ```
 
 Place `response` inside the tool definition. Paths in `map` start at the selected root. The root defaults to the entire document. Omit `map` to return the selected root directly, or omit `response` to keep the original response body, including plain text. A singular path selects one value and fails if that value is absent. A wildcard or filter returns an array, including an empty array when nothing matches. Use `context.media: attachments` to pass the selected image URLs through the existing image evidence pipeline.
+
+## Read evidence from an MCP server
+
+Set `mcp_tool` to a fixed tool on a Streamable HTTP endpoint. The loader requires an explicit read-only declaration. The pack grant names the local tool entry. Use the same entry in the context recipe.
+
+```yaml
+tools:
+  lookup:
+    url: https://requests.example.com/mcp
+    mcp_tool: read_request
+    side_effect: read-only
+    body: {id: "{id}"}
+    auth: {type: bearer, key_file: secrets/requests}
+    limits: {timeout: 10s, retries: 1}
+    response:
+      map: {subject: $.subject}
+context: {entity: lookup}
+grants:
+  - {pack: desk, tools: [lookup, propose], side_effects: [read-only]}
+```
+
+Each lookup opens an MCP session, calls the configured tool with the rendered body as its arguments and closes the session. The client accepts JSON and server-sent events. Structured tool results can use the JSONPath mapping above. Text results pass through directly when no mapping is configured. Tool errors fail the evidence step. Session requests use the tool’s credentials, trusted CA and destination restrictions. The timeout covers the lookup and retries bound stream reconnection attempts.
