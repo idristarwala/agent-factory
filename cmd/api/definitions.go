@@ -14,6 +14,9 @@ import (
 func sendJSON(w http.ResponseWriter, value any, err error) {
 	if err != nil {
 		status := http.StatusInternalServerError
+		if errors.Is(err, agents.ErrInferenceConfig) {
+			status = http.StatusBadRequest
+		}
 		if errors.Is(err, revision.ErrConflict) {
 			status = http.StatusConflict
 		}

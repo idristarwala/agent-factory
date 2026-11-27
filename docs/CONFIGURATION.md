@@ -91,3 +91,14 @@ PostgreSQL and SQLite initialize from shared table definitions. For work units, 
 For an endpoint that introduces durable state, define its identity, lifetime, scope, revision or conflict behavior and atomic updates in the storage contract first. Exercise that contract in RAM and PostgreSQL, with a legacy-row check for migrations. Introduce a physical migration when the existing representation cannot enforce the required behavior or serve the needed query.
 
 Continuous runs store a chronological `audit` array in the run revision. A worker proposal includes its mutation and evidence references. Judge entries record the verdict and reason. Runner entries distinguish observed, applied and failed writes. Match an entry’s `trace_id` to the `unit_id` on each model call to inspect retries, quorum evaluations and token use for that work unit.
+
+## Per-agent model limits
+
+Edit these fields on the worker or judge in **Agents**, or send them as string values in the agent definition’s `Config` object through `POST /api/agents`. Supply the current head revision as `Expected`. Workspace runs use the pinned agent revision. The continuous CLI resolves its judge at startup and its worker when the steward creates the worker.
+
+| Config key | Role | Type and default | Effect |
+| --- | --- | --- | --- |
+| `max_output_tokens` | Worker or judge | Positive integer encoded as a string. Worker default 16000, judge default 300. | Sets the output limit on each model request. Choose a value supported by the provider and model. |
+| `max_attempts` | Worker | Integer string from 1 to 16, default 2 | Maximum worker attempts to obtain a valid proposal. Configured gateway transport retries apply separately. |
+
+For example, `{"max_output_tokens":"1024","max_attempts":"1"}` requests a single worker attempt with at most 1024 output tokens. Omit a limit to use its default. The workspace run token budget still applies across calls. [Versioned definitions](API.md#versioned-definitions)

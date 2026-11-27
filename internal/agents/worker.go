@@ -94,8 +94,12 @@ Respond ONLY with valid JSON of the allowed fields.`, uow.Description, ruleText.
 		prompt += "\nWorker instructions: " + instructions
 	}
 
+	tokens, attempts, err := inferenceLimits("worker", w.Definition.Config)
+	if err != nil {
+		return nil, err
+	}
 	var lastErr error
-	for attempt := 0; attempt < 2; attempt++ {
+	for attempt := 0; attempt < attempts; attempt++ {
 		resp, err := w.Gateway.Generate(models.Request{
 			UnitID:     uow.ID,
 			CallerRole: "worker",
@@ -103,7 +107,7 @@ Respond ONLY with valid JSON of the allowed fields.`, uow.Description, ruleText.
 			System:     "You produce structured attribute updates that obey the provided rules and evidence. Output JSON only.",
 			User:       prompt, Images: uow.Images,
 			Temperature: 0.2,
-			MaxTokens:   DefaultWorkerConfig().MaxTokens,
+			MaxTokens:   tokens,
 			Schema:      schema,
 		})
 		if err != nil {
@@ -113,7 +117,9 @@ Respond ONLY with valid JSON of the allowed fields.`, uow.Description, ruleText.
 				return nil, err
 			}
 			lastErr = err
-			time.Sleep(time.Second)
+			if attempt+1 < attempts {
+				time.Sleep(time.Second)
+			}
 			continue
 		}
 
