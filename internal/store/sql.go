@@ -1,13 +1,17 @@
 package store
 
 import (
+	"context"
 	"database/sql"
+	"database/sql/driver"
 	"fmt"
 	"github.com/idristarwala/agent-factory/internal/revision"
+	"os"
+	"strconv"
 
 	"github.com/idristarwala/agent-factory/internal/graph"
 	"github.com/idristarwala/agent-factory/internal/unitofwork"
-	_ "modernc.org/sqlite" // pure Go SQLite
+	"modernc.org/sqlite"
 )
 
 // SQLStore is a database/sql implementation.
@@ -17,16 +21,41 @@ type SQLStore struct {
 	db *sql.DB
 }
 
-func NewSQLStore(dsn string) (*SQLStore, error) {
-	db, err := sql.Open("sqlite", dsn)
+// busyConnector applies the workspace timeout after the driver's DSN setup on
+// every physical connection, including replacements opened by database/sql.
+type busyConnector struct {
+	driver.Connector
+	pragma string
+}
+
+func (c busyConnector) Connect(ctx context.Context) (driver.Conn, error) {
+	conn, err := c.Connector.Connect(ctx)
 	if err != nil {
 		return nil, err
 	}
-	db.SetMaxOpenConns(1)
-	if _, err = db.Exec("PRAGMA busy_timeout=5000"); err != nil {
-		db.Close()
+	// modernc's SQLite connections implement driver.ExecerContext.
+	if _, err := conn.(driver.ExecerContext).ExecContext(ctx, c.pragma, nil); err != nil {
+		conn.Close()
 		return nil, err
 	}
+	return conn, nil
+}
+
+func NewSQLStore(dsn string) (*SQLStore, error) {
+	timeout := int64(5000)
+	if raw, ok := os.LookupEnv("FACTORY_SQLITE_BUSY_TIMEOUT_MS"); ok {
+		n, err := strconv.ParseInt(raw, 10, 32)
+		if err != nil || n < 0 {
+			return nil, fmt.Errorf("FACTORY_SQLITE_BUSY_TIMEOUT_MS must be an integer from 0 to 2147483647")
+		}
+		timeout = n
+	}
+	base, err := sqlite.NewConnector(dsn)
+	if err != nil {
+		return nil, err
+	}
+	db := sql.OpenDB(busyConnector{Connector: base, pragma: fmt.Sprintf("PRAGMA busy_timeout=%d", timeout)})
+	db.SetMaxOpenConns(1)
 	s := &SQLStore{db: db}
 	if err := s.migrate(); err != nil {
 		db.Close()
