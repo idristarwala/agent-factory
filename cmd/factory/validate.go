@@ -14,8 +14,15 @@ import (
 )
 
 func validateFiles(paths []string) error {
+	return eachPack(paths, func(path string, p *pack.Pack) error {
+		fmt.Printf("Validated pack %s (%s)\n", path, p.Name)
+		return nil
+	})
+}
+
+func eachPack(paths []string, visit func(string, *pack.Pack) error) error {
 	if len(paths) == 0 {
-		for _, candidate := range []string{"factory.yaml", "pack.yaml", "pack.yml", "pack.json", "packs/pack.yaml", "packs/pack.json"} {
+		for _, candidate := range []string{"factory.yaml", "factory.yml", "pack.yaml", "pack.yml", "pack.json", "packs/pack.yaml", "packs/pack.json"} {
 			if _, err := os.Stat(candidate); err == nil {
 				paths = append(paths, candidate)
 			} else if !errors.Is(err, os.ErrNotExist) {
@@ -32,7 +39,7 @@ func validateFiles(paths []string) error {
 	}
 	for _, path := range paths {
 		if filepath.Base(path) != "factory.yaml" && filepath.Base(path) != "factory.yml" {
-			if err := validatePack(path); err != nil {
+			if err := visitPack(path, visit); err != nil {
 				return err
 			}
 			continue
@@ -56,7 +63,7 @@ func validateFiles(paths []string) error {
 			if !filepath.IsAbs(candidate) {
 				candidate = filepath.Join(filepath.Dir(path), candidate)
 			}
-			if err := validatePack(candidate); err != nil {
+			if err := visitPack(candidate, visit); err != nil {
 				return err
 			}
 		}
@@ -64,7 +71,7 @@ func validateFiles(paths []string) error {
 	return nil
 }
 
-func validatePack(path string) error {
+func visitPack(path string, visit func(string, *pack.Pack) error) error {
 	info, err := os.Stat(path)
 	if err != nil {
 		return err
@@ -76,7 +83,7 @@ func validatePack(path string) error {
 				if !entry.Mode().IsRegular() {
 					return fmt.Errorf("%s: expected a pack file", file)
 				}
-				return validatePack(file)
+				return visitPack(file, visit)
 			} else if !errors.Is(err, os.ErrNotExist) {
 				return err
 			}
@@ -87,6 +94,5 @@ func validatePack(path string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", path, err)
 	}
-	fmt.Printf("Validated pack %s (%s)\n", path, definition.Name)
-	return nil
+	return visit(path, definition)
 }

@@ -52,7 +52,12 @@ func main() {
 			log.Fatal(err)
 		}
 	case "test":
-		runTest()
+		if err := runFixtures(os.Args[2:]); err != nil {
+			log.Fatal(err)
+		}
+		if len(os.Args) == 2 && engineCheckout() {
+			runEngineTests()
+		}
 	case "readiness":
 		runReadiness()
 	case "up":
@@ -70,13 +75,20 @@ func main() {
 	}
 }
 
-func runTest() {
-	fmt.Println("Running fixture and contract tests...")
-	if _, err := os.Stat("go.mod"); err != nil {
-		fmt.Println("  no go.mod — skipping live go test (library mode)")
-		fmt.Println("Recommended: go test ./internal/llm/... ./internal/store/... ./internal/grouping/... ./examples/out-of-tree-gateway/")
-		return
+func engineCheckout() bool {
+	data, err := os.ReadFile("go.mod")
+	if err != nil {
+		return false
 	}
+	for _, line := range strings.Split(string(data), "\n") {
+		if strings.TrimSpace(line) == "module github.com/idristarwala/agent-factory" {
+			return true
+		}
+	}
+	return false
+}
+
+func runEngineTests() {
 	// Actually invoke the critical packages so CI and local runs get the same signal.
 	pkgs := []string{
 		"./internal/llm/...",
@@ -128,7 +140,7 @@ func printUsage() {
 	fmt.Println("  import     Save a versioned definition from JSON")
 	fmt.Println("  up [-f FILE]   Start the local Compose project and wait for readiness")
 	fmt.Println("  validate [PATH...]   Check packs against the published schema")
-	fmt.Println("  test       Run fixture / contract tests")
+	fmt.Println("  test [PATH...]   Run pack fixtures (and engine contracts in the engine checkout)")
 	fmt.Println("  readiness  Check environment readiness")
 	fmt.Println("  publish -pack FILE -evidence FILE -expected N   Publish a proposed revision")
 }
