@@ -26,7 +26,7 @@ export default function Runs({runs, source, setSource, request, refresh, setMess
     const r=await request('/api/goals',{description:goal,...input})
     setSelected(r.id);setMessage('Started run '+r.id)
   })}}><h2>Create a goal</h2><label>Outcome<input required value={goal} onChange={e=>setGoal(e.target.value)}/></label>
-    <label>Factory definition ID<input required value={source.factory} onChange={e=>setSource({...source,factory:e.target.value,approved:null,expected:0,definition:''})}/></label>
+    <label>Factory definition ID<input required value={source.factory} onChange={e=>setSource({...source,factory:e.target.value,approved:null,useGoalArtifacts:false,expected:0,definition:''})}/></label>
     <details><summary>Create or revise this factory definition</summary>
       <label>Expected revision<input type="number" min="0" value={expected} onChange={e=>setSource({...source,expected:Number(e.target.value)})}/></label>
       <label>Definition JSON<textarea rows={4} value={definition} placeholder='{"record_type":"request","fields":{"assigned_team":"string"}}' onChange={e=>setSource({...source,definition:e.target.value})}/></label>
@@ -34,6 +34,7 @@ export default function Runs({runs, source, setSource, request, refresh, setMess
     <label>Input format<select value={source.inputMode || 'records'} onChange={e=>setSource({...source,inputMode:e.target.value})}><option value="records">Factory records</option><option value="mapped">Source API response</option></select></label>
     {source.inputMode==='mapped' ? <SourceMapping key={source.factory} factory={source.factory} goal={goal} approved={source.approved} request={request} setMessage={setMessage} onApprove={approved=>setSource(prev=>prev.factory===source.factory?{...prev,approved}:prev)}/> :
 <label>Source records (JSON array)<textarea required rows={6} value={source.records} onChange={e=>setSource({...source,records:e.target.value})}/></label>}
+    <label><input type="checkbox" checked={source.useGoalArtifacts || false} onChange={e=>setSource({...source,useGoalArtifacts:e.target.checked})}/> Include pinned goal attachments in worker and judge evidence</label>
     <label>Token budget (0 uses workspace settings)<input type="number" min="0" value={source.budget} onChange={e=>setSource({...source,budget:e.target.value})}/></label>
     <fieldset><legend>Run rules</legend><label><input type="checkbox" checked={source.rules===undefined}
       onChange={e=>setSource({...source,rules:e.target.checked?undefined:Object.fromEntries(availableRules.map(r=>[r.ID,r.Version]))})}/> Use all active rules</label>

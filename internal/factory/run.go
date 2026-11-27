@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/idristarwala/agent-factory/internal/artifact"
 	"github.com/idristarwala/agent-factory/internal/memory"
 	"github.com/idristarwala/agent-factory/internal/tools"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -22,12 +24,14 @@ import (
 )
 
 type Spec struct {
+	Artifacts  []artifact.Ref    `json:"artifacts,omitempty"`
 	RecordType string            `json:"record_type"`
 	Fields     map[string]string `json:"fields"`
 	Required   []string          `json:"required"`
 	Worker     string            `json:"worker"`
 }
 type Plan struct {
+	UseGoalArtifacts       bool          `json:"use_goal_artifacts,omitempty"`
 	Memory                 []memory.File `json:"memory,omitempty"`
 	Factory                string        `json:"factory"`
 	Revision               int           `json:"revision"`
@@ -94,9 +98,9 @@ func Prepare(st revision.Store, name string, number int) (Plan, error) {
 	return plan, err
 }
 func (p Plan) Evaluate(gw models.Gateway, goal string, e schema.Entity) (*graph.Mutation, agents.Decision, error) {
-	return p.evaluate(gw, goal, e, nil)
+	return p.evaluate(gw, goal, e, nil, artifact.Evidence{})
 }
-func (p Plan) evaluate(gw models.Gateway, goal string, e schema.Entity, origin *SourceLineage) (*graph.Mutation, agents.Decision, error) {
+func (p Plan) evaluate(gw models.Gateway, goal string, e schema.Entity, origin *SourceLineage, goalEvidence artifact.Evidence) (*graph.Mutation, agents.Decision, error) {
 	if e.ID == "" || e.Type != p.Spec.RecordType {
 		return nil, agents.Decision{}, fmt.Errorf("record %q must have type %q", e.ID, p.Spec.RecordType)
 	}
@@ -124,6 +128,11 @@ func (p Plan) evaluate(gw models.Gateway, goal string, e schema.Entity, origin *
 		}
 	}
 	evidence := media.Text
+	if goalEvidence.Text != "" {
+		evidence = append(evidence, goalEvidence.Text)
+		// Goal evidence numbers its images from one.
+		media.Images = append(slices.Clone(goalEvidence.Images), media.Images...)
+	}
 	if len(e.Relations) > 0 {
 		data, err := json.Marshal(e.Relations)
 		if err != nil {

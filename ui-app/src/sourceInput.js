@@ -18,7 +18,7 @@ export function valueAtPointer(sample, pointer) {
 }
 
 export function runSource(source) {
-  const base = {factory: source.factory, selected_rules: source.rules, max_tokens: Number(source.budget)}
+  const base = {use_goal_artifacts:source.useGoalArtifacts || undefined, factory: source.factory, selected_rules: source.rules, max_tokens: Number(source.budget)}
   if (source.inputMode === 'mapped') {
     if (!source.approved) throw new Error('Approve a source mapping before starting the run.')
     const {mapping, revision, sample, payload, allowPartial, receipt} = source.approved

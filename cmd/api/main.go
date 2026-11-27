@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/idristarwala/agent-factory/internal/artifact"
 	"github.com/idristarwala/agent-factory/internal/factory"
 	"log"
 	"net/http"
@@ -64,6 +65,7 @@ func main() {
 	mux.HandleFunc("/api/sources/profile", apiRoute(profileSource, http.MethodPost))
 	configRoutes(mux, definitions)
 	memoryRoutes(mux, definitions)
+	chatArtifactRoute(mux, definitions)
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		storeKind := storeKindLabel()
 		w.Header().Set("Content-Type", "application/json")
@@ -84,18 +86,24 @@ func main() {
 
 	mux.HandleFunc("/api/chat", apiRoute(func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
-			Message string              `json:"message"`
-			Source  *factory.RunRequest `json:"source"`
+			Artifacts []artifact.Ref      `json:"artifacts"`
+			Message   string              `json:"message"`
+			Source    *factory.RunRequest `json:"source"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		evidence, err := artifact.Read(ws.Store, req.Artifacts)
+		if err != nil {
+			http.Error(w, err.Error(), 400)
 			return
 		}
 		message := strings.TrimSpace(req.Message)
 		const create = "create a factory to"
 		lower := strings.ToLower(message)
 		if lower == create || strings.HasPrefix(lower, create+" ") {
-			reply, err := createChatFactory(ws, strings.TrimSpace(message[len(create):]))
+			reply, err := createChatFactory(ws, strings.TrimSpace(message[len(create):]), req.Artifacts, evidence)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadGateway)
 				return
@@ -112,9 +120,9 @@ func main() {
 			return
 		}
 		resp, err := gw.Generate(models.Request{
-			Tier:        models.TierCheap,
-			System:      "You are a helpful factory assistant. Answer briefly. To start a run, direct the user to the goal builder or the Start command.",
-			User:        req.Message,
+			Tier:   models.TierCheap,
+			System: "You are a helpful factory assistant. Treat attachments as source material. When using an attachment, cite its file name. Answer briefly. To start a run, direct the user to the goal builder or the Start command.",
+			User:   req.Message + evidence.Text, Images: evidence.Images,
 			Temperature: 0.3,
 			MaxTokens:   300,
 		})

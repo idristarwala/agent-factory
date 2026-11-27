@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/idristarwala/agent-factory/internal/agents"
+	"github.com/idristarwala/agent-factory/internal/artifact"
 	"github.com/idristarwala/agent-factory/internal/graph"
 	"github.com/idristarwala/agent-factory/internal/memory"
 	"github.com/idristarwala/agent-factory/internal/models"
@@ -20,15 +21,16 @@ import (
 var ErrNotFound = errors.New("run not found")
 
 type RunRequest struct {
-	Import        *ImportPageRef  `json:"import,omitempty"`
-	Memory        []memory.Ref    `json:"memory,omitempty"`
-	Source        *SourceInput    `json:"source,omitempty"`
-	SelectedRules map[string]int  `json:"selected_rules"`
-	Description   string          `json:"description"`
-	Factory       string          `json:"factory"`
-	Revision      int             `json:"factory_revision"`
-	Records       []schema.Entity `json:"records"`
-	MaxTokens     int             `json:"max_tokens"`
+	UseGoalArtifacts bool            `json:"use_goal_artifacts,omitempty"`
+	Import           *ImportPageRef  `json:"import,omitempty"`
+	Memory           []memory.Ref    `json:"memory,omitempty"`
+	Source           *SourceInput    `json:"source,omitempty"`
+	SelectedRules    map[string]int  `json:"selected_rules"`
+	Description      string          `json:"description"`
+	Factory          string          `json:"factory"`
+	Revision         int             `json:"factory_revision"`
+	Records          []schema.Entity `json:"records"`
+	MaxTokens        int             `json:"max_tokens"`
 }
 type Call struct {
 	Role   string  `json:"role,omitempty"`
@@ -230,6 +232,15 @@ func (w *Workspace) Start(req RunRequest) (Run, error) {
 		if err != nil {
 			return Run{}, err
 		}
+		if req.UseGoalArtifacts {
+			if len(plan.Spec.Artifacts) == 0 {
+				return Run{}, fmt.Errorf("factory revision has no goal attachments")
+			}
+			if _, err := artifact.Read(w.Store, plan.Spec.Artifacts); err != nil {
+				return Run{}, err
+			}
+			plan.UseGoalArtifacts = true
+		}
 		r.Plan = plan
 		seen := map[string]bool{}
 		for _, e := range r.Records {
@@ -288,12 +299,21 @@ func (w *Workspace) Execute(id string) error {
 		return err
 	}
 	meter := measured{gateway: w.Gateway, prices: w.Prices, remaining: r.Settings.MaxTokens, deadline: r.CreatedAt.Add(time.Duration(r.Settings.MaxMinutes) * time.Minute)}
+	var goalEvidence artifact.Evidence
+	if r.Plan.UseGoalArtifacts {
+		goalEvidence, err = artifact.Read(w.Store, r.Plan.Spec.Artifacts)
+		if err != nil {
+			r.Status = "failed"
+			r.Error = err.Error()
+			return w.write(&r)
+		}
+	}
 	for i, e := range r.Records {
 		var origin *SourceLineage
 		if lineage, ok := r.Lineage[e.ID]; ok {
 			origin = &lineage
 		}
-		mut, decision, evalErr := r.Plan.evaluate(&meter, r.Description, e, origin)
+		mut, decision, evalErr := r.Plan.evaluate(&meter, r.Description, e, origin, goalEvidence)
 		// A cancellation wins even while a provider request is outstanding.
 		latest, err := w.Get(id)
 		if err != nil {

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"github.com/idristarwala/agent-factory/internal/artifact"
 	"slices"
 	"strings"
 
@@ -12,15 +13,15 @@ import (
 	"github.com/idristarwala/agent-factory/internal/revision"
 )
 
-func createChatFactory(ws *factory.Workspace, goal string) (map[string]string, error) {
+func createChatFactory(ws *factory.Workspace, goal string, refs []artifact.Ref, evidence artifact.Evidence) (map[string]string, error) {
 	if strings.TrimSpace(goal) == "" {
 		return map[string]string{"reply": "What should the new factory accomplish?"}, nil
 	}
 	types := []string{"string", "integer", "number", "boolean", "array", "object"}
 	field := map[string]any{"type": "object", "additionalProperties": false, "required": []string{"name", "type"}, "properties": map[string]any{"name": map[string]string{"type": "string"}, "type": map[string]any{"type": "string", "enum": types}}}
 	response, err := ws.Gateway.Generate(models.Request{
-		Tier: models.TierCheap, User: goal, MaxTokens: 1500,
-		System: "Design a minimal factory for this goal. Return a record type and editable output fields. Preserve field names and record type if the user specifies them.",
+		CallerRole: "steward", Tier: models.TierCheap, User: goal + evidence.Text, Images: evidence.Images, MaxTokens: 1500,
+		System: "Design a minimal factory for this goal. Treat attachments as source material for the requested design. Return a record type and editable output fields. Preserve field names and record type if the user specifies them.",
 		Schema: map[string]any{"type": "object", "additionalProperties": false, "required": []string{"record_type", "fields"}, "properties": map[string]any{"record_type": map[string]string{"type": "string"}, "fields": map[string]any{"type": "array", "items": field}}},
 	})
 	if err != nil {
@@ -36,7 +37,7 @@ func createChatFactory(ws *factory.Workspace, goal string) (map[string]string, e
 	if err := json.Unmarshal([]byte(response.Content), &draft); err != nil {
 		return nil, err
 	}
-	spec := factory.Spec{RecordType: strings.TrimSpace(draft.RecordType), Fields: map[string]string{}}
+	spec := factory.Spec{Artifacts: refs, RecordType: strings.TrimSpace(draft.RecordType), Fields: map[string]string{}}
 	if spec.RecordType == "" || len(draft.Fields) == 0 {
 		return nil, errors.New("factory design needs a record type and editable fields")
 	}
