@@ -57,7 +57,7 @@ func (w *Workspace) ImportPages(factory, id string) ([]ImportPage, error) {
 	return pages, nil
 }
 func (w *Workspace) AdvanceImport(ctx context.Context, source PageSource, factory, id string, spec ImportSpec, expected, limit int) ([]ImportPage, error) {
-	if factory == "" || id == "" || spec.Feed == "" || spec.Mapping == "" || spec.Revision < 1 || spec.CursorParam == "" || !strings.HasPrefix(spec.NextPath, "/") || expected < 0 || limit < 1 || limit > 10 {
+	if factory == "" || id == "" || spec.Feed == "" || spec.Mapping == "" || spec.Revision < 1 || spec.CursorParam == "" || expected < 0 || limit < 1 || limit > 10 {
 		return nil, fmt.Errorf("supply a factory, import id, feed, pinned mapping, cursor parameter, next-token pointer and 1–10 pages")
 	}
 	pages, err := w.ImportPages(factory, id)
@@ -66,6 +66,25 @@ func (w *Workspace) AdvanceImport(ctx context.Context, source PageSource, factor
 	}
 	if len(pages) != expected {
 		return nil, revision.ErrConflict
+	}
+	docs, err := revision.Documents(w.Store, "source-mapping/"+spec.Mapping)
+	if err != nil {
+		return nil, err
+	}
+	if spec.Revision > len(docs) {
+		return nil, fmt.Errorf("unknown mapping revision")
+	}
+	var approved mapping.ApprovedMapping
+	if err = json.Unmarshal(docs[spec.Revision-1].Data, &approved); err != nil {
+		return nil, err
+	}
+	if spec.NextPath == "" {
+		spec.NextPath = approved.NextPath
+	} else if approved.NextPath != "" && approved.NextPath != spec.NextPath {
+		return nil, fmt.Errorf("next-token pointer differs from the approved mapping")
+	}
+	if !strings.HasPrefix(spec.NextPath, "/") {
+		return nil, fmt.Errorf("supply a next-token pointer or approve one in the mapping")
 	}
 	cursor := ""
 	cursors := map[string]bool{}
@@ -82,17 +101,6 @@ func (w *Workspace) AdvanceImport(ctx context.Context, source PageSource, factor
 		for _, r := range p.Records {
 			ids[r.ID] = true
 		}
-	}
-	docs, err := revision.Documents(w.Store, "source-mapping/"+spec.Mapping)
-	if err != nil {
-		return nil, err
-	}
-	if spec.Revision > len(docs) {
-		return nil, fmt.Errorf("unknown mapping revision")
-	}
-	var approved mapping.ApprovedMapping
-	if err = json.Unmarshal(docs[spec.Revision-1].Data, &approved); err != nil {
-		return nil, err
 	}
 	committed := []ImportPage{}
 	for i := 0; i < limit; i++ {
