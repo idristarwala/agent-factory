@@ -112,7 +112,16 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 			fmt.Println("Steward reports clean but verifier disagrees. Continuing.")
 		}
 
+		// Exclude blocked units from this round
+		blocked := map[string]bool{}
+		for _, id := range r.progress.BlockedNodes() {
+			blocked[string(id)] = true
+		}
+
 		for _, uow := range uows {
+			if blocked[string(uow.InputSubgraph)] {
+				continue
+			}
 			if err := r.Queue.Enqueue(ctx, uow); err != nil {
 				return err
 			}
@@ -121,6 +130,7 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 		var wg sync.WaitGroup
 		decisions := make([]agents.Decision, 0)
 		var failureMsgs []string
+		var failureErrs []error
 		var mu sync.Mutex
 
 		for i := 0; i < r.Workers; i++ {
@@ -163,6 +173,7 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 						r.Queue.Fail(ctx, uow.ID, "create worker: "+err.Error())
 						mu.Lock()
 						failureMsgs = append(failureMsgs, err.Error())
+						failureErrs = append(failureErrs, err)
 						mu.Unlock()
 						continue
 					}
@@ -171,6 +182,7 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 						r.Queue.Fail(ctx, uow.ID, err.Error())
 						mu.Lock()
 						failureMsgs = append(failureMsgs, err.Error())
+						failureErrs = append(failureErrs, err)
 						if r.progress.RecordFailure(string(uow.InputSubgraph)) {
 							fmt.Printf("Unit %s blocked after repeated failures\n", uow.InputSubgraph)
 						}
@@ -200,6 +212,9 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 		totalFailures += len(failureMsgs)
 
 		if r.Learning != nil {
+			// Use CollectFailureSignals so learning sees grouped failures
+			signals := CollectFailureSignals(nil, failureErrs)
+			_ = signals // available for richer learning; Review still takes messages for now
 			gaps := r.Learning.Review(decisions, failureMsgs)
 			updates := r.Learning.ProposeUpdates(gaps)
 			applied := r.Learning.Apply(updates)
