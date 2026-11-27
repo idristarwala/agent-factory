@@ -39,7 +39,7 @@ func (w *ReactWorker) Execute(uow *unitofwork.UnitOfWork) (*graph.Mutation, erro
 	if err != nil {
 		return nil, err
 	}
-	allowed, types, err := outputFields(uow, node.Props)
+	allowed, types, err := outputFields(uow, node.Type, node.Props)
 	if err != nil {
 		return nil, err
 	}

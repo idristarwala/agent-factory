@@ -42,12 +42,14 @@ func TestContinuousWriteScope(t *testing.T) {
 		workers, judges          int
 	}{
 		{"title_only", "Edit only title", "title", `{"title":"fixed","clothing_size":"XL","actual_color":"purple"}`, nil, 2, 0},
+		{"qualified_other_domain", "Fix ticket assignments", "assignment", `{"assignment":"IT"}`, nil, 1, 1},
+		{"qualified_outside_grant", "Fix ticket assignments", "", "", []string{"assigned_team"}, 0, 0},
 		{"explicit_scope", "Assign the support team from the routing guide", "assigned_team", `{"assigned_team":"IT"}`, []string{"assigned_team"}, 1, 1},
 		{"ambiguous", "Review this record", "", "", nil, 0, 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			g := graph.NewMemoryGraph()
-			g.AddNode(graph.Node{ID: "record", Props: map[string]any{"title": "old", "clothing_size": "M", "actual_color": "blue", "assigned_team": "unknown", "status": "open"}})
+			g.AddNode(graph.Node{ID: "record", Type: "ticket", Props: map[string]any{"title": "old", "clothing_size": "M", "actual_color": "blue", "assigned_team": "unknown", "assignment": "unknown", "status": "open"}})
 			gw := &scopeGateway{field: tc.field, reply: tc.reply, t: t}
 			steward := agents.NewSmartSteward(unitofwork.NewMemoryStore())
 			steward.SetRuntime(gw, g, nil)
@@ -81,7 +83,7 @@ func TestContinuousWriteScope(t *testing.T) {
 			if tc.judges == 0 && n.Props["status"] != "open" {
 				t.Fatal(n)
 			}
-			if tc.judges == 1 && (n.Props["assigned_team"] != "IT" || n.Props["status"] != "fixed") {
+			if tc.judges == 1 && (n.Props[tc.field] != "IT" || n.Props["status"] != "fixed") {
 				t.Fatal(n)
 			}
 		})

@@ -27,23 +27,45 @@ func fieldType(value any) string {
 	return ""
 }
 
-// continuousFields resolves a write scope before the steward queues the unit.
-func continuousFields(goal string, configured []string, current map[string]any) ([]string, error) {
-	fields := configured
-	// This compact task form names one literal field. More complex goals can
-	// carry their precise scope separately from the natural-language prompt.
-	if verb, rest, ok := strings.Cut(strings.TrimSpace(goal), " "); ok {
-		name := strings.TrimSpace(rest)
-		if only, remainder, found := strings.Cut(name, " "); found && strings.EqualFold(only, "only") {
-			name = strings.TrimSpace(remainder)
-		}
-		if slices.Contains([]string{"edit", "fix", "update", "correct"}, strings.ToLower(verb)) && name != "" && !strings.ContainsAny(name, " \t\n") {
-			if len(configured) > 0 && !slices.Contains(configured, name) {
-				return nil, fmt.Errorf("task field %q is outside the configured write scope", name)
-			}
-			fields = []string{name}
+// taskField recognizes a compact edit instruction, optionally qualified by the record type.
+func taskField(goal, recordType string, current map[string]any) string {
+	words := strings.Fields(goal)
+	if len(words) < 2 || !slices.Contains([]string{"edit", "fix", "update", "correct"}, strings.ToLower(words[0])) {
+		return ""
+	}
+	words = words[1:]
+	if len(words) > 1 && strings.EqualFold(words[0], "only") {
+		words = words[1:]
+	}
+	if len(words) == 2 && recordType != "" && strings.EqualFold(words[0], recordType) {
+		words = words[1:]
+	}
+	if len(words) != 1 {
+		return ""
+	}
+	name := words[0]
+	if _, exact := current[name]; exact {
+		return name
+	}
+	// Match a regular plural only when its singular is an actual source property.
+	if singular, ok := strings.CutSuffix(name, "s"); ok {
+		if _, exists := current[singular]; exists {
+			return singular
 		}
 	}
+	return name
+}
+
+// continuousFields resolves a write scope before the steward queues the unit.
+func continuousFields(goal, recordType string, configured []string, current map[string]any) ([]string, error) {
+	fields := configured
+	if name := taskField(goal, recordType, current); name != "" {
+		if len(configured) > 0 && !slices.Contains(configured, name) {
+			return nil, fmt.Errorf("task field %q is outside the configured write scope", name)
+		}
+		fields = []string{name}
+	}
+
 	if len(fields) == 0 {
 		for name, value := range current {
 			if name == "status" || fieldType(value) == "" {
@@ -66,10 +88,10 @@ func continuousFields(goal string, configured []string, current map[string]any) 
 	return slices.Clone(fields), nil
 }
 
-func outputFields(u *unitofwork.UnitOfWork, current map[string]any) ([]string, map[string]string, error) {
+func outputFields(u *unitofwork.UnitOfWork, recordType string, current map[string]any) ([]string, map[string]string, error) {
 	allowed := u.AllowedFields
 	if len(allowed) == 0 {
-		fields, err := continuousFields(u.Description, nil, current)
+		fields, err := continuousFields(u.Description, recordType, nil, current)
 		if err != nil {
 			return nil, nil, err
 		}
