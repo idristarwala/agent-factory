@@ -51,6 +51,11 @@ func (a APIResponse) Fields(collection string) ([]DeclaredField, error) {
 			if !has {
 				return m, nil
 			}
+			for key := range m {
+				if key != "$ref" && key != "description" && key != "summary" && key != "title" && !strings.HasPrefix(key, "x-") {
+					return nil, fmt.Errorf("unsupported OpenAPI reference sibling %q", key)
+				}
+			}
 			p, ok := ref.(string)
 			if !ok || !strings.HasPrefix(p, "#/") {
 				return nil, fmt.Errorf("OpenAPI references must be local JSON pointers")
