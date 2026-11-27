@@ -48,3 +48,21 @@ Post a sample and a mapping to `/api/sources/preview`. The following mapping sel
 The preview body has `sample` and `mapping` keys. It returns indexed rows with normalized records or identity errors. Missing optional attributes are omitted. To save a valid mapping, POST the same body and an `expected` revision (zero for creation) to `/api/sources/mappings/{id}`. GET that path for immutable history. Only the mapping is saved.
 
 To run it, POST a goal with `factory`, `description` and `source: {"mapping":"meters","revision":1,"payload":…}`. The server applies that exact mapping, validates record identities again and queues the run. Its record snapshot and mapping reference are retained for review.
+
+## Sample a remote source
+
+Set `FACTORY_SOURCE_CONFIG` on the API server to a YAML file defining available read-only HTTP endpoints and the factories granted access. For example:
+
+```yaml
+tools:
+  case-feed:
+    url: https://records.example.com/cases
+    query: [cursor]
+    auth: {type: bearer, key_file: secrets/records-token}
+grants:
+  - {pack: case-review, tools: [case-feed], side_effects: [read-only]}
+```
+
+POST `{}` to `/api/sources/case-review/case-feed/sample` to receive the collection and field profiles for one fresh response. Supply `{"query":{"cursor":"next-page"}}` to sample a particular page. Only configured query names are accepted. The HTTP limits, destination policy, TLS and credential-file options are shared with evidence tools.
+
+To use the sampled bytes for mapping preview or a pinned goal, request `{"include_sample":true}` and pass the returned `sample` as the mapping sample or goal source payload. The endpoint returns structural statistics by default and does not persist the raw sample.

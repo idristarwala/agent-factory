@@ -20,9 +20,27 @@ import (
 type EvidenceConfig struct {
 	recipe   ContextRecipe
 	registry map[string]*HTTPTool
+	grants   []Grant
 }
 
 func LoadEvidenceConfig(path, pack string) (*EvidenceConfig, error) {
+	cfg, err := loadHTTPConfig(path)
+	if err != nil {
+		return nil, err
+	}
+	if cfg.recipe.Entity == "" && cfg.recipe.Neighbours == "" {
+		return nil, fmt.Errorf("missing entity or neighbours evidence source")
+	}
+	if cfg.recipe.Media != "" && cfg.recipe.Entity == "" {
+		return nil, fmt.Errorf("media requires an entity evidence tool")
+	}
+	if err := cfg.recipe.Authorize(pack, cfg.grants); err != nil {
+		return nil, err
+	}
+	return cfg, nil
+}
+
+func loadHTTPConfig(path string) (*EvidenceConfig, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -61,15 +79,6 @@ func LoadEvidenceConfig(path, pack string) (*EvidenceConfig, error) {
 	}
 	if err := decoder.Decode(new(any)); err != io.EOF {
 		return nil, fmt.Errorf("expected one evidence configuration document")
-	}
-	if config.Context.Entity == "" && config.Context.Neighbours == "" {
-		return nil, fmt.Errorf("missing entity or neighbours evidence source")
-	}
-	if config.Context.Media != "" && config.Context.Entity == "" {
-		return nil, fmt.Errorf("media requires an entity evidence tool")
-	}
-	if err := config.Context.Authorize(pack, config.Grants); err != nil {
-		return nil, err
 	}
 	registry := make(map[string]*HTTPTool, len(config.Tools))
 	for name, def := range config.Tools {
@@ -169,7 +178,7 @@ func LoadEvidenceConfig(path, pack string) (*EvidenceConfig, error) {
 			return nil, fmt.Errorf("missing evidence tool %q", step.name)
 		}
 	}
-	return &EvidenceConfig{recipe: config.Context, registry: registry}, nil
+	return &EvidenceConfig{recipe: config.Context, registry: registry, grants: config.Grants}, nil
 }
 
 func RecordParams(id string, props map[string]any) map[string]string {
