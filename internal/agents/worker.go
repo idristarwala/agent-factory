@@ -52,7 +52,7 @@ func (w *LLMWorker) Execute(uow *unitofwork.UnitOfWork) (*graph.Mutation, error)
 	context = string(raw)
 	var ruleText strings.Builder
 	for _, r := range w.Rules {
-		ruleText.WriteString(fmt.Sprintf("- %s\n", r.Description))
+		ruleText.WriteString(fmt.Sprintf("- %s\n", renderRule(r)))
 	}
 	if ruleText.Len() == 0 {
 		ruleText.WriteString("(no active rules)\n")

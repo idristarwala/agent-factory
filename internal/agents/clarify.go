@@ -18,7 +18,7 @@ func NeedsClarification(goal string, hasSource bool, hasSample bool) []Clarifica
 	goal = strings.TrimSpace(goal)
 	if goal == "" || len(goal) < 8 {
 		qs = append(qs, Clarification{
-			Question: "What would you like to achieve? For example: “Fix product titles and product types.”",
+			Question: "What outcome should this factory achieve?",
 			Field:    "goal",
 			Required: true,
 		})
@@ -29,17 +29,6 @@ func NeedsClarification(goal string, hasSource bool, hasSample bool) []Clarifica
 			Question: "Where does your data live? You can point me at a BigQuery table, an API, or upload a file.",
 			Field:    "source",
 			Required: true,
-		})
-	}
-
-	lower := strings.ToLower(goal)
-	if goal != "" && !strings.Contains(lower, "title") && !strings.Contains(lower, "price") &&
-		!strings.Contains(lower, "inventory") && !strings.Contains(lower, "catalog") &&
-		!strings.Contains(lower, "product") && !strings.Contains(lower, "stock") {
-		qs = append(qs, Clarification{
-			Question: "Which area should I focus on — catalog, pricing, inventory, or something else?",
-			Field:    "domain",
-			Required: false,
 		})
 	}
 

@@ -25,7 +25,7 @@ func NewLLMJudge(gw models.Gateway, g graph.Graph) *LLMJudge {
 func (j *LLMJudge) Evaluate(proposal *graph.Mutation, rules []Rule) (Decision, error) {
 	var ruleText strings.Builder
 	for _, r := range rules {
-		ruleText.WriteString(fmt.Sprintf("- %s\n", r.Description))
+		ruleText.WriteString(fmt.Sprintf("- %s\n", renderRule(r)))
 	}
 	if ruleText.Len() == 0 {
 		ruleText.WriteString("(no rules)\n")

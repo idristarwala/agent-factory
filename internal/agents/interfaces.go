@@ -1,5 +1,6 @@
 package agents
 
+import "strings"
 import "github.com/idristarwala/agent-factory/internal/graph"
 import "github.com/idristarwala/agent-factory/internal/unitofwork"
 
@@ -54,4 +55,15 @@ func ruleRevisions(rules []Rule) map[string]int {
 		}
 	}
 	return versions
+}
+
+func renderRule(r Rule) string {
+	parts := []string{r.Description}
+	if r.Condition != "" {
+		parts = append(parts, "Condition: "+r.Condition)
+	}
+	if r.Action != "" {
+		parts = append(parts, "Action: "+r.Action)
+	}
+	return strings.Join(parts, " | ")
 }

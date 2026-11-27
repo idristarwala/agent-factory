@@ -132,7 +132,10 @@ func main() {
 		})
 	}, "POST"))
 
-	addr := ":8080"
+	addr := os.Getenv("FACTORY_LISTEN_ADDR")
+	if addr == "" {
+		addr = ":8080"
+	}
 	fmt.Println("API listening on", addr, "(store:", storeKindLabel(), ")")
 	srv := &http.Server{
 		Addr:         addr,
