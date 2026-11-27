@@ -11,6 +11,7 @@ The API and CLI read deployment configuration from their process environment. Re
 | `FACTORY_DB_PATH` | File path, user config directory plus `agent-factory/factory.sqlite` | SQLite path when both higher-priority modes are absent. |
 | `FACTORY_ID` | String, unset | Workspace namespace for stored definitions and revisions. Use the same value in the API and CLI. |
 | `FACTORY_LISTEN_ADDR` | Host and port, `:8080` | API listener. Use `127.0.0.1:8080` for loopback only. |
+| `COMPOSE_FILE` | Compose file path(s), unset | Used by Docker Compose for `factory up`. An explicit `-f FILE` takes precedence. |
 | `API_TOKEN` | Secret string, unset | Admin bearer token. Any configured role enables authentication. Tokens must be distinct. Health stays public. |
 | `FACTORY_OPERATOR_TOKEN` | Secret string, unset | Operator bearer token for running factories and reviewing work. |
 | `FACTORY_VIEWER_TOKEN` | Secret string, unset | Viewer bearer token for read access to workspace data. |

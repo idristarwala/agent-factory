@@ -56,7 +56,9 @@ func main() {
 	case "readiness":
 		runReadiness()
 	case "up":
-		runUp()
+		if err := runUp(os.Args[2:]); err != nil {
+			log.Fatal(err)
+		}
 	case "publish":
 		runPublish()
 	default:
@@ -115,14 +117,6 @@ func runReadiness() {
 	fmt.Println("Ready (grants enforced in ContinuousRunner; secrets by reference).")
 }
 
-func runUp() {
-	fmt.Println("Starting factory (docker-compose recommended for full stack).")
-	fmt.Println("Use: docker-compose up")
-	fmt.Println("Or:  go run ./cmd/api for the API process.")
-	fmt.Println("Or:  go run ./cmd/variant-demo for grouping scoring demo.")
-	fmt.Println("Durable store: set DATABASE_URL and use store.NewPostgresStore(\"postgres\", dsn).")
-}
-
 func runPublish() {
 	fmt.Println("Publishing pack revision as proposed release...")
 	fmt.Println("Proposed (see deploy/release.sh and .github/workflows/release.yml for digest pinning).")
@@ -133,7 +127,7 @@ func printUsage() {
 	fmt.Println("Usage: factory <command>")
 	fmt.Println("Commands:")
 	fmt.Println("  import     Save a versioned definition from JSON")
-	fmt.Println("  up         Start the factory locally")
+	fmt.Println("  up [-f FILE]   Start the local Compose project and wait for readiness")
 	fmt.Println("  validate [PATH...]   Check packs against the published schema")
 	fmt.Println("  test       Run fixture / contract tests")
 	fmt.Println("  readiness  Check environment readiness")
