@@ -42,6 +42,11 @@ type modelsAdapter struct {
 }
 
 func (a *modelsAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
+	schema, err := compileOutputSchema(req.ResponseSchema)
+	if err != nil {
+		return nil, err
+	}
+
 	var system, user string
 	for _, m := range req.Messages {
 		if m.Role == "system" {
@@ -61,6 +66,7 @@ func (a *modelsAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatRespons
 	}
 
 	oldReq := models.Request{
+		Schema:      req.ResponseSchema,
 		Tier:        models.Tier(req.Tier),
 		System:      system,
 		User:        user,
@@ -73,6 +79,9 @@ func (a *modelsAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatRespons
 		return nil, &Error{Type: "TRANSPORT", Message: err.Error(), Retryable: true, Cause: err}
 	}
 
+	if err := validateOutput(schema, resp.Content); err != nil {
+		return nil, err
+	}
 	return &ChatResponse{
 		Content:      resp.Content,
 		Model:        resp.Model,
@@ -86,5 +95,6 @@ func (a *modelsAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatRespons
 }
 
 func (a *modelsAdapter) Stream(ctx context.Context, req ChatRequest) (Stream, error) {
+
 	return nil, ErrStreamingUnsupported
 }

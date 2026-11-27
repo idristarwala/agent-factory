@@ -80,7 +80,10 @@ func geminiBody(req ChatRequest) ([]byte, error) {
 	if req.Temperature != nil {
 		cfg["temperature"] = *req.Temperature
 	}
-	if req.ResponseFormat == "json" {
+	if req.ResponseSchema != nil {
+		cfg["responseMimeType"] = "application/json"
+		cfg["responseJsonSchema"] = req.ResponseSchema
+	} else if req.ResponseFormat == "json" {
 		cfg["responseMimeType"] = "application/json"
 	}
 	if len(req.Tools) > 0 {
@@ -108,6 +111,11 @@ func geminiBody(req ChatRequest) ([]byte, error) {
 }
 
 func (a *GeminiAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
+	schema, err := compileOutputSchema(req.ResponseSchema)
+	if err != nil {
+		return nil, err
+	}
+
 	b, err := geminiBody(req)
 	if err != nil {
 		return nil, err
@@ -171,10 +179,17 @@ func (a *GeminiAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatRespons
 	if len(out.Candidates) == 0 {
 		return nil, &Error{Type: "BAD_RESPONSE", Message: "no Gemini candidates"}
 	}
+	if err := validateOutput(schema, content); err != nil {
+		return nil, err
+	}
 	return &ChatResponse{Content: content, ToolCalls: toolCalls, Model: out.Model, LogicalModel: req.Model, Usage: Usage{Input: out.Usage.Input, Output: out.Usage.Output, Reasoning: out.Usage.Reasoning, Total: out.Usage.Total}}, nil
 }
 
 func (a *GeminiAdapter) Stream(ctx context.Context, req ChatRequest) (Stream, error) {
+	if req.ResponseSchema != nil {
+		return nil, ErrStreamingUnsupported
+	}
+
 	b, err := geminiBody(req)
 	if err != nil {
 		return nil, err

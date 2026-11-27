@@ -29,6 +29,11 @@ func NewOpenAIAdapter(baseURL, apiKey string, headers map[string]string) *OpenAI
 }
 
 func (a *OpenAIAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
+	schema, err := compileOutputSchema(req.ResponseSchema)
+	if err != nil {
+		return nil, err
+	}
+
 	body, err := BuildOpenAIBody(req)
 	if err != nil {
 		return nil, err
@@ -84,6 +89,9 @@ func (a *OpenAIAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatRespons
 			Arguments: tc.Function.Arguments,
 		})
 	}
+	if err := validateOutput(schema, content); err != nil {
+		return nil, err
+	}
 	return &ChatResponse{
 		Content:   content,
 		ToolCalls: toolCalls,
@@ -96,6 +104,10 @@ func (a *OpenAIAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatRespons
 }
 
 func (a *OpenAIAdapter) Stream(ctx context.Context, req ChatRequest) (Stream, error) {
+	if req.ResponseSchema != nil {
+		return nil, ErrStreamingUnsupported
+	}
+
 	// Basic SSE streaming support for OpenAI-compatible endpoints.
 	// Falls back to ErrStreamingUnsupported only if the request cannot be built.
 	body, err := BuildOpenAIBody(req)
@@ -189,7 +201,9 @@ func BuildOpenAIBody(req ChatRequest) ([]byte, error) {
 		body["tools"] = tools
 	}
 	// Provider-enforced structured output (issue #10 / #8)
-	if req.ResponseFormat == "json" {
+	if req.ResponseSchema != nil {
+		body["response_format"] = map[string]any{"type": "json_schema", "json_schema": map[string]any{"name": "response", "strict": true, "schema": req.ResponseSchema}}
+	} else if req.ResponseFormat == "json" {
 		body["response_format"] = map[string]any{"type": "json_object"}
 	}
 	return json.Marshal(body)

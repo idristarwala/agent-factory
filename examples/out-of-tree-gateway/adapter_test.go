@@ -52,3 +52,7 @@ func TestCorpGatewayHTTPFailures(t *testing.T) {
 		return NewCorpGateway(url, "fixture", nil).Client()
 	})
 }
+
+func TestCorpGatewayStructuredOutput(t *testing.T) {
+	llmtest.RunStructuredConformance(t, "openai", func(url string) llm.Client { return NewCorpGateway(url, "fixture", nil).Client() })
+}
