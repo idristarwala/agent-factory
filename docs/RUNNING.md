@@ -14,3 +14,10 @@ The HTTP API uses the same factory definitions and evaluator. Start the API, ope
 Set `FACTORY_DB_PATH` or `DATABASE_URL` and `FACTORY_ID` consistently across the CLI and API. Set `FACTORY_MODEL_PRICES` to a JSON object keyed by model name with numeric `input_per_million` and `output_per_million` USD rates. Run details retain token counts and the estimate calculated for each successful model call. Unpriced calls are identified separately.
 
 For API-managed runs, `GET /api/usage?run=<id>` reports input, output and total tokens, model attempts, failed attempts, known estimated cost and unpriced responses. It also reports tool invocation counts by name. Reading pinned goal artifacts is one logical tool invocation per run and collecting mapped images is one per evaluated record that needs images; failed invocations count. A shared worker/judge input is counted once. Dashboard run totals exclude chat and design traffic; the unfiltered API retains these session tokens separately as `non_run_tokens` and includes them in the legacy `tokens_used` total. Earlier run snapshots have no recorded tool counts.
+
+The continuous swarm command publishes its usage when the run finishes, including runs
+that end at a budget or with an error. Use the same SQLite path or PostgreSQL database
+and factory ID for the command and API to see that run in the dashboard. In-memory
+stores are local to each process. The command uses the same provider routing and
+`FACTORY_MODEL_PRICES` as the API. Round-boundary token checks use provider-reported
+totals. A named tool invocation counts once, including when the request fails.

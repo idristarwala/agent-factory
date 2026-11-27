@@ -29,8 +29,12 @@ func TestRecipeEvidenceAndFailure(t *testing.T) {
 	}
 	failed := NewHTTPTool("related", "GET", srv.URL+"/missing")
 	failed.Client = srv.Client()
-	if _, err := ExecuteRecipe(t.Context(), r, map[string]*HTTPTool{"source": tool, "related": failed}, nil); err == nil {
+	counts := map[string]int{}
+	if _, err := ExecuteRecipeTracked(t.Context(), r, map[string]*HTTPTool{"source": tool, "related": failed}, nil, func(name string) { counts[name]++ }); err == nil {
 		t.Fatal("accepted failed tool")
+	}
+	if counts["source"] != 1 || counts["related"] != 1 {
+		t.Fatal(counts)
 	}
 	r.Neighbours = ""
 	if err := r.Authorize("desk", grants); err != nil {

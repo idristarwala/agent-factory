@@ -12,5 +12,9 @@ func (r *ContinuousRunner) GatherEvidence(ctx context.Context, recipe tools.Cont
 	if err := recipe.Authorize(r.Pack, r.Grants); err != nil {
 		return nil, err
 	}
-	return tools.ExecuteRecipe(ctx, recipe, registry, params)
+	var record func(string)
+	if r.Usage != nil {
+		record = r.Usage.RecordTool
+	}
+	return tools.ExecuteRecipeTracked(ctx, recipe, registry, params, record)
 }

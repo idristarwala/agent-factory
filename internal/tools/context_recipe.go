@@ -26,6 +26,10 @@ func (r ContextRecipe) Authorize(pack string, grants []Grant) error {
 }
 
 func ExecuteRecipe(ctx context.Context, recipe ContextRecipe, registry map[string]*HTTPTool, params map[string]string) (map[string]any, error) {
+	return ExecuteRecipeTracked(ctx, recipe, registry, params, nil)
+}
+
+func ExecuteRecipeTracked(ctx context.Context, recipe ContextRecipe, registry map[string]*HTTPTool, params map[string]string, record func(string)) (map[string]any, error) {
 	result := make(map[string]any)
 	for _, step := range recipe.steps() {
 		if step.name == "" {
@@ -34,6 +38,9 @@ func ExecuteRecipe(ctx context.Context, recipe ContextRecipe, registry map[strin
 		tool := registry[step.name]
 		if tool == nil {
 			return nil, fmt.Errorf("missing evidence tool %q", step.name)
+		}
+		if record != nil {
+			record(step.name)
 		}
 		body, err := tool.Call(ctx, params)
 		if err != nil {

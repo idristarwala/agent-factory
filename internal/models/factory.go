@@ -13,7 +13,7 @@ import (
 func NewGatewayFromEnv() (Gateway, error) {
 	provider := strings.ToLower(os.Getenv("LLM_PROVIDER"))
 	if provider == "" {
-		if os.Getenv("GEMINI_API_KEY") != "" || os.Getenv("LLM_API_KEY") != "" {
+		if os.Getenv("LLM_BASE_URL") == "" && (os.Getenv("GEMINI_API_KEY") != "" || os.Getenv("LLM_API_KEY") != "") {
 			// Prefer native Gemini when a Gemini-style key is present
 			if _, err := NewGeminiFromEnv(); err == nil {
 				provider = "gemini"

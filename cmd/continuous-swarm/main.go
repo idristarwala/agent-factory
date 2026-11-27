@@ -3,18 +3,20 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/idristarwala/agent-factory/internal/settings"
-	factoryStore "github.com/idristarwala/agent-factory/internal/store"
 	"log"
 	"os"
 	"time"
 
 	"github.com/idristarwala/agent-factory/internal/agents"
+	"github.com/idristarwala/agent-factory/internal/configuredgateway"
+	"github.com/idristarwala/agent-factory/internal/factory"
 	"github.com/idristarwala/agent-factory/internal/graph"
 	"github.com/idristarwala/agent-factory/internal/learning"
 	"github.com/idristarwala/agent-factory/internal/models"
 	"github.com/idristarwala/agent-factory/internal/queue"
 	"github.com/idristarwala/agent-factory/internal/rules"
+	"github.com/idristarwala/agent-factory/internal/settings"
+	factoryStore "github.com/idristarwala/agent-factory/internal/store"
 	"github.com/idristarwala/agent-factory/internal/swarm"
 	"github.com/idristarwala/agent-factory/internal/unitofwork"
 )
@@ -45,23 +47,39 @@ func main() {
 
 	// Real or noop gateway so CreateWorker succeeds
 	var gw models.Gateway = &noopGateway{}
-	if g2, err := models.NewOpenAICompatFromEnv(); err == nil {
-		gw = g2
+	realGateway := false
+	for _, key := range []string{"LLM_GATEWAY_CONFIG", "LLM_PROVIDER", "LLM_BASE_URL", "LLM_API_KEY", "GEMINI_API_KEY", "LLM_JUDGE_PROVIDER", "LLM_JUDGE_MODEL"} {
+		if os.Getenv(key) != "" {
+			realGateway = true
+			break
+		}
 	}
-	steward.SetRuntime(gw, g, nil)
+	if realGateway {
+		gw, err = configuredgateway.NewFromEnv()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	prices, err := factory.ParsePrices(os.Getenv("FACTORY_MODEL_PRICES"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	meter := &factory.ContinuousUsage{Gateway: gw, Prices: prices}
+	steward.SetRuntime(meter, g, nil)
 
 	if _, err := registry.Resolve(agents.AgentVersion{Name: "judge", Role: "judge", ModelTier: "frontier", CreatedBy: "system"}); err != nil {
 		log.Fatal(err)
 	}
 	var judge agents.Judge = &demoJudge{}
-	if _, ok := gw.(*noopGateway); !ok {
+	if realGateway {
 		// Prefer real LLM judge when a real gateway is available
-		lmJudge := agents.NewLLMJudge(gw, g)
+		lmJudge := agents.NewLLMJudge(meter, g)
 		// Use QuorumJudge with two independent evaluations when a real gateway is present
 		judge = agents.NewQuorumJudge([]agents.Judge{lmJudge, lmJudge}, 2)
 	}
 
 	runner := swarm.NewContinuousRunner(steward, judge, q, g, re, ll)
+	runner.Usage = meter
 	runner.Workers = 2
 	cfg, version, err := settings.Current(definitions)
 	if err != nil {
@@ -81,9 +99,17 @@ func main() {
 		goal = os.Args[1]
 	}
 
-	fmt.Println("Continuous swarm with real gateway (stops when graph is clean)")
-	if err := runner.Run(context.Background(), goal); err != nil {
-		fmt.Println("Runner finished:", err)
+	fmt.Println("Continuous swarm (stops when graph is clean)")
+	started := time.Now()
+	runErr := runner.Run(context.Background(), goal)
+	ws := factory.Workspace{Store: definitions}
+	run, err := ws.FinishContinuous(goal, started, cfg, version, meter, runErr)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Run %s: %s (%d tokens)\n", run.ID, run.Status, meter.Tokens())
+	if runErr != nil {
+		fmt.Println("Runner finished:", runErr)
 	}
 }
 

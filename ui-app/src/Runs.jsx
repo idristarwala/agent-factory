@@ -80,7 +80,7 @@ export default function Runs({runs, source, setSource, request, refresh, setMess
     <h3>Runs</h3>
     {!runs.length && <p>No runs yet. Open Goal builder to start one.</p>}
     {runs.map(r=><article key={r.id}><strong>{r.description}</strong> · {r.status}<p>{r.id}</p>
-    <p>{r.decisions?.length || 0} of {r.records?.length || 0} records evaluated · {r.calls?.reduce((n,c)=>n+c.tokens,0) || 0} tokens</p>
+    <p>{r.runner === "continuous" ? "Continuous runner" : `${r.decisions?.length || 0} of ${r.records?.length || 0} records evaluated`} · {r.calls?.reduce((n,c)=>n+c.tokens,0) || 0} tokens</p>
     {r.import_problems?.length > 0 && <details><summary>{r.import_problems.length} rejected source {r.import_problems.length===1 ? 'row' : 'rows'}</summary>
       <ul>{r.import_problems.map(p=><li key={p.index}>Row {p.index + 1}: {p.reason}</li>)}</ul></details>}
     {r.error && <p role="alert">{r.error}</p>}<details><summary>Run details</summary><RunUsage run={r}/><pre>{JSON.stringify({factory:r.plan.factory,revision:r.plan.revision,settings_revision:r.settings_revision},null,2)}</pre></details>
