@@ -116,7 +116,7 @@ Respond ONLY with valid JSON of the allowed fields.`, uow.Description, ruleText.
 	}
 	systemPrompt := "You produce structured attribute updates that obey the provided rules and evidence. Output JSON only."
 	if preserveWording {
-		systemPrompt += " When a rule requires preserving original wording, keep the seller's phrasing and only fill missing factual values from evidence. Do not rewrite existing text."
+		systemPrompt += " When a rule requires preserving original wording, preserve the phrasing in the source record and only fill missing factual values from evidence. Do not rewrite existing text."
 	}
 
 	var lastErr error
