@@ -15,7 +15,7 @@ func TestIndependentLabels(t *testing.T) {
 		{`, "labels":[{"id":"1","group":"a"},{"id":"2","group":""}]`, "tp=0 fp=1 fn=0"},
 	} {
 		out.Reset()
-		if err := benchmark([]byte(inputs+tc.labels+"}"), &out); err != nil {
+		if err := benchmark([]byte(inputs+tc.labels+"}"), &out, nil); err != nil {
 			t.Fatal(err)
 		}
 		if strings.Count(out.String(), tc.score) != 3 {
@@ -23,11 +23,11 @@ func TestIndependentLabels(t *testing.T) {
 		}
 	}
 	out.Reset()
-	if err := benchmark([]byte(inputs+"}"), &out); err != nil || strings.Contains(out.String(), "f1=") {
+	if err := benchmark([]byte(inputs+"}"), &out, nil); err != nil || strings.Contains(out.String(), "f1=") {
 		t.Fatal(out.String(), err)
 	}
 	for _, l := range []string{`[]`, `[{"id":"1","group":"a"}]`, `[{"id":"3","group":"a"}]`, `[{"id":"1","group":"a"},{"id":"1","group":"a"}]`, `[{"id":"1"}]`} {
-		if err := benchmark([]byte(inputs+`,"labels":`+l+"}"), &out); err == nil {
+		if err := benchmark([]byte(inputs+`,"labels":`+l+"}"), &out, nil); err == nil {
 			t.Fatal(l)
 		}
 	}

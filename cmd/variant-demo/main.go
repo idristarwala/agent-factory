@@ -3,7 +3,10 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
+	"github.com/idristarwala/agent-factory/internal/configuredgateway"
+	"github.com/idristarwala/agent-factory/internal/llm"
 	"io"
 	"os"
 	"strings"
@@ -22,21 +25,41 @@ type fixture struct {
 
 func main() {
 	path := "examples/labelled_grouping.json"
-	if len(os.Args) > 1 {
-		path = os.Args[1]
+	live := flag.Bool("live", false, "score configured model membership decisions")
+	flag.Parse()
+	if flag.NArg() > 1 {
+		fmt.Fprintln(os.Stderr, "usage: variant-demo [-live] [fixture.json]")
+		os.Exit(2)
+	}
+	if flag.NArg() == 1 {
+		path = flag.Arg(0)
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "read fixture: %v\n", err)
 		os.Exit(1)
 	}
-	if err := benchmark(data, os.Stdout); err != nil {
+	var client llm.Client
+	if *live {
+		gw, err := configuredgateway.NewFromEnv()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		var ok bool
+		client, ok = gw.(llm.Client)
+		if !ok {
+			fmt.Fprintln(os.Stderr, "gateway does not support membership chat")
+			os.Exit(1)
+		}
+	}
+	if err := benchmark(data, os.Stdout, client); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
-func benchmark(data []byte, out io.Writer) error {
+func benchmark(data []byte, out io.Writer, client llm.Client) error {
 	var f fixture
 	if err := json.Unmarshal(data, &f); err != nil {
 		return err
@@ -67,13 +90,23 @@ func benchmark(data []byte, out io.Writer) error {
 		}
 	}
 	det := &grouping.SimpleDetector{}
+	method := "BlockThenDecide (nil-client fallback)"
+	var decisions []grouping.Proposal
+	if client != nil {
+		method = "BlockThenDecide (configured model)"
+		var err error
+		decisions, err = grouping.DecideMembership(context.Background(), client, f.Entities, "group")
+		if err != nil {
+			return err
+		}
+	} else {
+		decisions = grouping.BlockThenDecide(context.Background(), nil, f.Entities, "group")
+	}
 	results := []struct {
 		name      string
 		proposals []grouping.Proposal
 	}{
-		{"Existing groups", nil},
-		{"SimpleDetector", det.Detect(f.Entities, "group")},
-		{"BlockThenDecide (nil-client fallback)", grouping.BlockThenDecide(context.Background(), nil, f.Entities, "group")},
+		{"Existing groups", nil}, {"SimpleDetector", det.Detect(f.Entities, "group")}, {method, decisions},
 	}
 	if f.Labels == nil {
 		fmt.Fprintln(out, "No independent labels supplied. Showing proposal counts only.")
