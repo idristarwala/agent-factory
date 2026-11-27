@@ -22,10 +22,30 @@ type Goal struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
+type Decision struct {
+	ID        string    `json:"id"`
+	GoalID    string    `json:"goal_id"`
+	Approved  bool      `json:"approved"`
+	Reason    string    `json:"reason"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type Usage struct {
+	TokensIn  int     `json:"tokens_in"`
+	TokensOut int     `json:"tokens_out"`
+	ToolCalls int     `json:"tool_calls"`
+	CostUSD   float64 `json:"cost_usd"`
+}
+
 var (
-	goalsMu sync.Mutex
-	goals   = map[string]*Goal{}
-	goalSeq int
+	goalsMu     sync.Mutex
+	goals       = map[string]*Goal{}
+	goalSeq     int
+	decisionsMu sync.Mutex
+	decisions   = map[string]*Decision{}
+	decisionSeq int
+	usageMu     sync.Mutex
+	usage       = Usage{}
 )
 
 func main() {
@@ -94,10 +114,36 @@ func main() {
 		json.NewEncoder(w).Encode(list)
 	}))
 
+	mux.HandleFunc("/api/decisions", auth(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", os.Getenv("CORS_ORIGIN"))
+		w.Header().Set("Content-Type", "application/json")
+		decisionsMu.Lock()
+		list := make([]*Decision, 0, len(decisions))
+		for _, d := range decisions {
+			list = append(list, d)
+		}
+		decisionsMu.Unlock()
+		json.NewEncoder(w).Encode(list)
+	}))
+
 	mux.HandleFunc("/api/rules", auth(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", os.Getenv("CORS_ORIGIN"))
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(ruleEngine.Active())
+	}))
+
+	mux.HandleFunc("/api/graph", auth(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", os.Getenv("CORS_ORIGIN"))
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{"nodes": []any{}, "edges": []any{}})
+	}))
+
+	mux.HandleFunc("/api/usage", auth(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", os.Getenv("CORS_ORIGIN"))
+		w.Header().Set("Content-Type", "application/json")
+		usageMu.Lock()
+		defer usageMu.Unlock()
+		json.NewEncoder(w).Encode(usage)
 	}))
 
 	mux.HandleFunc("/api/chat", auth(func(w http.ResponseWriter, r *http.Request) {
