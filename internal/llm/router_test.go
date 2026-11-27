@@ -1,57 +1,25 @@
 package llm
 
-import (
-	"context"
-	"testing"
-)
+import "testing"
 
-type routerFakeClient struct{}
-
-func (f *routerFakeClient) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
-	return &ChatResponse{Content: "ok"}, nil
-}
-func (f *routerFakeClient) Stream(ctx context.Context, req ChatRequest) (Stream, error) {
-	return nil, ErrStreamingUnsupported
-}
-
-func TestRouterRejectsWorkerFrontier(t *testing.T) {
-	r := NewRouter(&routerFakeClient{})
-	_, err := r.Chat(context.Background(), ChatRequest{
-		Tier:       TierFrontier,
-		CallerRole: RoleWorker,
-		Messages:   []Message{{Role: "user", Content: "hi"}},
-	})
-	if err == nil {
-		t.Fatal("expected error for worker requesting frontier")
-	}
-	if e, ok := err.(*Error); !ok || e.Type != "CAPABILITY" {
-		t.Fatalf("expected CAPABILITY error, got %v", err)
-	}
-}
-
-func TestRouterAllowsJudgeFrontier(t *testing.T) {
-	r := NewRouter(&routerFakeClient{})
-	resp, err := r.Chat(context.Background(), ChatRequest{
-		Tier:       TierFrontier,
-		CallerRole: RoleJudge,
-		Messages:   []Message{{Role: "user", Content: "hi"}},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if resp.Content != "ok" {
-		t.Fatalf("unexpected response: %v", resp)
-	}
-}
-
-func TestRouterAllowsWorkerCheap(t *testing.T) {
-	r := NewRouter(&routerFakeClient{})
-	_, err := r.Chat(context.Background(), ChatRequest{
-		Tier:       TierCheap,
-		CallerRole: RoleWorker,
-		Messages:   []Message{{Role: "user", Content: "hi"}},
-	})
-	if err != nil {
-		t.Fatal(err)
+func TestTierPolicy(t *testing.T) {
+	for _, tc := range []struct {
+		role   Role
+		tier   Tier
+		denied bool
+	}{
+		{RoleWorker, TierFrontier, true},
+		{RoleWorker, TierCouncil, true},
+		{RoleJudge, TierFrontier, false},
+		{RoleWorker, TierCheap, false},
+	} {
+		err := enforceTier(ChatRequest{CallerRole: tc.role, Tier: tc.tier})
+		if tc.denied {
+			if e, ok := err.(*Error); !ok || e.Type != "CAPABILITY" {
+				t.Errorf("%s at %s: expected capability error, got %v", tc.role, tc.tier, err)
+			}
+		} else if err != nil {
+			t.Errorf("%s at %s: %v", tc.role, tc.tier, err)
+		}
 	}
 }
