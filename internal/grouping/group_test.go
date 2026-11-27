@@ -26,25 +26,36 @@ func TestSimpleDetectorDeterministic(t *testing.T) {
 			t.Errorf("run mismatch at %d", i)
 		}
 	}
-
-	// Ungrouped item should be considered (signature may not match others)
-	foundUngrouped := false
-	for _, p := range p1 {
-		if p.EntityID == "4" {
-			foundUngrouped = true
-		}
-	}
-	// Not required to propose for unmatched signature; just ensure no panic
-	t.Logf("ungrouped proposed: %v, total proposals: %d", foundUngrouped, len(p1))
 }
 
-func TestSignatureIncludesType(t *testing.T) {
+func TestUngroupedItemsPlaced(t *testing.T) {
+	entities := []schema.Entity{
+		{ID: "1", Attributes: map[string]any{"brand": "Acme", "title": "Super Widget Red", "product_type": "tool", "group": "g1"}},
+		{ID: "2", Attributes: map[string]any{"brand": "Acme", "title": "Super Widget Blue", "product_type": "tool", "group": "g1"}},
+		{ID: "3", Attributes: map[string]any{"brand": "Acme", "title": "Super Widget Green", "product_type": "tool", "group": ""}}, // ungrouped, same signature
+	}
+
+	d := &SimpleDetector{}
+	proposals := d.Detect(entities, "group")
+
+	found := false
+	for _, p := range proposals {
+		if p.EntityID == "3" && p.ToGroup == "g1" && p.FromGroup == "__ungrouped__" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected ungrouped item 3 to be proposed into g1, got %+v", proposals)
+	}
+}
+
+func TestSignatureIncludesTypeAndStem(t *testing.T) {
 	e := schema.Entity{
 		ID: "x",
 		Attributes: map[string]any{
 			"brand":        "Acme",
 			"product_type": "Tool",
-			"title":        "Super Widget",
+			"title":        "The Super Widget",
 		},
 	}
 	sig := signature(e)

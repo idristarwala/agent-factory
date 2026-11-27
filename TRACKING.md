@@ -112,3 +112,9 @@ The [issue tracker](https://github.com/idristarwala/agent-factory/issues) record
 - Customer policies ingested via `rules.IngestPolicies` are now activated by default so they reach the worker and judge (addresses the "28 imported / 0 active" observation from the field re-run on #10).
 - Added unit test `TestIngestPoliciesActivatesCustomerRules`.
 - Example GitLab CI pipeline (`.gitlab-ci.yml`) that runs `factory validate` and `factory test` without live keys, advancing the "any CI/CD" acceptance criterion for #9.
+
+## Accuracy grouping refinement (2026-11-27)
+
+- SimpleDetector signature now uses a stop-word-aware name stem (skips "the", "a", etc.) so titles like "The Super Widget" and "Super Widget" share a bucket.
+- Added TestUngroupedItemsPlaced to prove ungrouped items with a matching signature are proposed into the majority group (#10).
+- Deterministic majority and stable proposal ordering preserved.

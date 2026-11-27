@@ -92,6 +92,11 @@ func (d *SimpleDetector) Detect(entities []schema.Entity, groupField string) []P
 	return proposals
 }
 
+var stopWords = map[string]bool{
+	"the": true, "a": true, "an": true, "and": true, "or": true,
+	"of": true, "for": true, "with": true, "to": true, "in": true,
+}
+
 func signature(e schema.Entity) string {
 	brand, _ := e.Attributes["brand"].(string)
 	title, _ := e.Attributes["title"].(string)
@@ -99,7 +104,22 @@ func signature(e schema.Entity) string {
 	if brand == "" && title == "" && ptype == "" {
 		return "id:" + e.ID
 	}
-	return strings.ToLower(brand) + "|" + strings.ToLower(ptype) + "|" + firstToken(strings.ToLower(title))
+	stem := nameStem(strings.ToLower(title))
+	return strings.ToLower(brand) + "|" + strings.ToLower(ptype) + "|" + stem
+}
+
+func nameStem(title string) string {
+	words := strings.Fields(title)
+	for _, w := range words {
+		w = strings.Trim(w, ".,;:!?\"'")
+		if w != "" && !stopWords[w] && len(w) > 2 {
+			return w
+		}
+	}
+	if len(words) > 0 {
+		return words[0]
+	}
+	return ""
 }
 
 func firstToken(s string) string {
