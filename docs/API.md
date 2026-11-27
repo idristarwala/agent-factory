@@ -30,6 +30,7 @@ Edits append a revision. Send the last observed revision in `Expected`, or zero 
 | POST /api/agents | Save an agent revision with `Name`, `Role`, `Expected` and optional model tier, tools, configuration or retirement state. |
 | GET /api/definitions/{kind}/{id} | Read revision history for a factory, pack, tool or experience. |
 | POST /api/definitions/{kind}/{id} | Append a document with `Expected` and a JSON object named `Data`. |
+| GET /api/settings/schema | JSON Schema for workspace settings, including defaults and bounds. |
 | GET /api/settings | Read gateway name, workspace defaults and revision. Add `?history=true` for settings revisions. |
 | POST /api/settings | Save `Expected` and a `Settings` object with max_rounds, max_tokens, max_minutes, replay_gate and observe. New runs snapshot the settings. |
 

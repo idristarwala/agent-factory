@@ -18,6 +18,6 @@ The API and runners use PostgreSQL when `DATABASE_URL` is configured. Locally th
 
 ## Versioned configuration
 
-**Settings** controls the continuous runner's wall clock, token and round limits, replay gate and observe mode. The runner reads a snapshot at startup. The connected gateway is configured by deployment environment. GET `/api/settings?history=true` retrieves the previous settings snapshots.
+**Settings** controls the continuous runner's worker concurrency, failure and stagnation limits, quorum size and required approvals, wall clock, token and round limits, replay gate and observe mode. The runner reads a snapshot at startup. The connected gateway is configured by deployment environment. GET `/api/settings?history=true` retrieves the previous settings snapshots.
 
 Use `/api/definitions/{kind}/{id}` to store and read factory, pack, tool and experience configuration snapshots. POST a JSON object with `Expected` and `Data`. GET retrieves the ordered revisions. A declaration can be stored independently of runtime activation. File-based integrations need to resolve the chosen revision when loading a definition.
