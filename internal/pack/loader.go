@@ -3,7 +3,6 @@ package pack
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 )
 
