@@ -2,20 +2,24 @@
 
 ## Completed
 
-- All high-impact correctness
-- Gateway adapters (OpenAI, Gemini, Anthropic) with POST and context
-- Packaging foundations (CLI, packs, Helm, compose, release)
-- HTTPTool for config-driven evidence
-- Context recipe wired into ContinuousRunner
-- Image fetching and ImagePart type
-- Simple mapping, grants helpers
-- Multi-protocol conformance
+- All high-impact correctness fixes
+- OpenAI, Gemini, and Anthropic POST adapters (context-aware HTTP)
+- Multi-protocol conformance tests against fake servers
+- Declarative config, key-from-file, CA/proxy, headers, param mapping
+- Usage recording, grants, ContinuousRunner
+- Factory CLI, pack loader, Helm, compose, release pipeline
+- Family context and schema validation
+- Context cancellation support documented and helpers added
+- Regression tests
+- Token param mapping (max_completion_tokens for reasoning models) wired into OpenAI adapter
+- Reasoning budget support for Gemini via metadata
+- Starter factory.yaml template for packaging
 
 ## Remaining
 
-- Full YAML tool registration with zero Go
-- Image parts fully inside gateway request bodies
-- Complete MCP streamable HTTP
-- go.sum committed
+- Full digest-pinned release automation in CI (docker build + inspect)
+- Tool-call parsing in all adapters
+- Auth token refresh / rotation reload
+- Native streaming (currently reassembly helpers + one-shot fallback)
 
-The factory supports goal-first loops with external evidence.
+The Agent Factory continues to advance toward production packaging and full gateway conformance.

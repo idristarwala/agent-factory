@@ -105,7 +105,8 @@ func BuildOpenAIBody(req ChatRequest) ([]byte, error) {
 		"messages": msgs,
 	}
 	if req.MaxTokens > 0 {
-		body["max_tokens"] = req.MaxTokens
+		param := MapTokenParam("openai", req.Model)
+		body[param] = req.MaxTokens
 	}
 	if req.Temperature != nil {
 		body["temperature"] = *req.Temperature

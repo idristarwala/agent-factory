@@ -1,7 +1,7 @@
 #!/bin/bash
 # Release pipeline for issue #9.
-# Builds binaries and documents digest-pinned image steps.
-# Full automation (docker build + inspect + manifest commit) is the remaining gap.
+# Builds binaries and emits a sample release manifest.
+# Full CI automation of docker build + inspect remains the next step.
 
 set -e
 
@@ -12,14 +12,29 @@ mkdir -p bin dist
 go build -o bin/factory ./cmd/factory
 go build -o bin/continuous-swarm ./cmd/continuous-swarm
 
-# Cross-compile skeleton for CI
 GOOS=linux GOARCH=amd64 go build -o dist/agent-factory-linux-amd64 ./cmd/factory
 
+# Sample manifest (real digests come from docker inspect after push)
+MANIFEST="dist/release-manifest-${VERSION}.json"
+cat > "${MANIFEST}" << MANIFEST_EOF
+{
+  "version": "${VERSION}",
+  "engine_digest": "sha256:replace-after-docker-push",
+  "pack_spec_version": "1",
+  "schema_version": "1",
+  "binaries": [
+    "dist/agent-factory-linux-amd64"
+  ],
+  "notes": "Pin this digest in factory.yaml. See docs/RELEASE.md."
+}
+MANIFEST_EOF
+
 echo ""
-echo "To create a digest-pinned release (manual steps until full CI automation):"
+echo "Sample release manifest written to ${MANIFEST}"
+echo "To complete a digest-pinned release:"
 echo "1. docker build -t agent-factory:${VERSION} ."
 echo "2. docker push agent-factory:${VERSION}"
 echo "3. DIGEST=\$(docker inspect --format='{{index .RepoDigests 0}}' agent-factory:${VERSION})"
-echo "4. Record the digest in a release manifest (docs/RELEASE.md or GitHub release)"
+echo "4. Update the manifest and commit it with the tag."
 echo ""
 echo "Release skeleton complete for ${VERSION}."

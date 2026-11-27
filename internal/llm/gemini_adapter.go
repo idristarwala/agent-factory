@@ -31,6 +31,13 @@ func (a *GeminiAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatRespons
 			"parts": []map[string]any{{ "text": req.Messages[len(req.Messages)-1].Content }},
 		}},
 	}
+	if budgetStr, ok := req.Metadata["reasoning_budget"]; ok {
+		if budget, err := parseInt(budgetStr); err == nil {
+			if rb := ReasoningBudget("gemini", budget); rb != nil {
+				body["generationConfig"] = map[string]any{"thinkingConfig": rb}
+			}
+		}
+	}
 	b, _ := json.Marshal(body)
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", a.BaseURL+"/models/"+req.Model+":generateContent?key="+a.APIKey, bytes.NewReader(b))
 	if err != nil {
@@ -72,4 +79,11 @@ func (a *GeminiAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatRespons
 
 func (a *GeminiAdapter) Stream(ctx context.Context, req ChatRequest) (Stream, error) {
 	return nil, ErrStreamingUnsupported
+}
+
+
+func parseInt(s string) (int, error) {
+	var n int
+	_, err := fmt.Sscanf(s, "%d", &n)
+	return n, err
 }
