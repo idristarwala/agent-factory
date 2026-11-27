@@ -1,5 +1,5 @@
 {
-  "description": "Small labelled grouping fixture for scoring. Labels are human ground truth groups.",
+  "description": "Illustrative fixture with separate expected labels and existing assignments.",
   "entities": [
     {"id": "1", "attributes": {"brand": "Nike", "title": "Air Max 90 Red", "group": "g-shoes-1"}},
     {"id": "2", "attributes": {"brand": "Nike", "title": "Air Max 90 Blue", "group": "g-shoes-1"}},
@@ -7,5 +7,13 @@
     {"id": "4", "attributes": {"brand": "Adidas", "title": "Stan Smith Green", "group": "g-shoes-3"}},
     {"id": "5", "attributes": {"brand": "Adidas", "title": "Stan Smith Black", "group": "g-shoes-3"}},
     {"id": "6", "attributes": {"brand": "Nike", "title": "Air Max 90 Red", "group": ""}}
+  ],
+  "labels": [
+    {"id":"1","group":"family-a"},
+    {"id":"2","group":"family-a"},
+    {"id":"3","group":"family-b"},
+    {"id":"4","group":"family-c"},
+    {"id":"5","group":"family-c"},
+    {"id":"6","group":"family-a"}
   ]
 }
