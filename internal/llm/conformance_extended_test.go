@@ -2,6 +2,7 @@ package llm
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -57,11 +58,11 @@ data: {"choices":[{"delta":{"content":"lo"}}]}
 
 data: [DONE]
 `)
-	deltas, err := DecodeSSE(sse)
+	response, err := CollectStream(&sseStream{r: io.NopCloser(sse), decode: decodeOpenAIStream})
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := JoinDeltas(deltas)
+	got := response.Content
 	if got != "Hello" {
 		t.Errorf("reassembly: got %q want Hello", got)
 	}
@@ -72,11 +73,11 @@ func TestAnthropicStreamingReassembly(t *testing.T) {
 
 data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"lo"}}
 `)
-	deltas, err := DecodeSSE(sse)
+	response, err := CollectStream(&sseStream{r: io.NopCloser(sse), decode: (&anthropicStreamState{}).decode})
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := JoinDeltas(deltas)
+	got := response.Content
 	if got != "Hello" {
 		t.Errorf("anthropic reassembly: got %q want Hello", got)
 	}
@@ -87,11 +88,11 @@ func TestGeminiStreamingReassembly(t *testing.T) {
 
 data: {"candidates":[{"content":{"parts":[{"text":"lo"}]}}]}
 `)
-	deltas, err := DecodeSSE(sse)
+	response, err := CollectStream(&sseStream{r: io.NopCloser(sse), decode: (&geminiStreamState{}).decode})
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := JoinDeltas(deltas)
+	got := response.Content
 	if got != "Hello" {
 		t.Errorf("gemini reassembly: got %q want Hello", got)
 	}

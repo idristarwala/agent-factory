@@ -13,7 +13,7 @@ func TestToolHistoryWire(t *testing.T) {
 		{Role: "assistant", ToolCalls: []ToolCall{{ID: "call1", Name: "lookup", Arguments: `{"id":"A"}`}}},
 		{Role: "tool", ToolCallID: "call1", Content: "found A"},
 	}}
-	data, err := BuildOpenAIBody(req)
+	data, err := buildOpenAIBody(req, false)
 	if err != nil {
 		t.Fatal(err)
 	}

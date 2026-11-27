@@ -12,7 +12,7 @@ func TestImageWireFormats(t *testing.T) {
 		name, fragment string
 		build          func(ChatRequest) ([]byte, error)
 	}{
-		{"openai", `"url":"data:image/png;base64,YWJj"`, BuildOpenAIBody},
+		{"openai", `"url":"data:image/png;base64,YWJj"`, buildChatBody},
 		{"gemini", `"inlineData":{"data":"YWJj","mimeType":"image/png"}`, geminiBody},
 		{"anthropic", `"source":{"data":"YWJj","media_type":"image/png","type":"base64"}`, func(req ChatRequest) ([]byte, error) {
 			body, err := anthropicBody(req)
@@ -34,3 +34,5 @@ func TestImageWireFormats(t *testing.T) {
 		})
 	}
 }
+
+func buildChatBody(req ChatRequest) ([]byte, error) { return buildOpenAIBody(req, false) }
