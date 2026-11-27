@@ -52,11 +52,9 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/sources/profile", apiRoute(profileSource, http.MethodPost))
 	configRoutes(mux, definitions)
+	memoryRoutes(mux, definitions)
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		storeKind := "sqlite"
-		if os.Getenv("DATABASE_URL") != "" {
-			storeKind = "postgres"
-		}
+		storeKind := storeKindLabel()
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{
 			"status": "ok",
@@ -197,6 +195,9 @@ func apiRoute(next http.HandlerFunc, methods ...string) http.HandlerFunc {
 }
 
 func storeKindLabel() string {
+	if os.Getenv("FACTORY_STORE_MODE") == "memory" {
+		return "memory"
+	}
 	if os.Getenv("DATABASE_URL") != "" {
 		return "postgres"
 	}

@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/idristarwala/agent-factory/internal/agents"
 	"github.com/idristarwala/agent-factory/internal/graph"
+	"github.com/idristarwala/agent-factory/internal/memory"
 	"github.com/idristarwala/agent-factory/internal/models"
 	"github.com/idristarwala/agent-factory/internal/revision"
 	"github.com/idristarwala/agent-factory/internal/schema"
@@ -19,6 +20,7 @@ import (
 var ErrNotFound = errors.New("run not found")
 
 type RunRequest struct {
+	Memory        []memory.Ref    `json:"memory,omitempty"`
 	SelectedRules map[string]int  `json:"selected_rules"`
 	Description   string          `json:"description"`
 	Factory       string          `json:"factory"`
@@ -134,7 +136,7 @@ func (w *Workspace) Start(req RunRequest) (Run, error) {
 		}
 		r.Settings.MaxTokens = req.MaxTokens
 	}
-	if len(req.Records) > 0 || req.Factory != "" {
+	if len(req.Records) > 0 || req.Factory != "" || len(req.Memory) > 0 {
 		if len(req.Records) == 0 {
 			return Run{}, fmt.Errorf("supply source records")
 		}
@@ -158,6 +160,10 @@ func (w *Workspace) Start(req RunRequest) (Run, error) {
 				return Run{}, fmt.Errorf("a selected rule is no longer active")
 			}
 			plan.Rules = selected
+		}
+		plan.Memory, err = (memory.Files{Store: w.Store, Factory: plan.Factory}).Pin(req.Memory)
+		if err != nil {
+			return Run{}, err
 		}
 		r.Plan = plan
 		seen := map[string]bool{}
@@ -288,7 +294,7 @@ func (w *Workspace) Decide(id, decisionID, status, note string, expected int) (R
 	// An exact retry also lets the API finish persisting feedback after a transient error.
 	for _, d := range r.Decisions {
 		if d.ID == decisionID && (status == "approved" || status == "rejected") && d.Status == status && d.Feedback == note && expected < r.Version {
-			return r, nil
+			return r, w.rememberReview(r, d)
 		}
 	}
 	if r.Version != expected || r.Status != "in_review" {
@@ -326,8 +332,34 @@ func (w *Workspace) Decide(id, decisionID, status, note string, expected int) (R
 			}
 		}
 		r.Status = reviewStatus(r.Decisions)
-		err = w.write(&r)
-		return r, err
+		if err = w.write(&r); err != nil {
+			return r, err
+		}
+		return r, w.rememberReview(r, *d)
 	}
 	return Run{}, ErrNotFound
+}
+
+// The durable decision remains the source of truth if a memory write must be retried.
+func (w *Workspace) rememberReview(r Run, d Review) error {
+	if d.Feedback == "" {
+		return nil
+	}
+	content := d.Feedback
+	if len(content) > 32<<10 {
+		content = "Full reviewer feedback is attached to decision " + d.ID
+	}
+	files := memory.Files{Store: w.Store, Factory: r.Plan.Factory}
+	path := "reviews/" + d.ID + ".txt"
+	_, err := files.Write(path, content, "reviewer", 0)
+	if errors.Is(err, revision.ErrConflict) {
+		f, readErr := files.Read(memory.Ref{Path: path})
+		if readErr != nil {
+			return readErr
+		}
+		if f.Content == content {
+			return nil
+		}
+	}
+	return err
 }

@@ -10,6 +10,9 @@ import (
 // NewFromEnv opens the factory's database. API and runner processes using
 // the same database can resolve the same immutable definitions.
 func NewFromEnv() (Store, error) {
+	if os.Getenv("FACTORY_STORE_MODE") == "memory" {
+		return NewMemory(), nil
+	}
 	if dsn := os.Getenv("DATABASE_URL"); dsn != "" {
 		return NewPostgresStore("postgres", dsn)
 	}
