@@ -59,7 +59,11 @@ func geminiBody(req ChatRequest) ([]byte, error) {
 				return nil, &Error{Type: "BAD_REQUEST", Message: "function arguments must be an object"}
 			}
 			functions[call.ID] = call.Name
-			parts = append(parts, map[string]any{"functionCall": map[string]any{"name": call.Name, "args": args}})
+			part := map[string]any{"functionCall": map[string]any{"name": call.Name, "args": args}}
+			if call.ThoughtSignature != "" {
+				part["thoughtSignature"] = call.ThoughtSignature
+			}
+			parts = append(parts, part)
 		}
 		if len(parts) == 0 {
 			return nil, &Error{Type: "BAD_REQUEST", Message: "empty conversation turn"}
@@ -147,8 +151,9 @@ func (a *GeminiAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatRespons
 		Candidates []struct {
 			Content struct {
 				Parts []struct {
-					Text         string `json:"text"`
-					FunctionCall *struct {
+					Text             string `json:"text"`
+					ThoughtSignature string `json:"thoughtSignature"`
+					FunctionCall     *struct {
 						Name string         `json:"name"`
 						Args map[string]any `json:"args"`
 					} `json:"functionCall"`
@@ -169,9 +174,10 @@ func (a *GeminiAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatRespons
 			if part.FunctionCall != nil {
 				args, _ := json.Marshal(part.FunctionCall.Args)
 				toolCalls = append(toolCalls, ToolCall{
-					ID:        part.FunctionCall.Name,
-					Name:      part.FunctionCall.Name,
-					Arguments: string(args),
+					ID:               part.FunctionCall.Name,
+					ThoughtSignature: part.ThoughtSignature,
+					Name:             part.FunctionCall.Name,
+					Arguments:        string(args),
 				})
 			}
 		}

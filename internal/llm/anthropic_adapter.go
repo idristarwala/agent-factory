@@ -24,29 +24,46 @@ func NewAnthropicAdapter(baseURL, apiKey string, headers map[string]string) *Ant
 	}
 }
 
-func (a *AnthropicAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
-	schema, err := compileOutputSchema(req.ResponseSchema)
-	if err != nil {
-		return nil, err
-	}
-
-	msgs := make([]map[string]any, 0, len(req.Messages))
-	for _, m := range req.Messages {
-		if m.Role == "system" {
-			continue // system goes in system field
+func anthropicBody(req ChatRequest) (map[string]any, error) {
+	messages := make([]map[string]any, 0, len(req.Messages))
+	var system []map[string]string
+	for _, msg := range req.Messages {
+		switch msg.Role {
+		case "system":
+			system = append(system, map[string]string{"type": "text", "text": msg.Content})
+		case "tool":
+			if msg.ToolCallID == "" {
+				return nil, &Error{Type: "BAD_REQUEST", Message: "tool result requires a call ID"}
+			}
+			messages = append(messages, map[string]any{"role": "user", "content": []map[string]string{{"type": "tool_result", "tool_use_id": msg.ToolCallID, "content": msg.Content}}})
+		default:
+			var content any = msg.Content
+			if len(msg.ToolCalls) > 0 {
+				var parts []map[string]any
+				if msg.Content != "" {
+					parts = append(parts, map[string]any{"type": "text", "text": msg.Content})
+				}
+				for _, call := range msg.ToolCalls {
+					var args map[string]any
+					if err := json.Unmarshal([]byte(call.Arguments), &args); err != nil || args == nil {
+						return nil, &Error{Type: "BAD_REQUEST", Message: "tool arguments must be an object"}
+					}
+					parts = append(parts, map[string]any{"type": "tool_use", "id": call.ID, "name": call.Name, "input": args})
+				}
+				content = parts
+			}
+			messages = append(messages, map[string]any{"role": msg.Role, "content": content})
 		}
-		msgs = append(msgs, map[string]any{"role": m.Role, "content": m.Content})
 	}
-	if len(msgs) == 0 {
-		msgs = []map[string]any{{"role": "user", "content": ""}}
+	if len(messages) == 0 {
+		messages = append(messages, map[string]any{"role": "user", "content": ""})
 	}
-	body := map[string]any{
-		"model":      req.Model,
-		"messages":   msgs,
-		"max_tokens": req.MaxTokens,
+	body := map[string]any{"model": req.Model, "messages": messages, "max_tokens": req.MaxTokens}
+	if len(system) > 0 {
+		body["system"] = system
 	}
-	if req.ResponseSchema != nil {
-		body["output_config"] = map[string]any{"format": map[string]any{"type": "json_schema", "schema": req.ResponseSchema}}
+	if req.Temperature != nil {
+		body["temperature"] = *req.Temperature
 	}
 	if len(req.Tools) > 0 {
 		tools := make([]map[string]any, len(req.Tools))
@@ -59,7 +76,26 @@ func (a *AnthropicAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatResp
 		}
 		body["tools"] = tools
 	}
-	b, _ := json.Marshal(body)
+	return body, nil
+}
+
+func (a *AnthropicAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
+	schema, err := compileOutputSchema(req.ResponseSchema)
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := anthropicBody(req)
+	if err != nil {
+		return nil, err
+	}
+	if req.ResponseSchema != nil {
+		body["output_config"] = map[string]any{"format": map[string]any{"type": "json_schema", "schema": req.ResponseSchema}}
+	}
+	b, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", a.BaseURL+"/v1/messages", bytes.NewReader(b))
 	if err != nil {
 		return nil, err
@@ -78,6 +114,14 @@ func (a *AnthropicAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatResp
 	defer resp.Body.Close()
 
 	var out struct {
+		Model  string `json:"model"`
+		Finish string `json:"stop_reason"`
+		Usage  struct {
+			Input      int `json:"input_tokens"`
+			Output     int `json:"output_tokens"`
+			CacheRead  int `json:"cache_read_input_tokens"`
+			CacheWrite int `json:"cache_creation_input_tokens"`
+		} `json:"usage"`
 		Content []struct {
 			Type  string `json:"type"`
 			Text  string `json:"text"`
@@ -110,7 +154,8 @@ func (a *AnthropicAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatResp
 	if err := validateOutput(schema, content); err != nil {
 		return nil, err
 	}
-	return &ChatResponse{Content: content, ToolCalls: toolCalls}, nil
+	input := out.Usage.Input + out.Usage.CacheRead + out.Usage.CacheWrite
+	return &ChatResponse{Content: content, ToolCalls: toolCalls, Model: out.Model, LogicalModel: req.Model, FinishReason: out.Finish, Usage: Usage{Input: input, Output: out.Usage.Output, Total: input + out.Usage.Output}}, nil
 }
 
 func (a *AnthropicAdapter) Stream(ctx context.Context, req ChatRequest) (Stream, error) {
@@ -118,24 +163,15 @@ func (a *AnthropicAdapter) Stream(ctx context.Context, req ChatRequest) (Stream,
 		return nil, ErrStreamingUnsupported
 	}
 
-	// Basic streaming support: send stream=true and parse content_block_delta events.
-	msgs := make([]map[string]any, 0, len(req.Messages))
-	for _, m := range req.Messages {
-		if m.Role == "system" {
-			continue
-		}
-		msgs = append(msgs, map[string]any{"role": m.Role, "content": m.Content})
+	body, err := anthropicBody(req)
+	if err != nil {
+		return nil, err
 	}
-	if len(msgs) == 0 {
-		msgs = []map[string]any{{"role": "user", "content": ""}}
+	body["stream"] = true
+	b, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
 	}
-	body := map[string]any{
-		"model":      req.Model,
-		"messages":   msgs,
-		"max_tokens": req.MaxTokens,
-		"stream":     true,
-	}
-	b, _ := json.Marshal(body)
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", a.BaseURL+"/v1/messages", bytes.NewReader(b))
 	if err != nil {
 		return nil, err
