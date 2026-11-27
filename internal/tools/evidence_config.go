@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -47,6 +48,7 @@ func loadHTTPConfig(path string) (*EvidenceConfig, error) {
 	}
 	var config struct {
 		Tools map[string]struct {
+			MCPTool  string `yaml:"mcp_tool"`
 			Response *responseConfig
 			Method   string
 			URL      string
@@ -83,6 +85,12 @@ func loadHTTPConfig(path string) (*EvidenceConfig, error) {
 	}
 	registry := make(map[string]*HTTPTool, len(config.Tools))
 	for name, def := range config.Tools {
+		if def.MCPTool != "" {
+			if def.SideEffect != "read-only" || (def.Method != "" && def.Method != "POST") || strings.ContainsAny(def.URL, "{}") {
+				return nil, fmt.Errorf("MCP evidence tool %q needs a fixed endpoint and an explicitly read-only POST", name)
+			}
+			def.Method = "POST"
+		}
 		if def.Method == "" {
 			def.Method = "GET"
 		}
@@ -94,6 +102,7 @@ func loadHTTPConfig(path string) (*EvidenceConfig, error) {
 			return nil, fmt.Errorf("invalid destination for tool %q", name)
 		}
 		t := NewHTTPTool(name, def.Method, def.URL)
+		t.mcpTool = def.MCPTool
 		if def.Response != nil {
 			t.response, err = def.Response.compile()
 			if err != nil {
