@@ -70,7 +70,11 @@ func main() {
 	fmt.Println()
 
 	steward := agents.NewSmartSteward(store)
-	worker := agents.NewLLMWorker("worker-1", "catalog-corrector", gw, g, ruleEngine.ToAgentsRules())
+	var activeRules []agents.Rule
+	for _, vr := range ruleEngine.Active() {
+		activeRules = append(activeRules, agents.Rule{Description: vr.Description})
+	}
+	worker := agents.NewLLMWorker("worker-1", "catalog-corrector", gw, g, activeRules)
 	judge := agents.NewLLMJudge(gw, g)
 
 	nodes := catalog.Seed()

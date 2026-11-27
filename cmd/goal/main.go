@@ -31,7 +31,6 @@ func main() {
 	ruleEngine := rules.NewEngine()
 	mem := memory.NewStore()
 
-	// Seed a sample product so the demo has something to work on
 	g.AddNode(graph.Node{
 		ID:   "sku-1001",
 		Type: "product",
@@ -42,14 +41,17 @@ func main() {
 		},
 	})
 
-	// Load default rules from catalog pack
 	for _, r := range domain.CatalogPack().DefaultRules {
-		ruleEngine.Add(agents.Rule{Description: r, Source: "domain-pack"})
+		ruleEngine.Propose(rules.VersionedRule{Description: r, Source: "domain-pack", CreatedBy: "system"})
 	}
 
 	steward := agents.NewSmartSteward(store)
-	worker := agents.NewLLMWorker("worker-1", "catalog-enricher", gw, g)
-	judge := agents.NewLLMJudge(gw)
+	var activeRules []agents.Rule
+	for _, vr := range ruleEngine.Active() {
+		activeRules = append(activeRules, agents.Rule{Description: vr.Description})
+	}
+	worker := agents.NewLLMWorker("worker-1", "catalog-enricher", gw, g, activeRules)
+	judge := agents.NewLLMJudge(gw, g)
 
 	fmt.Printf("Goal: %s\n", goal)
 	uows, err := steward.InterpretGoal(goal, nil)
@@ -70,7 +72,7 @@ func main() {
 		}
 		fmt.Printf("Proposal: %v\n", proposal.Updates[0].Props)
 
-		decision, err := judge.Evaluate(proposal, ruleEngine.All())
+		decision, err := judge.Evaluate(proposal, ruleEngine.ToAgentsRules())
 		if err != nil {
 			fmt.Printf("Judge error: %v\n", err)
 			continue
@@ -82,7 +84,6 @@ func main() {
 			n, _ := g.GetNode("sku-1001")
 			fmt.Printf("Graph now: title=%v\n", n.Props["title"])
 
-			// Record a learning
 			mem.Add("learning", fmt.Sprintf("Enriched title to: %v", n.Props["title"]), "worker", nil)
 		}
 	}
