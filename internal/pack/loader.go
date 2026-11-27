@@ -1,10 +1,15 @@
 package pack
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/idristarwala/agent-factory/schemas"
+	"github.com/santhosh-tekuri/jsonschema/v5"
+	"io"
 	"os"
 	"strings"
+	"sync"
 
 	"gopkg.in/yaml.v3"
 )
@@ -28,6 +33,8 @@ type Pack struct {
 	Tools        []string   `json:"tools,omitempty" yaml:"tools,omitempty"`
 }
 
+var packSchema = sync.OnceValues(func() (*jsonschema.Schema, error) { return jsonschema.CompileString("pack.schema.json", schemas.Pack) })
+
 // Load reads a pack.yaml or pack.json from disk.
 // YAML is unmarshalled with yaml.v3 so nested maps and lists are fully supported.
 func Load(path string) (*Pack, error) {
@@ -35,18 +42,33 @@ func Load(path string) (*Pack, error) {
 	if err != nil {
 		return nil, err
 	}
-	var p Pack
+	var input any
 	if strings.HasSuffix(path, ".yaml") || strings.HasSuffix(path, ".yml") {
-		if err := yaml.Unmarshal(data, &p); err != nil {
+		decoder := yaml.NewDecoder(bytes.NewReader(data))
+		if err := decoder.Decode(&input); err != nil {
 			return nil, fmt.Errorf("pack yaml parse: %w", err)
 		}
-	} else {
-		if err := json.Unmarshal(data, &p); err != nil {
-			return nil, fmt.Errorf("pack json parse: %w", err)
+		if decoder.Decode(new(any)) != io.EOF {
+			return nil, fmt.Errorf("expected one YAML document")
+		}
+		data, err = json.Marshal(input)
+		if err != nil {
+			return nil, err
 		}
 	}
-	if p.Name == "" {
-		return nil, fmt.Errorf("pack missing name")
+	if err := json.Unmarshal(data, &input); err != nil {
+		return nil, fmt.Errorf("pack JSON: %w", err)
+	}
+	schema, err := packSchema()
+	if err != nil {
+		return nil, err
+	}
+	if err := schema.Validate(input); err != nil {
+		return nil, err
+	}
+	var p Pack
+	if err := json.Unmarshal(data, &p); err != nil {
+		return nil, err
 	}
 	// Normalise tools alias
 	if len(p.ToolsAllowed) == 0 && len(p.Tools) > 0 {
