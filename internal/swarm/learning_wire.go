@@ -8,15 +8,11 @@ import (
 // Addresses #13 requirement that worker failures feed the learning loop.
 func CollectFailureSignals(unitIDs []string, errs []error) []learning.FailureSignal {
 	var signals []learning.FailureSignal
-	for i, err := range errs {
+	for _, err := range errs {
 		if err == nil {
 			continue
 		}
-		id := ""
-		if i < len(unitIDs) {
-			id = unitIDs[i]
-		}
-		signals = append(signals, learning.RecordFailure(id, err))
+		signals = learning.RecordFailure(signals, err)
 	}
 	return signals
 }
