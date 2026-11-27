@@ -170,7 +170,13 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 							workerErrors[workerID] = errors.Join(err, r.Queue.Fail(ctx, uow.ID, err.Error()))
 							return
 						}
-						evidence = r.Recipe.Evidence(result)
+						record, err := r.Recipe.Collect(ctx, result)
+						if err != nil {
+							workerErrors[workerID] = errors.Join(err, r.Queue.Fail(ctx, uow.ID, err.Error()))
+							return
+						}
+						evidence = record.Text
+						uow.Images = append(uow.Images, record.Images...)
 						uow.Evidence = append(uow.Evidence, evidence...)
 					}
 

@@ -12,6 +12,7 @@ type (
 	ChatRequest    = core.ChatRequest
 	ChatResponse   = core.ChatResponse
 	Message        = core.Message
+	ImagePart      = core.ImagePart
 	Tier           = core.Tier
 	Role           = core.Role
 	ToolSpec       = core.ToolSpec

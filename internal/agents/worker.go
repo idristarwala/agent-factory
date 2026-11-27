@@ -105,10 +105,10 @@ Respond ONLY with valid JSON of the allowed fields.`, uow.Description, ruleText.
 	var lastErr error
 	for attempt := 0; attempt < 2; attempt++ {
 		resp, err := w.Gateway.Generate(models.Request{
-			CallerRole:  "worker",
-			Tier:        models.TierCheap,
-			System:      "You produce structured attribute updates that obey the provided rules and evidence. Output JSON only.",
-			User:        prompt,
+			CallerRole: "worker",
+			Tier:       models.TierCheap,
+			System:     "You produce structured attribute updates that obey the provided rules and evidence. Output JSON only.",
+			User:       prompt, Images: uow.Images,
 			Temperature: 0.2,
 			MaxTokens:   DefaultWorkerConfig().MaxTokens,
 			Schema:      schema,
@@ -138,8 +138,8 @@ Respond ONLY with valid JSON of the allowed fields.`, uow.Description, ruleText.
 		}
 
 		return &graph.Mutation{
-			UnitOfWorkID: uow.ID,
-			AgentName:    w.Definition.Name, AgentRevision: w.Definition.Revision, RuleRevisions: ruleRevisions(w.Rules),
+			UnitOfWorkID: uow.ID, Images: uow.Images,
+			AgentName: w.Definition.Name, AgentRevision: w.Definition.Revision, RuleRevisions: ruleRevisions(w.Rules),
 			Updates: []graph.Node{{
 				ID:    uow.InputSubgraph,
 				Type:  node.Type,

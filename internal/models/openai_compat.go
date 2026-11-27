@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/idristarwala/agent-factory/internal/llm"
 	"io"
 	"net/http"
 	"os"
@@ -45,7 +46,7 @@ func NewOpenAICompatFromEnv() (*OpenAICompatGateway, error) {
 
 type chatMessage struct {
 	Role    string `json:"role"`
-	Content string `json:"content"`
+	Content any    `json:"content"`
 }
 
 type chatRequest struct {
@@ -92,7 +93,15 @@ func (g *OpenAICompatGateway) Generate(req Request) (*Response, error) {
 	if req.System != "" {
 		body.Messages = append(body.Messages, chatMessage{Role: "system", Content: req.System})
 	}
-	body.Messages = append(body.Messages, chatMessage{Role: "user", Content: req.User})
+	var content any = req.User
+	if len(req.Images) > 0 {
+		parts, err := (llm.Message{Role: "user", Content: req.User, Images: req.Images}).UserParts("openai")
+		if err != nil {
+			return nil, err
+		}
+		content = parts
+	}
+	body.Messages = append(body.Messages, chatMessage{Role: "user", Content: content})
 
 	// Use the Schema field that exists on Request
 	if req.Schema != nil {

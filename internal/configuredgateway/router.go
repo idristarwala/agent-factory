@@ -89,7 +89,7 @@ func (r *Router) Generate(req models.Request) (*models.Response, error) {
 	if req.System != "" {
 		messages = append(messages, llm.Message{Role: "system", Content: req.System})
 	}
-	messages = append(messages, llm.Message{Role: "user", Content: req.User})
+	messages = append(messages, llm.Message{Role: "user", Content: req.User, Images: req.Images})
 	resp, err := r.Chat(context.Background(), llm.ChatRequest{Messages: messages, CallerRole: llm.Role(req.CallerRole), Tier: llm.Tier(req.Tier), Temperature: &req.Temperature, MaxTokens: req.MaxTokens, ResponseSchema: req.Schema})
 	if err != nil {
 		return nil, err

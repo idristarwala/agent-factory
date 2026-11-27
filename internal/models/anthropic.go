@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/idristarwala/agent-factory/internal/llm"
 	"io"
 	"net/http"
 	"os"
@@ -58,9 +59,17 @@ func (g *AnthropicGateway) Generate(req Request) (*Response, error) {
 			"content": "Understood.",
 		})
 	}
+	var content any = req.User
+	if len(req.Images) > 0 {
+		parts, err := (llm.Message{Role: "user", Content: req.User, Images: req.Images}).UserParts("anthropic")
+		if err != nil {
+			return nil, err
+		}
+		content = parts
+	}
 	messages = append(messages, map[string]any{
 		"role":    "user",
-		"content": req.User,
+		"content": content,
 	})
 
 	body := map[string]any{

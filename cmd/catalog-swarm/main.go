@@ -125,11 +125,12 @@ func main() {
 		uow.InputSubgraph = n.ID
 
 		if evidenceConfig != nil {
-			evidence, err := evidenceConfig.Gather(context.Background(), string(n.ID), n.Props)
+			evidence, err := evidenceConfig.GatherRecord(context.Background(), string(n.ID), n.Props)
 			if err != nil {
 				log.Fatalf("gather evidence for %s: %v", n.ID, err)
 			}
-			uow.Evidence = append(uow.Evidence, evidence...)
+			uow.Evidence = append(uow.Evidence, evidence.Text...)
+			uow.Images = evidence.Images
 		}
 		proposal, err := worker.Execute(uow)
 		if err != nil {

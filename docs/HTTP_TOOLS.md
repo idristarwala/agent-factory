@@ -47,4 +47,8 @@ grants:
     side_effects: [read-only]
 ```
 
-Scalar record properties are available to path and query parameters. The graph node ID supplies `id`. Relative key paths resolve from the configuration file's directory. The loader supports read-only GET requests and text evidence. With the variable unset, the command uses the seeded records alone.
+Scalar record properties are available to path and query parameters. The graph node ID supplies `id`. Relative key paths resolve from the configuration file's directory. The loader supports read-only GET requests. With the variable unset, the command uses the seeded records alone.
+
+For visual evidence, set `context.media` to a field name in the entity tool's JSON object. For example, `media: attachments` reads an array of image URLs from `attachments`. Use an empty array for a record with no images. Both models receive the same downloaded bytes. Mutation evidence records each image's source tool, position and SHA-256 digest.
+
+The runner accepts up to 10 PNG, JPEG or WebP images per record and 512 KiB per image. A missing field, unsupported content, failed download or exceeded limit fails evidence collection. Image requests use the public-network and host restrictions above and carry no tool authentication headers.
