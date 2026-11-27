@@ -85,41 +85,9 @@ func (s *PostgresStore) migrate() error {
 	return err
 }
 
-func (s *PostgresStore) GetNode(id graph.NodeID) (*graph.Node, error) {
-	var typ, props string
-	err := s.db.QueryRow("SELECT type, props FROM nodes WHERE id = $1", id).Scan(&typ, &props)
-	if err != nil {
-		return nil, err
-	}
-	return &graph.Node{ID: id, Type: typ}, nil
-}
-
-func (s *PostgresStore) UpsertNode(n graph.Node) error {
-	_, err := s.db.Exec(`
-		INSERT INTO nodes (id, type, props) VALUES ($1, $2, $3)
-		ON CONFLICT (id) DO UPDATE SET type = EXCLUDED.type, props = EXCLUDED.props
-	`, n.ID, n.Type, "")
-	return err
-}
-
-func (s *PostgresStore) ProposeMutation(m *graph.Mutation) error {
-	for _, n := range m.Updates {
-		if err := s.UpsertNode(n); err != nil {
-			return err
-		}
-	}
-	for _, n := range m.Adds {
-		if err := s.UpsertNode(n); err != nil {
-			return err
-		}
-	}
-	for _, id := range m.Deletes {
-		if _, err := s.db.Exec("DELETE FROM nodes WHERE id = $1", id); err != nil {
-			return err
-		}
-	}
-	return nil
-}
+func (s *PostgresStore) GetNode(id graph.NodeID) (*graph.Node, error) { return readNode(s.db, id) }
+func (s *PostgresStore) UpsertNode(n graph.Node) error                { return writeNode(s.db, n) }
+func (s *PostgresStore) ProposeMutation(m *graph.Mutation) error      { return writeMutation(s.db, m) }
 
 func (s *PostgresStore) CreateUnit(u *unitofwork.UnitOfWork) error {
 	_, err := s.db.Exec(

@@ -13,7 +13,7 @@ import (
 // No external dependencies. Suitable for tests and local runs.
 type MemoryStore struct {
 	mu          sync.RWMutex
-	nodes       map[graph.NodeID]*graph.Node
+	nodes       map[graph.NodeID]nodeRow
 	units       map[string]*unitofwork.UnitOfWork
 	definitions *revision.Memory
 	entries     []struct {
@@ -24,7 +24,7 @@ type MemoryStore struct {
 
 func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{
-		nodes:       make(map[graph.NodeID]*graph.Node),
+		nodes:       make(map[graph.NodeID]nodeRow),
 		units:       make(map[string]*unitofwork.UnitOfWork),
 		definitions: revision.NewMemory(),
 	}
@@ -37,24 +37,35 @@ func (s *MemoryStore) GetNode(id graph.NodeID) (*graph.Node, error) {
 	if !ok {
 		return nil, fmt.Errorf("node not found: %s", id)
 	}
-	return n, nil
+	return n.node()
 }
 
 func (s *MemoryStore) UpsertNode(n graph.Node) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.nodes[n.ID] = &n
+	row, err := encodeNode(n)
+	if err != nil {
+		return err
+	}
+	s.nodes[n.ID] = row
 	return nil
 }
 
 func (s *MemoryStore) ProposeMutation(m *graph.Mutation) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for _, n := range m.Updates {
-		s.nodes[n.ID] = &n
+	var changes []nodeRow
+	for _, nodes := range [][]graph.Node{m.Updates, m.Adds} {
+		for _, n := range nodes {
+			row, err := encodeNode(n)
+			if err != nil {
+				return err
+			}
+			changes = append(changes, row)
+		}
 	}
-	for _, n := range m.Adds {
-		s.nodes[n.ID] = &n
+	for _, row := range changes {
+		s.nodes[row.id] = row
 	}
 	for _, id := range m.Deletes {
 		delete(s.nodes, id)

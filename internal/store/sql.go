@@ -71,39 +71,9 @@ func (s *SQLStore) migrate() error {
 	return err
 }
 
-func (s *SQLStore) GetNode(id graph.NodeID) (*graph.Node, error) {
-	var typ, props string
-	err := s.db.QueryRow("SELECT type, props FROM nodes WHERE id = ?", id).Scan(&typ, &props)
-	if err != nil {
-		return nil, err
-	}
-	return &graph.Node{ID: id, Type: typ}, nil
-}
-
-func (s *SQLStore) UpsertNode(n graph.Node) error {
-	_, err := s.db.Exec("INSERT OR REPLACE INTO nodes (id, type, props) VALUES (?, ?, ?)", n.ID, n.Type, "")
-	return err
-}
-
-func (s *SQLStore) ProposeMutation(m *graph.Mutation) error {
-	for _, n := range m.Updates {
-		if err := s.UpsertNode(n); err != nil {
-			return err
-		}
-	}
-	for _, n := range m.Adds {
-		if err := s.UpsertNode(n); err != nil {
-			return err
-		}
-	}
-	for _, id := range m.Deletes {
-		_, err := s.db.Exec("DELETE FROM nodes WHERE id = ?", id)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
+func (s *SQLStore) GetNode(id graph.NodeID) (*graph.Node, error) { return readNode(s.db, id) }
+func (s *SQLStore) UpsertNode(n graph.Node) error                { return writeNode(s.db, n) }
+func (s *SQLStore) ProposeMutation(m *graph.Mutation) error      { return writeMutation(s.db, m) }
 
 func (s *SQLStore) CreateUnit(u *unitofwork.UnitOfWork) error {
 	_, err := s.db.Exec("INSERT INTO units (id, goal_id, description, status) VALUES (?, ?, ?, ?)",
