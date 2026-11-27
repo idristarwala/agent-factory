@@ -29,15 +29,40 @@ func sourceMappingRoutes(mux *http.ServeMux, store revision.Store) {
 				return
 			}
 			var req struct {
-				Sample   any                   `json:"sample"`
-				Mapping  mapping.SourceMapping `json:"mapping"`
-				Expected *int                  `json:"expected"`
+				Sample           any                    `json:"sample"`
+				ProposalRevision *int                   `json:"proposal_revision"`
+				Mapping          *mapping.SourceMapping `json:"mapping"`
+				Expected         *int                   `json:"expected"`
 			}
 			dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
 			dec.UseNumber()
 			dec.DisallowUnknownFields()
 			if err := dec.Decode(&req); err != nil || dec.Decode(new(any)) != io.EOF {
 				http.Error(w, "invalid mapping request", 400)
+				return
+			}
+			if req.ProposalRevision != nil {
+				n := *req.ProposalRevision
+				if !save || req.Mapping != nil || n < 1 {
+					http.Error(w, "select either a mapping or a proposal revision to approve", 400)
+					return
+				}
+				h, err := revision.Documents(store, "source-proposal/"+id)
+				if err != nil {
+					sendJSON(w, nil, err)
+					return
+				}
+				if n > len(h) {
+					http.Error(w, "unknown proposal revision", 404)
+					return
+				}
+				if err = json.Unmarshal(h[n-1].Data, &req.Mapping); err != nil {
+					sendJSON(w, nil, err)
+					return
+				}
+			}
+			if req.Mapping == nil {
+				http.Error(w, "supply a mapping", 400)
 				return
 			}
 			rows, err := req.Mapping.Preview(req.Sample)
@@ -64,7 +89,10 @@ func sourceMappingRoutes(mux *http.ServeMux, store revision.Store) {
 				http.Error(w, "supply expected revision", 400)
 				return
 			}
-			data, err := json.Marshal(req.Mapping)
+			data, err := json.Marshal(struct {
+				*mapping.SourceMapping
+				ProposalRevision *int `json:"proposal_revision,omitempty"`
+			}{req.Mapping, req.ProposalRevision})
 			if err != nil {
 				sendJSON(w, nil, err)
 				return

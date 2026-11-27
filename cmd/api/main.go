@@ -60,6 +60,7 @@ func main() {
 	}
 	remoteSourceRoutes(mux, sampler)
 	sourceMappingRoutes(mux, definitions)
+	sourceProposalRoutes(mux, definitions, gw)
 	mux.HandleFunc("/api/sources/profile", apiRoute(profileSource, http.MethodPost))
 	configRoutes(mux, definitions)
 	memoryRoutes(mux, definitions)
