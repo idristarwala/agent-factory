@@ -94,7 +94,14 @@ func (a *AnthropicAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatResp
 	if err != nil {
 		return nil, err
 	}
-	if req.ResponseSchema != nil {
+	forced := req.ResponseSchema != nil && req.Metadata["schema_mode"] == "forced_tool"
+	if forced {
+		if len(req.Tools) > 0 {
+			return nil, &Error{Type: "BAD_REQUEST", Message: "forced schema tool cannot be combined with other tools"}
+		}
+		body["tools"] = []map[string]any{{"name": "attribute_update", "description": "Return the structured field patch", "input_schema": req.ResponseSchema}}
+		body["tool_choice"] = map[string]string{"type": "tool", "name": "attribute_update"}
+	} else if req.ResponseSchema != nil {
 		body["output_config"] = map[string]any{"format": map[string]any{"type": "json_schema", "schema": req.ResponseSchema}}
 	}
 	b, err := json.Marshal(body)
@@ -156,11 +163,16 @@ func (a *AnthropicAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatResp
 			})
 		}
 	}
-	if err := validateOutput(schema, content); err != nil {
-		return nil, err
+	if forced {
+		if len(toolCalls) != 1 || toolCalls[0].Name != "attribute_update" {
+			content = "" // A missing or ambiguous tool result fails schema validation.
+		} else {
+			content = toolCalls[0].Arguments
+		}
+		toolCalls = nil
 	}
 	input := out.Usage.Input + out.Usage.CacheRead + out.Usage.CacheWrite
-	return &ChatResponse{Content: content, ToolCalls: toolCalls, Model: out.Model, LogicalModel: req.Model, FinishReason: out.Finish, Usage: Usage{Input: input, Output: out.Usage.Output, Total: input + out.Usage.Output}}, nil
+	return checkedResponse(schema, &ChatResponse{Content: content, ToolCalls: toolCalls, Model: out.Model, LogicalModel: req.Model, FinishReason: out.Finish, Usage: Usage{Input: input, Output: out.Usage.Output, Total: input + out.Usage.Output}})
 }
 
 func (a *AnthropicAdapter) Stream(ctx context.Context, req ChatRequest) (Stream, error) {

@@ -53,3 +53,9 @@ For a continuous run, give each judge its own logical model route. For example, 
 Set `FACTORY_JUDGE_ROUTES=reviewer-a,reviewer-b` on the CLI and set `judge_evaluations` to 2 in workspace Settings. Set `judge_approvals` to the number of approving votes required. A new workspace defaults to one evaluation and one required approval. A workspace with a saved two-vote policy keeps that threshold. Configure two distinct routes before starting it. An environment-only gateway supports one judge.
 
 The CLI checks the route names and distinct configured model IDs before work starts. The decision journal records each judge’s verdict and identifies its model in the feedback. Run usage records each route with its returned model ID. Duplicate model identities in a panel fail the review.
+
+### Environment and YAML routes
+
+Both configuration forms use the same protocol adapters, typed gateway errors, bounded retries for HTTP 429 and 5xx, and metadata-only usage logs on stderr. Agent requests attach the work unit ID to each attempt's trace. CLI stdout remains available for result records.
+
+For optional object fields, environment-selected OpenAI-compatible routes send `strict: false`. YAML routes default to strict JSON Schema and accept `schema_mode: non_strict` on OpenAI and OpenAI-envelope routes. Environment-selected Anthropic routes force the `attribute_update` tool and validate its input. YAML Anthropic routes default to native structured output and accept `schema_mode: forced_tool` for models requiring tool-based output. Both modes validate the returned content locally.

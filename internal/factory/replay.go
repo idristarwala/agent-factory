@@ -12,6 +12,7 @@ import (
 	"github.com/idristarwala/agent-factory/internal/agents"
 	"github.com/idristarwala/agent-factory/internal/artifact"
 	"github.com/idristarwala/agent-factory/internal/graph"
+	"github.com/idristarwala/agent-factory/internal/llm"
 	"github.com/idristarwala/agent-factory/internal/models"
 	"github.com/idristarwala/agent-factory/internal/revision"
 	"github.com/idristarwala/agent-factory/internal/rules"
@@ -128,7 +129,7 @@ func (g *replayGateway) Generate(req models.Request) (*models.Response, error) {
 	}
 	req.UnitID = g.trace
 	resp, err := g.Gateway.Generate(req)
-	if err != nil {
+	if err != nil && !errors.Is(err, llm.ErrInvalidOutput) {
 		g.failure = err
 	}
 	return resp, err

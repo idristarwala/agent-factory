@@ -123,6 +123,9 @@ Respond ONLY with valid JSON of the allowed fields.`, uow.Description, ruleText.
 				return nil, err
 			}
 			lastErr = err
+			if errors.Is(err, llm.ErrInvalidOutput) {
+				lastErr = fmt.Errorf("%w: %w", ErrInvalidPatch, err)
+			}
 			if attempt+1 < attempts {
 				time.Sleep(time.Second)
 			}

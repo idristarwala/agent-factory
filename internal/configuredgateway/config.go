@@ -29,6 +29,7 @@ type gatewayConfig struct {
 	Proxy string
 }
 type modelConfig struct {
+	SchemaMode               string              `yaml:"schema_mode"`
 	Envelope                 *llm.OpenAIEnvelope `yaml:"envelope"`
 	Gateway, Protocol, Model string
 	Headers                  map[string]string
@@ -125,41 +126,51 @@ func load(path string) (*Router, error) {
 		if !ok || strings.TrimSpace(m.Model) == "" || strings.TrimSpace(name) == "" {
 			return nil, fmt.Errorf("invalid route for model %q", name)
 		}
-		headers := llm.ApplyExtraHeaders(g.Headers, m.Headers)
-		base := strings.TrimRight(g.BaseURL, "/")
-		var adapter llm.Client
-		if m.Envelope != nil && m.Protocol != "openai-envelope" {
-			return nil, fmt.Errorf("envelope provided for %q protocol", m.Protocol)
+		entry, err := buildRoute(m, g.BaseURL, "", llm.ApplyExtraHeaders(g.Headers, m.Headers), clients[m.Gateway], logger)
+		if err != nil {
+			return nil, fmt.Errorf("model %q: %w", name, err)
 		}
-		switch m.Protocol {
-		case "openai", "openai-envelope":
-			a := llm.NewOpenAIAdapter(base, "", headers)
-			if m.Protocol == "openai-envelope" {
-				if err := m.Envelope.Validate(); err != nil {
-					return nil, fmt.Errorf("model %q: %w", name, err)
-				}
-				a.Envelope = m.Envelope
-			}
-			a.Client = clients[m.Gateway]
-			adapter = a
-		case "anthropic":
-			a := llm.NewAnthropicAdapter(strings.TrimSuffix(base, "/v1"), "", headers)
-			a.Client = clients[m.Gateway]
-			adapter = a
-		case "gemini":
-			a := llm.NewGeminiAdapter(base, "", headers)
-			a.Client = clients[m.Gateway]
-			adapter = a
-		default:
-			return nil, fmt.Errorf("unknown protocol %q", m.Protocol)
-		}
-		if m.TokenParam != "" && ((m.Protocol != "openai" && m.Protocol != "openai-envelope") || (m.TokenParam != "max_tokens" && m.TokenParam != "max_completion_tokens")) {
-			return nil, fmt.Errorf("invalid token_param for model %q", name)
-		}
-		if m.ReasoningBudget != nil && (m.Protocol != "gemini" || *m.ReasoningBudget < 0) {
-			return nil, fmt.Errorf("invalid reasoning_budget for model %q", name)
-		}
-		router.routes[name] = route{m, retryClient{inner: &llm.RecordingClient{Inner: adapter, Logger: logger}}}
+		router.routes[name] = entry
 	}
 	return router, nil
+}
+
+func buildRoute(m modelConfig, baseURL, key string, headers map[string]string, client *http.Client, logger *obs.Logger) (route, error) {
+	base := strings.TrimRight(baseURL, "/")
+	if m.SchemaMode != "" && !(m.Protocol == "anthropic" && m.SchemaMode == "forced_tool") && !((m.Protocol == "openai" || m.Protocol == "openai-envelope") && m.SchemaMode == "non_strict") {
+		return route{}, errors.New("invalid schema_mode for protocol")
+	}
+	var adapter llm.Client
+	if m.Envelope != nil && m.Protocol != "openai-envelope" {
+		return route{}, fmt.Errorf("envelope provided for %q protocol", m.Protocol)
+	}
+	switch m.Protocol {
+	case "openai", "openai-envelope":
+		a := llm.NewOpenAIAdapter(base, key, headers)
+		if m.Protocol == "openai-envelope" {
+			if err := m.Envelope.Validate(); err != nil {
+				return route{}, err
+			}
+			a.Envelope = m.Envelope
+		}
+		a.Client = client
+		adapter = a
+	case "anthropic":
+		a := llm.NewAnthropicAdapter(strings.TrimSuffix(base, "/v1"), key, headers)
+		a.Client = client
+		adapter = a
+	case "gemini":
+		a := llm.NewGeminiAdapter(base, key, headers)
+		a.Client = client
+		adapter = a
+	default:
+		return route{}, fmt.Errorf("unknown protocol %q", m.Protocol)
+	}
+	if m.TokenParam != "" && ((m.Protocol != "openai" && m.Protocol != "openai-envelope") || (m.TokenParam != "max_tokens" && m.TokenParam != "max_completion_tokens")) {
+		return route{}, errors.New("invalid token_param")
+	}
+	if m.ReasoningBudget != nil && (m.Protocol != "gemini" || *m.ReasoningBudget < 0) {
+		return route{}, errors.New("invalid reasoning_budget")
+	}
+	return route{m, retryClient{inner: &llm.RecordingClient{Inner: adapter, Logger: logger}}}, nil
 }

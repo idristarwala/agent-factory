@@ -4,6 +4,7 @@ package factory
 
 import (
 	"encoding/json"
+	"github.com/idristarwala/agent-factory/internal/configuredgateway"
 	"os"
 	"testing"
 
@@ -13,7 +14,8 @@ import (
 )
 
 func TestLiveGeminiFactoryRun(t *testing.T) {
-	gateway, err := models.NewGeminiFromEnv()
+	t.Setenv("LLM_PROVIDER", "gemini")
+	gateway, err := configuredgateway.NewFromEnv()
 	if err != nil {
 		t.Fatal(err)
 	}
