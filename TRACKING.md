@@ -111,7 +111,7 @@ The [issue tracker](https://github.com/idristarwala/agent-factory/issues) record
 
 - Customer policies ingested via `rules.IngestPolicies` are now activated by default so they reach the worker and judge (addresses the "28 imported / 0 active" observation from the field re-run on #10).
 - Added unit test `TestIngestPoliciesActivatesCustomerRules`.
-- Example GitLab CI pipeline (`.gitlab-ci.yml`) that runs `factory validate` and `factory test` without live keys, advancing the "any CI/CD" acceptance criterion for #9.
+- The [standalone starter GitLab pipeline](https://github.com/idristarwala/agent-factory-starter/blob/main/.gitlab-ci.yml) validates consumer packs and retains the tested commit receipt. The root GitLab pipeline exercises the engine checkout.
 
 ## Accuracy grouping refinement (2026-11-27)
 

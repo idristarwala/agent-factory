@@ -13,7 +13,9 @@ Pass pack files, pack directories or a `factory.yaml` manifest. Manifest pack pa
 
 ## CI examples
 
-GitHub Actions and GitLab CI examples that invoke `factory validate` and `factory test` live at the repository root (`.github/workflows/` and `.gitlab-ci.yml`). Both exit non-zero on failure and need no provider credentials.
+The standalone starter includes pipelines for both platforms. GitHub Actions tests the pack fixtures and starts the SQLite workspace. GitLab builds the CLI from `engine.commit`, validates and tests every pack listed in `factory.yaml`, and saves the selected pack’s fixture receipt as a job artifact. Set `RECEIPT_PACK` in the GitLab job to select that pack. Both pipelines run without model credentials. [Starter GitHub Actions](https://github.com/idristarwala/agent-factory-starter/blob/main/.github/workflows/verify.yml) · [Starter GitLab CI](https://github.com/idristarwala/agent-factory-starter/blob/main/.gitlab-ci.yml)
+
+The engine checkout has its own [GitLab configuration](../.gitlab-ci.yml) for source development.
 
 ## Pack format
 
