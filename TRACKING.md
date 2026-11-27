@@ -124,3 +124,9 @@ The [issue tracker](https://github.com/idristarwala/agent-factory/issues) record
 - Added `TestScriptedFailurePatternsProduceDistinctActionableRules` in `internal/swarm/learning_improvement_test.go`.
 - The test feeds format then truncation failure signals, asserts rules are proposed and applied, and confirms distinct actionable guidance for each cause.
 - Advances the remaining fuller learning-loop e2e coverage noted for packaging (#9) and accuracy (#10).
+
+## Wording-preservation emphasis (2026-11-27)
+
+- Worker system prompt is strengthened when any active rule mentions preserving original wording / not rewriting (addresses the 0.89 vs 0.90 original-wording-kept gap from the #10 field re-run).
+- Added `TestPreserveOriginalWordingRuleStrengthensPrompt` which verifies the system prompt and that the rule text reaches the user prompt.
+- Advances the customer-rule influence criterion without requiring a live gateway.

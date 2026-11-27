@@ -40,3 +40,7 @@ The core factory loop is functional and the packaging surface is usable for loca
 ## Learning-loop coverage
 
 Added a scripted failure-pattern test (`internal/swarm/learning_improvement_test.go`) that exercises format vs truncation causes end-to-end through Review → ProposeUpdates → Apply and verifies distinct actionable rules. This closes the “optional fuller learning-loop e2e tests” note for packaging and accuracy work. Live field-test re-run remains the external validation step for #10.
+
+## Accuracy wording follow-up (2026-11-27)
+
+Worker now detects "keep original wording" style rules and appends explicit preservation guidance to the system prompt. Covered by unit test. Next live re-run can measure whether original-wording-kept crosses 0.90.
