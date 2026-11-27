@@ -159,21 +159,26 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 					}
 
 					var evidence []string
-					if r.Tools != nil && (r.Recipe.Entity != "" || r.Recipe.Neighbours != "") {
-						args := map[string]string{"id": string(uow.InputSubgraph)}
-						ctxResult, err := tools.ExecuteRecipe(ctx, r.Recipe, r.Tools, args)
-						if err == nil && ctxResult != nil {
-							if entity, ok := ctxResult["entity"].(string); ok && entity != "" {
-								evidence = append(evidence, "entity: "+entity[:min(200, len(entity))])
-							}
-							if neigh, ok := ctxResult["neighbours"].(string); ok && neigh != "" {
-								evidence = append(evidence, "neighbours: "+neigh[:min(200, len(neigh))])
+					if r.Recipe.Entity != "" || r.Recipe.Neighbours != "" {
+						args := map[string]string{}
+						if n, err := r.Graph.GetNode(uow.InputSubgraph); err == nil {
+							for key, value := range n.Props {
+								switch v := value.(type) {
+								case string:
+									args[key] = v
+								case bool, int, int64, float64:
+									args[key] = fmt.Sprint(v)
+								}
 							}
 						}
-					}
-
-					if len(evidence) > 0 {
-						uow.Evidence = evidence
+						args["id"] = string(uow.InputSubgraph)
+						result, err := r.GatherEvidence(ctx, r.Recipe, r.Tools, args)
+						if err != nil {
+							workerErrors[workerID] = errors.Join(err, r.Queue.Fail(ctx, uow.ID, err.Error()))
+							return
+						}
+						evidence = r.Recipe.Evidence(result)
+						uow.Evidence = append(uow.Evidence, evidence...)
 					}
 
 					worker, err := r.Steward.CreateWorker(agents.WorkerSpec{Name: "generic", Role: "worker", ModelTier: "cheap"})
