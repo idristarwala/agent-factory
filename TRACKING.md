@@ -9,6 +9,7 @@
 - Real CreateWorker after SetRuntime
 - /api/feedback
 - Deterministic grouping with ungrouped items first-class
+- Labelled grouping scorer (`grouping.ScorePairMetrics`)
 
 ### Enterprise gateway (#11)
 - Declarative config loader
@@ -37,7 +38,7 @@
 - Retry with exponential backoff
 - Conformance harness + multi-protocol tests
 - Protocol builders and POST adapters
-- Tool call parsing
+- Tool call parsing + round-trip test (OpenAI)
 - Token refresh support
 
 ### HTTP tools (#12)
@@ -52,6 +53,8 @@
 
 - Context recipe wired into the runner loop (types exist)
 - Native streaming (currently reassembly helpers)
-- Labelled grouping scorer and full block-then-decide LLM membership
+- Full block-then-decide LLM membership for grouping
+- Auth refresh decorator exercised in conformance suite
+- Anthropic/Gemini tool-call round-trips
 
 All high-impact correctness, config seams, POST adapters, packaging, HTTP tools, and release automation are in place.

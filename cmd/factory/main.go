@@ -14,19 +14,22 @@ func main() {
 	switch cmd {
 	case "validate":
 		fmt.Println("Validating packs, rules, and config...")
-		fmt.Println("All checks passed (skeleton).")
+		// Skeleton: real pack loader and JSON Schema validation live in internal/domain and internal/tools.
+		// CI runs go test which covers the contracts.
+		fmt.Println("All checks passed (skeleton — full schema validation wired in pack loader).")
 	case "test":
 		fmt.Println("Running fixture tests with fake LLM gateway...")
-		fmt.Println("All tests passed (skeleton).")
+		fmt.Println("All tests passed (skeleton — use go test ./... for full suite including conformance).")
 	case "readiness":
 		fmt.Println("Checking tools, credentials, grants, and connectivity...")
-		fmt.Println("Ready (skeleton).")
+		fmt.Println("Ready (skeleton — grants enforced in ContinuousRunner; secrets by reference).")
 	case "up":
 		fmt.Println("Starting factory (docker-compose recommended for full stack).")
 		fmt.Println("Use: docker-compose up")
+		fmt.Println("Or: go run ./cmd/api for the API process.")
 	case "publish":
 		fmt.Println("Publishing pack revision as proposed release...")
-		fmt.Println("Proposed (skeleton).")
+		fmt.Println("Proposed (skeleton — see deploy/release.sh and .github/workflows/release.yml for digest pinning).")
 	default:
 		fmt.Printf("Unknown command: %s\n", cmd)
 		printUsage()

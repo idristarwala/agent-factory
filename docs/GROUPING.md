@@ -28,6 +28,15 @@ assessor := &grouping.Assessor{
 results := assessor.Assess(entities)
 ```
 
+## Scoring against labels
+
+```go
+metrics := grouping.ScorePairMetrics(entities, "group", predictedGroupByID)
+// metrics.Precision, Recall, F1, TruePos, FalsePos, FalseNeg
+```
+
+Pair-level precision/recall against a human-labelled set. Deterministic detector output is stable across runs (sorted entity IDs and group names).
+
 ## Customer policies
 
 Plain-text decision trees become versioned rules:
