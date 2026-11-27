@@ -19,8 +19,10 @@ export default function App(){
   useEffect(()=>{refresh().catch(e=>setMessage(e.message));const id=setInterval(()=>refresh().catch(e=>setMessage(e.message)),5000);return ()=>clearInterval(id)},[refresh])
   async function send(e){e.preventDefault();if(!input.trim()||sending)return;setSending(true)
     try{const text=input.trim();const body={message:text}
-      if(/^start\b/i.test(text)&&source.factory) body.source={factory:source.factory,records:JSON.parse(source.records),selected_rules:source.rules,max_tokens:Number(source.budget)}
-      const reply=await request('/api/chat',body);setChat(c=>[...c,{role:'user',text},{role:'bot',text:reply.reply}]);setInput('');await refresh()
+      if(/^(?:please\s+)?(?:(?:can|could) you\s+)?start\b/i.test(text)&&source.factory) body.source={factory:source.factory,records:JSON.parse(source.records),selected_rules:source.rules,max_tokens:Number(source.budget)}
+      const reply=await request('/api/chat',body)
+      if(reply.factory){setSource({factory:reply.factory,definition:reply.definition,expected:1,records:'[]',budget:0});setPage('Goal builder')}
+      setChat(c=>[...c,{role:'user',text},{role:'bot',text:reply.reply}]);setInput('');await refresh()
     }catch(err){setMessage(err.message)}finally{setSending(false)}}
   return <div className="app"><header><h1>Agent Factory</h1><span>{usage.tokens_used} tokens · {usage.model_calls || 0} run model calls</span></header>
     <div className="layout"><main><nav aria-label="Workspace navigation">{['Workspace','Goal builder','Decisions','Graph','Rules','Agents','Settings'].map(n=>
@@ -28,5 +30,5 @@ export default function App(){
     {page==='Settings'?<Settings api={API}/>:['Rules','Agents'].includes(page)?<Definitions api={API} kind={page.toLowerCase()} key={page}/>:
       <Runs {...{page,runs,source,setSource,request,refresh,setMessage}}/>}<p role="status">{message}</p></main>
     <aside className="chat"><h2 className="chat-header">Factory chat</h2><div className="messages">{chat.map((m,i)=><p className={'msg '+m.role} key={i}>{m.text}</p>)}</div>
-    <form className="chat-input" onSubmit={send}><input aria-label="Message" placeholder="Start a goal or check status" value={input} onChange={e=>setInput(e.target.value)}/><button disabled={sending}>Send</button></form></aside></div></div>
+    <form className="chat-input" onSubmit={send}><input aria-label="Message" placeholder="Create a factory to…, start a run, or check status" value={input} onChange={e=>setInput(e.target.value)}/><button disabled={sending}>Send</button></form></aside></div></div>
 }
