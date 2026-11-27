@@ -121,12 +121,3 @@ func nameStem(title string) string {
 	}
 	return ""
 }
-
-func firstToken(s string) string {
-	for i, r := range s {
-		if r == ' ' {
-			return s[:i]
-		}
-	}
-	return s
-}

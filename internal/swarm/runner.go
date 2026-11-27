@@ -356,10 +356,3 @@ func (r *ContinuousRunner) verifyClean(goal string) bool {
 	uows, err := r.Steward.InterpretGoal(goal, r.Graph.Snapshot())
 	return err == nil && len(uows) == 0
 }
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
