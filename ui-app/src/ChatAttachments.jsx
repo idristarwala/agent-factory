@@ -29,7 +29,7 @@ export default function ChatAttachments({files,setFiles,busy,setBusy,request,set
     } finally {setBusy(false)}
   }
   return <fieldset disabled={busy} className="chat-attachments"><legend>Goal attachments</legend>
-    <label>Attach text or screenshots<input type="file" multiple accept=".txt,.md,.png,.jpg,.jpeg,.webp"
+    <label>Attach documents or screenshots<input type="file" multiple accept=".pdf,.docx,.txt,.md,.png,.jpg,.jpeg,.webp"
       onChange={e=>{const selected=Array.from(e.target.files);e.target.value='';upload(selected)}}/></label>
     {files.map(({name,ref})=><div key={ref.id}>{name} · revision {ref.version}{' '}
       <button type="button" aria-label={'Remove '+name} onClick={()=>setFiles(files.filter(file=>file.ref.id!==ref.id))}>Remove</button></div>)}

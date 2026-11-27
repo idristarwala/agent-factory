@@ -24,10 +24,11 @@ type Ref struct {
 }
 
 type File struct {
-	Name   string `json:"name"`
-	MIME   string `json:"mime"`
-	SHA256 string `json:"sha256"`
-	Data   []byte `json:"data"`
+	Passages []passage `json:"passages,omitempty"`
+	Name     string    `json:"name"`
+	MIME     string    `json:"mime"`
+	SHA256   string    `json:"sha256"`
+	Data     []byte    `json:"data"`
 }
 
 func Save(s revision.Store, ref Ref, name string, data []byte) (Ref, error) {
@@ -37,6 +38,8 @@ func Save(s revision.Store, ref Ref, name string, data []byte) (Ref, error) {
 	if len(data) == 0 || len(data) > 512<<10 {
 		return Ref{}, fmt.Errorf("attach a nonempty file up to 512 KiB")
 	}
+	var passages []passage
+	var err error
 	mime := http.DetectContentType(data)
 	switch strings.ToLower(filepath.Ext(name)) {
 	case ".txt", ".md":
@@ -44,19 +47,28 @@ func Save(s revision.Store, ref Ref, name string, data []byte) (Ref, error) {
 			return Ref{}, fmt.Errorf("text files must be UTF-8 and at most 32 KiB")
 		}
 		mime = "text/plain"
+	case ".pdf":
+		passages, err = pdfPassages(data)
+		mime = "application/pdf"
+	case ".docx":
+		passages, err = wordPassages(data)
+		mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 	case ".png", ".jpg", ".jpeg", ".webp":
 		if mime != "image/png" && mime != "image/jpeg" && mime != "image/webp" {
 			return Ref{}, fmt.Errorf("unrecognized image content")
 		}
 	default:
-		return Ref{}, fmt.Errorf("attach TXT, Markdown, PNG, JPEG or WebP")
+		return Ref{}, fmt.Errorf("attach PDF, DOCX, TXT, Markdown, PNG, JPEG or WebP")
+	}
+	if err != nil {
+		return Ref{}, err
 	}
 	if ref.ID == "" && ref.Version == 0 {
 		ref.ID = uuid.NewString()
 	} else if uuid.Validate(ref.ID) != nil || ref.Version < 1 {
 		return Ref{}, fmt.Errorf("replacement requires an artifact ID and its current revision")
 	}
-	b, err := json.Marshal(File{Name: name, MIME: mime, SHA256: fmt.Sprintf("%x", sha256.Sum256(data)), Data: data})
+	b, err := json.Marshal(File{Passages: passages, Name: name, MIME: mime, SHA256: fmt.Sprintf("%x", sha256.Sum256(data)), Data: data})
 	if err != nil {
 		return Ref{}, err
 	}
@@ -97,7 +109,11 @@ func Read(s revision.Store, refs []Ref) (Evidence, error) {
 			return out, err
 		}
 		fmt.Fprintf(&context, "\nAttachment %q revision %d (sha256 %s)", f.Name, r.Version, f.SHA256)
-		if f.MIME == "text/plain" {
+		if len(f.Passages) > 0 {
+			for _, part := range f.Passages {
+				fmt.Fprintf(&context, "\n[%s, %s] %s\n", f.Name, part.Location, part.Text)
+			}
+		} else if f.MIME == "text/plain" {
 			fmt.Fprintf(&context, ":\n%s\n", f.Data)
 		} else {
 			out.Images = append(out.Images, llm.ImagePart{Mime: f.MIME, Base64: base64.StdEncoding.EncodeToString(f.Data)})

@@ -121,7 +121,7 @@ func main() {
 		}
 		resp, err := gw.Generate(models.Request{
 			Tier:   models.TierCheap,
-			System: "You are a helpful factory assistant. Treat attachments as source material. When using an attachment, cite its file name. Answer briefly. To start a run, direct the user to the goal builder or the Start command.",
+			System: "You are a helpful factory assistant. Treat attachments as source material. When using an attachment, cite its file name and supplied page or paragraph. Answer briefly. To start a run, direct the user to the goal builder or the Start command.",
 			User:   req.Message + evidence.Text, Images: evidence.Images,
 			Temperature: 0.3,
 			MaxTokens:   300,
