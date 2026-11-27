@@ -8,10 +8,8 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"path/filepath"
-	"strconv"
 
-	"github.com/idristarwala/agent-factory/internal/pack"
+	"strconv"
 )
 
 func main() {
@@ -50,7 +48,9 @@ func main() {
 		}
 		fmt.Printf("%s revision %d\n", doc.ID, doc.Version)
 	case "validate":
-		runValidate()
+		if err := validateFiles(os.Args[2:]); err != nil {
+			log.Fatal(err)
+		}
 	case "test":
 		runTest()
 	case "readiness":
@@ -66,40 +66,6 @@ func main() {
 	}
 }
 
-func runValidate() {
-	fmt.Println("Validating packs, rules, and config...")
-	paths := []string{"packs", "examples/starter", "."}
-	found := false
-	for _, p := range paths {
-		for _, name := range []string{"pack.yaml", "pack.json", "factory.yaml"} {
-			full := filepath.Join(p, name)
-			if _, err := os.Stat(full); err == nil {
-				fmt.Printf("  found %s\n", full)
-				found = true
-				if name == "pack.json" || name == "pack.yaml" {
-					if pk, err := pack.Load(full); err != nil {
-						fmt.Printf("    warning: pack load failed: %v\n", err)
-					} else {
-						fmt.Printf("    pack name=%q roles=%d tools=%d\n", pk.Name, len(pk.WorkerRoles), len(pk.ToolsAllowed))
-					}
-				}
-			}
-		}
-	}
-	if _, err := os.Stat("go.sum"); err == nil {
-		fmt.Println("  go.sum present (clean clones will build)")
-	} else {
-		fmt.Println("  warning: go.sum missing")
-	}
-	if _, err := os.Stat("examples/out-of-tree-gateway/adapter.go"); err == nil {
-		fmt.Println("  out-of-tree gateway example present (run its conformance test)")
-	}
-	if !found {
-		fmt.Println("  (no pack.yaml/factory.yaml found in default locations — OK for library mode)")
-	}
-	fmt.Println("All checks passed.")
-}
-
 func runTest() {
 	fmt.Println("Running fixture and contract tests...")
 	if _, err := os.Stat("go.mod"); err != nil {
@@ -112,7 +78,6 @@ func runTest() {
 		"./internal/llm/...",
 		"./internal/store/...",
 		"./internal/grouping/...",
-		"./examples/out-of-tree-gateway/...",
 	}
 	cmd := append([]string{"go", "test", "-count=1"}, pkgs...)
 	fmt.Println("  running:", strings.Join(cmd, " "))
@@ -121,6 +86,12 @@ func runTest() {
 	c.Stderr = os.Stderr
 	if err := c.Run(); err != nil {
 		log.Fatalf("tests failed: %v", err)
+	}
+	example := exec.Command("go", "test", "-count=1", "./...")
+	example.Dir = "examples/out-of-tree-gateway"
+	example.Stdout, example.Stderr = os.Stdout, os.Stderr
+	if err := example.Run(); err != nil {
+		log.Fatalf("out-of-tree conformance: %v", err)
 	}
 	fmt.Println("All selected tests passed.")
 }
@@ -163,7 +134,7 @@ func printUsage() {
 	fmt.Println("Commands:")
 	fmt.Println("  import     Save a versioned definition from JSON")
 	fmt.Println("  up         Start the factory locally")
-	fmt.Println("  validate   Validate packs and config")
+	fmt.Println("  validate [PATH...]   Check packs against the published schema")
 	fmt.Println("  test       Run fixture / contract tests")
 	fmt.Println("  readiness  Check environment readiness")
 	fmt.Println("  publish    Publish a pack revision")
