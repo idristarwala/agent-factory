@@ -44,6 +44,6 @@ Proprietary. All rights reserved. See [LICENSE](LICENSE).
 
 ### Goal chat attachments
 
-Attach up to four Markdown or UTF-8 text files (32 KiB each) and PNG, JPEG or WebP screenshots (512 KiB each) in Factory chat. The files stay selected across messages in that chat view. Upload a changed file with the same name to create a new revision, or remove it from the next message. Creating a factory from chat pins the selected revisions in its definition.
+Attach up to four files, including PDFs, Word DOCX documents, Markdown or UTF-8 text files (32 KiB each) and PNG, JPEG or WebP screenshots (512 KiB each) in Factory chat. PDFs and DOCX files may be up to 512 KiB with up to 32 KiB of extracted text. PDF evidence cites physical page numbers and DOCX evidence cites body paragraphs. Image-only PDFs require OCR or a separate screenshot. The API container includes Poppler. For a standalone API binary, install `pdftotext` to enable PDF uploads. The files stay selected across messages in that chat view. Upload a changed file with the same name to create a new revision, or remove it from the next message. Creating a factory from chat pins the selected revisions in its definition.
 
 In Goal builder, select **Include pinned goal attachments in worker and judge evidence** to use those revisions in a run. The run records the file names, revisions and content digests. PostgreSQL persists the files across restarts. In-memory mode retains them for the current process.

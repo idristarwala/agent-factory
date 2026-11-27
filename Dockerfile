@@ -6,7 +6,7 @@ COPY . .
 RUN sh scripts/build-binaries.sh /out
 
 FROM alpine:3.20
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache ca-certificates poppler-utils
 COPY --from=build /out/agent-factory /usr/local/bin/agent-factory
 COPY --from=build /out/factory /usr/local/bin/factory
 COPY --from=build /out/api /usr/local/bin/api
