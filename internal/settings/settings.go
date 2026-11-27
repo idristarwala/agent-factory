@@ -38,6 +38,7 @@ func Current(s revision.Store) (Settings, int, error) {
 		WorkerCount: 2, MaxFailures: 20, StagnantRounds: 2, JudgeEvaluations: 2, JudgeApprovals: 2,
 	}}
 	if len(h) == 0 {
+		v.ReplayGate = true
 		v.JudgeEvaluations = 1
 		v.JudgeApprovals = 1
 		return v, 0, nil

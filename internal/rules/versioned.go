@@ -12,8 +12,22 @@ import (
 	"github.com/idristarwala/agent-factory/internal/agents"
 )
 
+type ReplayCase struct {
+	RecordID        string `json:"record_id"`
+	BaselinePassed  bool   `json:"baseline_passed"`
+	CandidatePassed bool   `json:"candidate_passed"`
+}
+
+type ReplayReport struct {
+	Run           string         `json:"run"`
+	Revision      int            `json:"revision"`
+	BaselineRules map[string]int `json:"baseline_rules"`
+	Cases         []ReplayCase   `json:"cases"`
+}
+
 // VersionedRule is an immutable rule version.
 type VersionedRule struct {
+	Replay        *ReplayReport `json:",omitempty"`
 	ID            string
 	Version       int
 	Description   string

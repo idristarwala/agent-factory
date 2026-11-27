@@ -10,7 +10,7 @@
     "max_tokens": {"type":"integer","minimum":1,"default":1000000,"description":"Provider token budget, checked between continuous rounds."},
     "max_minutes": {"type":"integer","minimum":1,"maximum":525600,"default":30,"description":"Wall-clock budget in minutes. The CLI uses 10 until the first settings revision."},
     "observe": {"type":"boolean","default":false,"description":"Skip applying approved changes during observation."},
-    "replay_gate": {"type":"boolean","default":false,"description":"Hold learned rules for replay or review."},
+    "replay_gate": {"type":"boolean","default":true,"description":"Hold learned rules for replay or review."},
     "worker_count": {"type":"integer","minimum":1,"maximum":256,"default":2,"description":"Concurrent workers claiming units during each round."},
     "max_failures": {"type":"integer","minimum":1,"default":20,"description":"Stop before another round after reaching this many worker failures."},
     "stagnant_rounds": {"type":"integer","minimum":1,"default":2,"description":"Stop after this many successive comparisons find the graph unchanged."},

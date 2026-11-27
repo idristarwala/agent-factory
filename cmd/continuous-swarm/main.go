@@ -27,6 +27,7 @@ import (
 
 func main() {
 	var fields []string
+	reviewReplay := flag.Bool("review-replay", false, "Require human approval after a successful rule replay")
 	flag.Func("field", "Editable record field (repeat for multiple fields)", func(name string) error {
 		if name == "" || name == "status" || slices.Contains(fields, name) {
 			return fmt.Errorf("expected a distinct editable field name")
@@ -111,7 +112,30 @@ func main() {
 	runner.Usage = meter
 	runner.Workers = cfg.WorkerCount
 	runner.Stagnation = cfg.StagnantRounds
+	started := time.Now()
 	ll.ReplayGate = cfg.ReplayGate
+	if *reviewReplay && !cfg.ReplayGate {
+		log.Fatal("-review-replay requires replay_gate=true")
+	}
+	ll.ReplayRequiresApproval = *reviewReplay
+	if ref := os.Getenv("FACTORY_REPLAY_RUN"); ref != "" {
+		if !ll.ReplayGate || !realGateway {
+			log.Fatal("FACTORY_REPLAY_RUN requires replay_gate and a configured model gateway")
+		}
+		replayWorkspace := factory.Workspace{Store: definitions, Gateway: meter}
+		ll.Replay, err = replayWorkspace.ReviewedReplay(ref, g, func() error {
+			if cfg.MaxTokens > 0 && meter.Tokens() >= cfg.MaxTokens {
+				return fmt.Errorf("replay token budget exhausted")
+			}
+			if cfg.MaxMinutes > 0 && time.Since(started) >= time.Duration(cfg.MaxMinutes)*time.Minute {
+				return fmt.Errorf("replay wall clock budget exhausted")
+			}
+			return nil
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 	runner.SetObserve(cfg.Observe)
 	runner.SetBudget(swarm.Budget{MaxRounds: cfg.MaxRounds, MaxWallClock: time.Duration(cfg.MaxMinutes) * time.Minute, MaxTokens: cfg.MaxTokens, MaxFailures: cfg.MaxFailures})
 	fmt.Printf("Settings revision %d\n", version)
@@ -122,7 +146,6 @@ func main() {
 	}
 
 	fmt.Println("Continuous swarm (stops when graph is clean)")
-	started := time.Now()
 	runErr := runner.Run(context.Background(), goal)
 	ws := factory.Workspace{Store: definitions}
 	run, err := ws.FinishContinuous(goal, started, cfg, version, meter, runner.Audit.All(), runErr)

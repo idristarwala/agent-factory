@@ -30,10 +30,12 @@ type AgentUpdate struct {
 
 // LearningLoop is the Steward's self-learning mechanism.
 type LearningLoop struct {
-	RuleEngine *rules.Engine
-	Registry   *agents.Registry
-	ReplayGate bool
-	cumulative map[string]int
+	RuleEngine             *rules.Engine
+	Registry               *agents.Registry
+	ReplayGate             bool
+	ReplayRequiresApproval bool
+	Replay                 func(rules.VersionedRule, []rules.VersionedRule) (*rules.ReplayReport, error)
+	cumulative             map[string]int
 }
 
 func NewLearningLoop(re *rules.Engine, reg *agents.Registry) *LearningLoop {
@@ -149,12 +151,10 @@ func (l *LearningLoop) Apply(updates []AgentUpdate) ([]string, error) {
 	for _, u := range updates {
 		switch u.ChangeType {
 		case "rule":
-			active := true
-			if l.ReplayGate {
-				active = ShouldActivate(nil)
-			}
+			active := !l.ReplayGate
+			id := uuid.NewSHA1(uuid.NameSpaceOID, []byte("steward-rule/"+u.Payload["pattern"])).String()
 			r, err := l.RuleEngine.Save(rules.VersionedRule{
-				ID:          uuid.NewSHA1(uuid.NameSpaceOID, []byte("steward-rule/"+u.Payload["pattern"])).String(),
+				ID:          id,
 				Description: u.Payload["description"],
 				Source:      u.Payload["source"],
 				CreatedBy:   "steward",
@@ -162,14 +162,53 @@ func (l *LearningLoop) Apply(updates []AgentUpdate) ([]string, error) {
 				Active:      active,
 			}, 0)
 			if errors.Is(err, revision.ErrConflict) {
-				continue
+				if !l.ReplayGate || l.Replay == nil {
+					continue
+				}
+				history, readErr := l.RuleEngine.List(id)
+				if readErr != nil {
+					return applied, readErr
+				}
+				if len(history) != 1 || history[0].CreatedBy != "steward" || history[0].Active || history[0].Description != u.Payload["description"] {
+					continue
+				}
+				r, err = history[0], nil
 			}
 			if err != nil {
 				return applied, err
 			}
+			if l.ReplayGate && l.Replay != nil {
+				baseline, err := l.RuleEngine.Current()
+				if err != nil {
+					return applied, err
+				}
+				report, err := l.Replay(r, baseline)
+				if err != nil {
+					return applied, fmt.Errorf("rule replay: %w", err)
+				}
+				active = ShouldActivate(report) && !l.ReplayRequiresApproval
+				r.Replay = report
+				r.Active = active
+				if active {
+					r.ActivatedFrom = r.Version
+				}
+				r, err = l.RuleEngine.Save(r, r.Version)
+				if errors.Is(err, revision.ErrConflict) {
+					continue
+				}
+				if err != nil {
+					return applied, err
+				}
+			}
 			status := "active"
 			if !active {
 				status = "proposed (awaiting replay)"
+				if r.Replay != nil {
+					status = "proposed (replay did not improve)"
+					if ShouldActivate(r.Replay) {
+						status = "proposed (awaiting human approval)"
+					}
+				}
 			}
 			applied = append(applied, fmt.Sprintf("rule %s v%d [%s]: %s", r.ID[:8], r.Version, status, r.Description))
 		case "new_agent":

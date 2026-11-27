@@ -272,9 +272,6 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 		if err := errors.Join(workerErrors...); err != nil {
 			return err
 		}
-		if r.Usage != nil {
-			budgets.TokensUsed = r.Usage.Tokens() - initialTokens
-		}
 
 		totalFailures += len(failureErrs)
 
@@ -299,6 +296,10 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 			for _, signal := range signals {
 				fmt.Printf("Worker failure cause %s: %d\n", signal.Cause, signal.Count)
 			}
+		}
+
+		if r.Usage != nil {
+			budgets.TokensUsed = r.Usage.Tokens() - initialTokens
 		}
 
 		snapshot := r.Graph.Snapshot()

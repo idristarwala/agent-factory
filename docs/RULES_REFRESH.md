@@ -1,3 +1,13 @@
 # Rules in continuous runs
 
 At the start of each round, the runner reads active rule revisions from the rule engine. The steward builds workers with that list and the judge evaluates their proposals against the same list. A rule activated during the round takes effect in the following round. A worker records the rule revisions it used on its proposed mutation.
+
+## Replay a reviewed workspace run
+
+Select a completed run in the same workspace where a human approved every record's proposed patch. Use the exact run ID and terminal revision. Held-out record IDs must be disjoint from the continuous graph. Records with external image URLs are ineligible because their contents can change.
+
+New workspaces require review or replay by default. Existing workspaces retain their saved policy. To use replay, enable the versioned workspace setting `replay_gate` and configure a model gateway. Set `FACTORY_REPLAY_RUN=RUN_ID@REVISION` when starting `continuous-swarm`. With the gate enabled and the reference unset, new rules await review. With a reference, the runner creates an inactive revision and evaluates each held-out record twice. The baseline uses currently active rules. The candidate adds the proposed rule. Both use the historical goal, before-values, factory plan, worker and judge definitions, pinned memory, and goal artifacts. The currently configured gateway supplies the models. Replay evaluates proposals in scratch graphs.
+
+A case passes when the judge approves a worker patch matching the human-approved patch. Automatic promotion requires at least one new pass and zero regressions. Pass `-review-replay` to keep a successful candidate pending for a human. Both outcomes append a revision with the baseline rule versions and per-record results. A provider or budget failure leaves the first revision pending and surfaces the error. An identical proposal can retry an interrupted evaluation. A completed replay is retained when the same pattern recurs.
+
+Replay calls count toward continuous usage. The runner checks remaining tokens and wall time before each replay call. One in-flight response can consume the remaining budget. Inspect the run's call records for unit IDs beginning with `replay/` and the rule's revision history for the comparison.
