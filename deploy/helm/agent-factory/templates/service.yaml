@@ -6,6 +6,7 @@ spec:
   type: {{ .Values.service.type }}
   ports:
     - port: {{ .Values.service.port }}
-      targetPort: {{ .Values.service.port }}
+      targetPort: http
   selector:
+    app.kubernetes.io/instance: {{ .Release.Name }}
     app: {{ include "agent-factory.name" . }}

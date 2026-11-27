@@ -36,6 +36,7 @@ Welcome to the official documentation for Agent Factory — a domain-agnostic, s
 | [Configuration](CONFIGURATION.md) | Secrets, model tiers, environment variables |
 | [Observability](OBSERVABILITY.md) | Traces, metrics, audit log |
 | [Operations](OPERATIONS.md) | Scaling, failure modes, health |
+| [Production deployment](DEPLOYMENT.md) | Helm values, rollout, verification and rollback |
 | [Security](SECURITY.md) | Auth, secrets, fail-closed Judge |
 | [Troubleshooting](TROUBLESHOOTING.md) | Common issues and fixes |
 

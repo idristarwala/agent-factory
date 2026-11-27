@@ -55,3 +55,5 @@ active: true
 ```
 
 The CLI embeds the same schema used for entries in a pack’s `rules` array. Validation works offline and exits nonzero on the first invalid file. To use a validated rule in a pack, include its object in the pack’s `rules` array. [Rule schema](../schemas/rule.schema.json)
+
+For deployment with a pinned image and shared PostgreSQL database, follow the [production Helm guide](DEPLOYMENT.md).

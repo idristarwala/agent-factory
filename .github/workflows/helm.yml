@@ -1,0 +1,62 @@
+name: Production chart
+
+on:
+  pull_request:
+    paths:
+      - deploy/helm/**
+      - docs/DEPLOYMENT.md
+      - .github/workflows/helm.yml
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.17.3
+      - name: Render the production guide
+        run: |
+          chart=deploy/helm/agent-factory
+          digest="sha256:$(printf '%064d' 1)"
+          sed -n '/^```yaml$/,/^```$/p' docs/DEPLOYMENT.md | sed '1d;$d' | sed "s/sha256:<64 lowercase hex characters>/$digest/" > /tmp/chart-values.yaml
+          helm lint "$chart" -f /tmp/chart-values.yaml
+          helm template factory "$chart" -f /tmp/chart-values.yaml > /tmp/chart.yaml
+          grep -Fq "ghcr.io/idristarwala/agent-factory@$digest" /tmp/chart.yaml
+          if helm template factory "$chart" --set image.digest=bad; then exit 1; fi
+      - uses: helm/kind-action@v1.12.0
+        with:
+          cluster_name: factory-test
+      - name: Build and load the API under test
+        run: |
+          mkdir /tmp/chart-image
+          CGO_ENABLED=0 go build -o /tmp/chart-image/api ./cmd/api
+          echo -e 'FROM scratch\nCOPY api /api\nENV PATH=/' > /tmp/chart-image/Dockerfile
+          docker build -t factory-api:ci /tmp/chart-image
+          kind load docker-image factory-api:ci --name factory-test
+      - name: Deploy and check PostgreSQL-backed API
+        run: |
+          ns=factory
+          chart=deploy/helm/agent-factory
+          kubectl create namespace "$ns"
+          kubectl -n "$ns" create deployment db --image=postgres:16-alpine
+          kubectl -n "$ns" set env deployment/db POSTGRES_PASSWORD=fixture
+          kubectl -n "$ns" expose deployment db --port=5432
+          kubectl -n "$ns" rollout status deployment/db --timeout=180s
+          kubectl -n "$ns" create secret generic factory-runtime \
+            --from-literal=database-url='postgres://postgres:fixture@db:5432/postgres?sslmode=disable' \
+            --from-literal=gemini-api-key=offline-startup-fixture --from-literal=api-token=test-operator
+          helm upgrade --install factory "$chart" -n "$ns" -f /tmp/chart-values.yaml \
+            --set image.digest=,image.repository=factory-api,image.tag=ci,image.pullPolicy=Never \
+            --set service.port=8888,containerPort=8181 --wait --timeout 3m
+          kubectl -n "$ns" port-forward svc/factory-agent-factory 18080:8888 >/tmp/chart-forward.log 2>&1 &
+          forward=$!
+          trap 'kill "$forward"' EXIT
+          curl --fail --retry 10 --retry-connrefused http://localhost:18080/health | jq -e '.store=="postgres" and .status=="ok"'
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:18080/api/settings)" = 401
+          curl -fsS -H 'Authorization: Bearer test-operator' http://localhost:18080/api/settings | jq -e '.settings != null'

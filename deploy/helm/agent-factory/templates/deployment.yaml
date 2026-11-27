@@ -1,3 +1,16 @@
+{{- $port := int .Values.containerPort -}}
+{{- $address := default (printf ":%d" $port) .Values.env.FACTORY_LISTEN_ADDR -}}
+{{- if not (hasSuffix (printf ":%d" $port) $address) -}}
+{{- fail "env.FACTORY_LISTEN_ADDR must listen on containerPort" -}}
+{{- end -}}
+{{- $env := merge (dict "FACTORY_LISTEN_ADDR" $address) .Values.env -}}
+{{- $image := printf "%s:%s" .Values.image.repository .Values.image.tag -}}
+{{- if .Values.image.digest -}}
+{{- if not (regexMatch "^sha256:[0-9a-f]{64}$" .Values.image.digest) -}}
+{{- fail "image.digest must be a sha256 digest with 64 lowercase hexadecimal characters" -}}
+{{- end -}}
+{{- $image = printf "%s@%s" .Values.image.repository .Values.image.digest -}}
+{{- end -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -11,27 +24,46 @@ spec:
     metadata:
       labels:
         app: {{ include "agent-factory.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
     spec:
       containers:
         - name: api
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          image: {{ $image | quote }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: ["api"]
           ports:
-            - containerPort: {{ .Values.service.port }}
+            - name: http
+              containerPort: {{ $port }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
           env:
-            - name: SECRETS_DIR
-              value: {{ .Values.env.SECRETS_DIR | quote }}
-            {{- if .Values.env.DATABASE_URL }}
-            - name: DATABASE_URL
-              value: {{ .Values.env.DATABASE_URL | quote }}
+            {{- range $name, $value := $env }}
+            - name: {{ $name | quote }}
+              value: {{ $value | quote }}
             {{- end }}
+            {{- range $name, $ref := .Values.secretEnv }}
+            {{- if hasKey $env $name }}{{ fail (printf "%s is set in both env and secretEnv" $name) }}{{ end }}
+            - name: {{ $name | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "secretEnv entries require name" $ref.name | quote }}
+                  key: {{ required "secretEnv entries require key" $ref.key | quote }}
+            {{- end }}
+          {{- with .Values.resources }}
+          resources: {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.secrets.enabled }}
           volumeMounts:
             - name: secrets
-              mountPath: /etc/secrets
+              mountPath: {{ .Values.env.SECRETS_DIR | default "/etc/secrets" | quote }}
               readOnly: true
+          {{- end }}
+      {{- if .Values.secrets.enabled }}
       volumes:
         - name: secrets
           secret:
-            secretName: {{ include "agent-factory.fullname" . }}-secrets
-            optional: true
+            secretName: {{ default (printf "%s-secrets" (include "agent-factory.fullname" .)) .Values.secrets.name | quote }}
+            optional: {{ .Values.secrets.optional }}
+      {{- end }}
