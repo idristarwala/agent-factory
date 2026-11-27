@@ -71,10 +71,7 @@ func (m SourceMapping) Preview(sample any) ([]PreviewRow, error) {
 	if strings.TrimSpace(m.RecordType) == "" || len(m.Identity) == 0 || len(m.Identity) > 16 || len(m.Fields) == 0 || len(m.Fields) > 128 {
 		return nil, fmt.Errorf("supply a record type, 1–16 identity paths and 1–128 mapped fields")
 	}
-	collection, err := tokens(m.Collection)
-	if err != nil {
-		return nil, err
-	}
+	var err error
 	ids := make([][]string, len(m.Identity))
 	seenPaths := map[string]bool{}
 	for i, p := range m.Identity {
@@ -97,19 +94,9 @@ func (m SourceMapping) Preview(sample any) ([]PreviewRow, error) {
 			return nil, err
 		}
 	}
-	selected, ok := lookup(sample, collection)
-	if !ok {
-		return nil, fmt.Errorf("collection path is missing")
-	}
-	records, ok := selected.([]any)
-	if !ok {
-		if _, ok := selected.(map[string]any); !ok {
-			return nil, fmt.Errorf("collection must be an object or an array of objects")
-		}
-		records = []any{selected}
-	}
-	if len(records) == 0 || len(records) > 100 {
-		return nil, fmt.Errorf("preview requires 1–100 records")
+	records, err := m.records(sample)
+	if err != nil {
+		return nil, err
 	}
 	out := make([]PreviewRow, len(records))
 	seen := map[string]int{}
@@ -178,4 +165,26 @@ func recordID(row any, paths [][]string) (string, error) {
 	}
 	b, err := json.Marshal(parts)
 	return string(b), err
+}
+
+func (m SourceMapping) records(sample any) ([]any, error) {
+	collection, err := tokens(m.Collection)
+	if err != nil {
+		return nil, err
+	}
+	selected, ok := lookup(sample, collection)
+	if !ok {
+		return nil, fmt.Errorf("collection path is missing")
+	}
+	records, ok := selected.([]any)
+	if !ok {
+		if _, ok := selected.(map[string]any); !ok {
+			return nil, fmt.Errorf("collection must be an object or an array of objects")
+		}
+		records = []any{selected}
+	}
+	if len(records) == 0 || len(records) > 100 {
+		return nil, fmt.Errorf("preview requires 1–100 records")
+	}
+	return records, nil
 }

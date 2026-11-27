@@ -79,6 +79,14 @@ export default function SourceMapping({factory, goal, approved, onApprove, reque
       <details><summary>Preview {result.rows.length} mapped records</summary><pre>{JSON.stringify(result.rows,null,2)}</pre></details>
       {!approved && <button type="button" onClick={()=>perform(approve)}>Approve mapping for this run</button>}
     </section>}
-    {approved && <p role="status">Using {approved.mapping} · revision {approved.revision}</p>}
+    {approved && <>
+      <p role="status">Using {approved.mapping} · revision {approved.revision}</p>
+      <details><summary>Import another payload with this mapping</summary>
+        <label>Run payload<textarea rows={6} value={approved.payload ?? approved.sample}
+          onChange={e=>onApprove({...approved,payload:e.target.value})}/></label>
+        <label><input type="checkbox" checked={approved.allowPartial || false}
+          onChange={e=>onApprove({...approved,allowPartial:e.target.checked})}/> Process valid rows and report rejected rows</label>
+      </details>
+    </>}
   </fieldset>
 }

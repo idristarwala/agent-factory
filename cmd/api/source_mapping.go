@@ -89,10 +89,12 @@ func sourceMappingRoutes(mux *http.ServeMux, store revision.Store) {
 				http.Error(w, "supply expected revision", 400)
 				return
 			}
-			data, err := json.Marshal(struct {
-				*mapping.SourceMapping
-				ProposalRevision *int `json:"proposal_revision,omitempty"`
-			}{req.Mapping, req.ProposalRevision})
+			observed, err := req.Mapping.Observe(req.Sample)
+			if err != nil {
+				http.Error(w, err.Error(), 422)
+				return
+			}
+			data, err := json.Marshal(mapping.ApprovedMapping{SourceMapping: *req.Mapping, Observed: observed, ProposalRevision: req.ProposalRevision})
 			if err != nil {
 				sendJSON(w, nil, err)
 				return
