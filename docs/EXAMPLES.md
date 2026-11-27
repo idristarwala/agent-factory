@@ -6,10 +6,10 @@
 go run ./cmd/catalog-demo
 ```
 
-## Continuous multi-agent on a hard catalog
+## Continuous runner on its built-in fixture
 
 ```bash
-go run ./cmd/continuous-demo
+go run ./cmd/continuous-swarm
 ```
 
 ## ReAct worker with tools
@@ -18,13 +18,7 @@ go run ./cmd/continuous-demo
 go run ./cmd/react-demo
 ```
 
-## Docker Compose
-
-```bash
-mkdir -p secrets
-echo -n "$GEMINI_API_KEY" > secrets/gemini-api-key
-docker compose up --build
-```
+For a first run against your own source records, use the [run guide](RUNNING.md). For container configuration, see the [packaging guide](../PACKAGING.md).
 
 ## Kubernetes Job
 

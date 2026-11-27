@@ -39,9 +39,7 @@ repeat until DetectProblems() returns empty
 
 ## Persistence
 
-- In-memory for local/dev.
-- SQL (Postgres-compatible) for production.
-- Secrets from a single directory (`/etc/secrets` or `SECRETS_DIR`).
+Workspace definitions and run history use SQLite by default. Set `DATABASE_URL` for PostgreSQL or `FACTORY_STORE_MODE=memory` for process-local storage. The continuous CLI uses a process-local work graph and queue and publishes its terminal run to the workspace store. [Storage configuration](CONFIGURATION.md)
 
 ## Domain packs
 

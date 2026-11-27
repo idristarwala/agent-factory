@@ -1,38 +1,7 @@
-# Observability
+# Inspect a run
 
-Structured JSON logs with end-to-end trace IDs.
+Read `GET /api/goals/{id}` for the run snapshot and `GET /api/usage?run={id}` for model and tool usage. The operator dashboard reads this history from the workspace store. Use the same database and factory scope in the API and continuous CLI to inspect a CLI run after it exits. [API reference](API.md)
 
-## Trace
+Continuous runs publish their journal at termination, including failed runs. Each worker proposal records its mutation, entity and work-unit trace ID. The judge records its decision and reason. The runner records whether it applied the change, observed it, or encountered a write failure. Match the journal’s `trace_id` to `calls[].unit_id` to inspect individual model calls and quorum evaluations. Earlier run revisions can lack these fields.
 
-Every goal gets a `trace_id`. It flows:
-
-```
-goal → steward → worker → judge → graph
-```
-
-## Span
-
-```json
-{"ts":"...","level":"info","event":"span","trace":"trace-001","span":"...","name":"worker.execute","dur_ms":120,"status":"ok","attrs":{"role":"title-fixer","entity":"sku-1"}}
-```
-
-## Usage
-
-```go
-ctx := obs.WithTrace(ctx, traceID)
-log.Info(ctx, "goal received", map[string]any{"goal": goal})
-sp := log.Span(ctx, "worker.execute")
-defer sp.End(err)
-```
-
-## Demo
-
-```bash
-go run ./cmd/trace-demo
-```
-
-## Next
-
-- OpenTelemetry export
-- Metrics (decisions/hour, reject rate, LLM latency)
-- Trace UI
+Workspace goal runs expose proposals, review state, evidence and before/after values through the decisions endpoint. To estimate cost, configure model-specific input and output prices before the run. [Run and usage guide](RUNNING.md)

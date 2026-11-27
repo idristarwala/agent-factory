@@ -4,7 +4,7 @@
 
 | Mode | How to check |
 |------|--------------|
-| Local | Process exit code |
+| Local API | `curl -f http://localhost:8080/health` |
 | Docker | `docker compose ps` |
 | Kubernetes | `kubectl get pods -l app=agent-factory` |
 
@@ -16,10 +16,10 @@ Look for `Round N`, `problems:`, `applied` / `rejected`, and `agents running:`.
 
 | Concern | Approach |
 |---------|----------|
-| Catalog size | Partition by product type / brand; run many Stewards |
+| Workload size | Set a run token budget and bound the source page size. |
 | LLM cost | Cheap models for workers; frontier only for Judge |
 | Rate limits | Retry wrapper + fail-closed Judge |
-| State | Move graph and units of work to Postgres or BigQuery |
+| State | Configure PostgreSQL for shared definitions and run history |
 
 ## Failure modes
 

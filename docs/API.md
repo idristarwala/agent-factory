@@ -38,3 +38,8 @@ Edits append a revision. Send the last observed revision in `Expected`, or zero 
 `POST /api/chat` accepts `message`. “Create a factory to …” returns a new factory ID and definition. “Start a run to …” also accepts a `source` object with the same factory, records and budget fields as goal creation. “What is the status of the latest run?” reads the workspace. Status for a particular run can be requested with `Status <run ID>`.
 
 `POST /api/feedback` accepts a `note` and optional `entity_id` for standalone feedback. The response includes the new rule ID, revision and activation state. With the workspace replay gate enabled, feedback creates a proposal for review. With the gate disabled, the rule becomes active immediately. Use the decision endpoint when feedback belongs to a particular review.
+
+
+### Goal attachments
+
+Upload a file to `POST /api/chat/artifacts` with `name` and base64-encoded `data`, or submit a GitHub `url` to `POST /api/chat/github`. Pass the returned artifact IDs and versions in the chat request’s `artifacts` array. With sources attached, goal creation returns a reviewable proposal. To revise it, send its `proposal` ID and `expected` draft revision with the selected sources. Approve the reviewed revision with `POST /api/chat/proposals/{id}/approve` and `{"version":1}` (substitute the reviewed version). Each criterion cites a source location. [Supported formats and limits](../README.md#goal-chat-attachments)

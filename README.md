@@ -7,9 +7,9 @@ Give it a goal in plain language. A Steward decomposes it into units of work, sp
 ## Quick Start
 
 ```bash
-./scripts/setup.sh
-export GEMINI_API_KEY=your-key
-./scripts/run-local.sh "Fix product types and weights"
+# Set GEMINI_API_KEY in the environment first.
+go run ./cmd/factory import factory desk 0 examples/service-desk/factory.json
+go run ./cmd/goal -factory desk -revision 1 -records examples/service-desk/records.json 'Assign the support team from the routing guide'
 ```
 
 Or with Docker:
@@ -22,6 +22,7 @@ Or with Docker:
 
 Full documentation lives in [`docs/`](docs/README.md):
 
+- [External harness quick start](docs/HARNESSES.md) · [Agent index](llms.txt)
 - [Getting Started](docs/RUNNING.md)
 - [Architecture & Concepts](docs/ARCHITECTURE.md)
 - [Domain Packs & Data Mapping](docs/DOMAIN_PACKS.md)
@@ -33,7 +34,7 @@ Full documentation lives in [`docs/`](docs/README.md):
 
 - **Agent-first** — no external orchestration frameworks
 - **Governed** — nothing reaches the graph without Judge approval
-- **Self-improving** — rejections automatically become new rules and specialist agents
+- **Self-improving** — the continuous learning loop can propose rules from repeated failures
 - **Domain-agnostic** — catalog is one pack; the same system works for pricing, inventory, compliance, or any Entity-based problem
 - **Concurrent** — claimable work queue with parallel workers
 - **Observable** — traces, metrics, and immutable audit log

@@ -1,6 +1,8 @@
 # Tracking
 
-## Completed
+For current acceptance and outstanding field validation, see [project status](docs/STATUS.md). The entries below record implementation milestones.
+
+## Implementation milestones
 
 ### Correctness (#10)
 - Graph.Apply merges + regression tests
@@ -13,7 +15,7 @@
 - Block-then-decide LLM membership helper (`grouping.BlockThenDecide` + `askMembership`)
 - Context recipe evidence injected into worker prompt (UnitOfWork.Evidence)
 - Labelled fixture + scoring demo (`cmd/variant-demo`, `examples/labelled_grouping.json`)
-- Worker MaxTokens raised to 8000 (ceiling 16000 in config) to reduce truncation
+- Worker default output budget raised to 16000 tokens to reduce truncation
 - JSON response_format support in OpenAI body builder for structured output
 
 ### Enterprise gateway (#11)
@@ -72,14 +74,11 @@
 ### Persistence
 - MemoryStore and SQLite SQLStore
 - Durable PostgresStore (`store.NewPostgresStore` / `NewPostgresStoreFromDB`) with $n placeholders, ON CONFLICT upserts, and shared contract tests against Memory + SQLite
-- `store.NewFromEnv()` helper used by `cmd/api` (memory by default, Postgres when `DATABASE_URL` set)
+- `store.NewFromEnv()` helper used by `cmd/api` (SQLite by default, PostgreSQL via `DATABASE_URL`, explicit process-local memory mode)
 
-## Remaining (minor)
+## Outstanding work
 
-- Optional: further learning-loop end-to-end tests with additional scripted failure patterns
-- Live field-test re-run to confirm #10 accuracy items on a fresh sample
-
-All high-impact correctness, config seams, POST adapters, packaging, HTTP tools, tool-call round-trips across protocols, auth refresh with key injection, refined streaming parsers, release automation, context-recipe prompt injection, labelled grouping demo, durable Postgres store (now wired into the API), fuller CLI, Helm chart, multi-binary image, concrete out-of-tree conformance test, and proper nested YAML pack loading with published schema are in place.
+The [issue tracker](https://github.com/idristarwala/agent-factory/issues) records remaining acceptance criteria, owner decisions and external validation.
 
 ## Conformance hardening (2026-11-27)
 
