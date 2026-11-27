@@ -10,3 +10,4 @@
 - [Tool configuration](docs/HTTP_TOOLS.md): REST, MCP, grants, evidence and external change proposals.
 - [Rendered page evidence](docs/BROWSER_CAPTURE.md) for Playwright tool definitions, pack grants and immutable review captures.
 - [Project status](docs/STATUS.md): verification and outstanding work.
+- [Pack rule schema](schemas/rule.schema.json) for validating individual YAML or JSON rules with `factory validate --rule FILE...`.

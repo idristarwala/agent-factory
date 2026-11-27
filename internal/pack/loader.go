@@ -44,7 +44,22 @@ type Pack struct {
 	Tools        []string   `json:"tools,omitempty" yaml:"tools,omitempty"`
 }
 
-var packSchema = sync.OnceValues(func() (*jsonschema.Schema, error) { return jsonschema.CompileString("pack.schema.json", schemas.Pack) })
+const schemaBase = "https://raw.githubusercontent.com/idristarwala/agent-factory/main/schemas/"
+
+var packSchema = sync.OnceValues(func() (*jsonschema.Schema, error) {
+	c := jsonschema.NewCompiler()
+	if err := c.AddResource(schemaBase+"rule.schema.json", strings.NewReader(schemas.Rule)); err != nil {
+		return nil, err
+	}
+	if err := c.AddResource(schemaBase+"pack.schema.json", strings.NewReader(schemas.Pack)); err != nil {
+		return nil, err
+	}
+	return c.Compile(schemaBase + "pack.schema.json")
+})
+
+var ruleSchema = sync.OnceValues(func() (*jsonschema.Schema, error) {
+	return jsonschema.CompileString(schemaBase+"rule.schema.json", schemas.Rule)
+})
 
 // Load reads a pack.yaml or pack.json from disk.
 // YAML is unmarshalled with yaml.v3 so nested maps and lists are fully supported.
@@ -58,33 +73,8 @@ func Load(path string) (*Pack, error) {
 
 // Parse validates and decodes a single pack from captured file bytes.
 func Parse(path string, data []byte) (*Pack, error) {
-	var err error
-	var input any
-	if strings.HasSuffix(path, ".yaml") || strings.HasSuffix(path, ".yml") {
-		decoder := yaml.NewDecoder(bytes.NewReader(data))
-		if err := decoder.Decode(&input); err != nil {
-			return nil, fmt.Errorf("pack yaml parse: %w", err)
-		}
-		if decoder.Decode(new(any)) != io.EOF {
-			return nil, fmt.Errorf("expected one YAML document")
-		}
-		data, err = json.Marshal(input)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if err := json.Unmarshal(data, &input); err != nil {
-		return nil, fmt.Errorf("pack JSON: %w", err)
-	}
-	schema, err := packSchema()
-	if err != nil {
-		return nil, err
-	}
-	if err := schema.Validate(input); err != nil {
-		return nil, err
-	}
 	var p Pack
-	if err := json.Unmarshal(data, &p); err != nil {
+	if err := decodeFile(path, data, packSchema, &p); err != nil {
 		return nil, err
 	}
 	// Normalise tools alias
@@ -92,4 +82,43 @@ func Parse(path string, data []byte) (*Pack, error) {
 		p.ToolsAllowed = p.Tools
 	}
 	return &p, nil
+}
+
+// LoadRule validates a standalone YAML or JSON rule using the inline pack contract.
+func LoadRule(path string) (RuleSpec, error) {
+	var rule RuleSpec
+	data, err := os.ReadFile(path)
+	if err == nil {
+		err = decodeFile(path, data, ruleSchema, &rule)
+	}
+	return rule, err
+}
+
+func decodeFile(path string, data []byte, contract func() (*jsonschema.Schema, error), dest any) error {
+	var err error
+	var input any
+	if strings.HasSuffix(path, ".yaml") || strings.HasSuffix(path, ".yml") {
+		decoder := yaml.NewDecoder(bytes.NewReader(data))
+		if err := decoder.Decode(&input); err != nil {
+			return fmt.Errorf("YAML parse: %w", err)
+		}
+		if decoder.Decode(new(any)) != io.EOF {
+			return fmt.Errorf("expected one YAML document")
+		}
+		data, err = json.Marshal(input)
+		if err != nil {
+			return err
+		}
+	}
+	if err := json.Unmarshal(data, &input); err != nil {
+		return fmt.Errorf("JSON: %w", err)
+	}
+	schema, err := contract()
+	if err != nil {
+		return err
+	}
+	if err := schema.Validate(input); err != nil {
+		return err
+	}
+	return json.Unmarshal(data, dest)
 }

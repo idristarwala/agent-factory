@@ -14,6 +14,19 @@ import (
 )
 
 func validateFiles(paths []string) error {
+	if len(paths) > 0 && paths[0] == "--rule" {
+		if len(paths) == 1 {
+			return fmt.Errorf("usage: factory validate --rule FILE...")
+		}
+		for _, path := range paths[1:] {
+			rule, err := pack.LoadRule(path)
+			if err != nil {
+				return fmt.Errorf("%s: %w", path, err)
+			}
+			fmt.Printf("Validated rule %s (%s)\n", path, rule.ID)
+		}
+		return nil
+	}
 	return eachPack(paths, func(path string, p *pack.Pack) error {
 		fmt.Printf("Validated pack %s (%s)\n", path, p.Name)
 		return nil

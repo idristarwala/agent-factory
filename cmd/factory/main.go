@@ -140,6 +140,7 @@ func printUsage() {
 	fmt.Println("  import     Save a versioned definition from JSON")
 	fmt.Println("  up [-f FILE]   Start the local Compose project and wait for readiness")
 	fmt.Println("  validate [PATH...]   Check packs against the published schema")
+	fmt.Println("  validate --rule FILE...   Check standalone rules against the published schema")
 	fmt.Println("  test [PATH...]   Run pack fixtures (and engine contracts in the engine checkout)")
 	fmt.Println("  readiness  Check environment readiness")
 	fmt.Println("  publish -pack FILE -evidence FILE -expected N   Publish a proposed revision")

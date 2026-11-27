@@ -40,3 +40,35 @@ func TestValidateManifestPacks(t *testing.T) {
 		t.Fatal("missing pack passed")
 	}
 }
+
+func TestRuleFileAndPackShareContract(t *testing.T) {
+	dir := t.TempDir()
+	for _, tc := range []struct {
+		rule  string
+		valid bool
+	}{
+		{`{"id":"keep","text":"Preserve source"}`, true},
+		{`{"id":"keep","text":"Preserve source","active":false}`, true},
+		{`{"id":"keep","active":true}`, false},
+		{`{"id":"keep","text":"Preserve source","active":"no"}`, false},
+	} {
+		for _, ext := range []string{".yaml", ".json"} {
+			ruleFile := filepath.Join(dir, "routing"+ext)
+			packFile := filepath.Join(dir, "pack"+ext)
+			if err := os.WriteFile(ruleFile, []byte(tc.rule), 0600); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(packFile, []byte(`{"name":"desk","worker_roles":["worker"],"rules":[`+tc.rule+`]}`), 0600); err != nil {
+				t.Fatal(err)
+			}
+			for _, args := range [][]string{{"--rule", ruleFile}, {packFile}} {
+				if err := validateFiles(args); (err == nil) != tc.valid {
+					t.Fatalf("%v: %v", args, err)
+				}
+			}
+		}
+	}
+	if err := validateFiles([]string{"--rule"}); err == nil {
+		t.Fatal("expected missing file error")
+	}
+}
