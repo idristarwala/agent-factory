@@ -118,3 +118,9 @@ The [issue tracker](https://github.com/idristarwala/agent-factory/issues) record
 - SimpleDetector signature now uses a stop-word-aware name stem (skips "the", "a", etc.) so titles like "The Super Widget" and "Super Widget" share a bucket.
 - Added TestUngroupedItemsPlaced to prove ungrouped items with a matching signature are proposed into the majority group (#10).
 - Deterministic majority and stable proposal ordering preserved.
+
+## Learning-loop scripted improvement (2026-11-27)
+
+- Added `TestScriptedFailurePatternsProduceDistinctActionableRules` in `internal/swarm/learning_improvement_test.go`.
+- The test feeds format then truncation failure signals, asserts rules are proposed and applied, and confirms distinct actionable guidance for each cause.
+- Advances the remaining fuller learning-loop e2e coverage noted for packaging (#9) and accuracy (#10).
