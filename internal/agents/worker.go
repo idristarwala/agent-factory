@@ -87,7 +87,7 @@ Respect the rules. Use the gathered evidence. Do not invent facts.
 Respond ONLY with valid JSON of the allowed fields.`, uow.Description, ruleText.String(), context, familyNote, evidenceNote)
 
 	// Schema fields come from the unit of work when provided
-	allowed, types, err := outputFields(uow, node.Props)
+	allowed, types, err := outputFields(uow, node.Type, node.Props)
 	if err != nil {
 		return nil, err
 	}
