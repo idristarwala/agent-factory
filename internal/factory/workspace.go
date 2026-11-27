@@ -54,6 +54,7 @@ type Review struct {
 	After     map[string]any  `json:"after"`
 }
 type Run struct {
+	ImportProblems   []ImportProblem   `json:"import_problems,omitempty"`
 	Source           *SourceRef        `json:"source,omitempty"`
 	ID               string            `json:"id"`
 	Version          int               `json:"version"`
@@ -130,12 +131,13 @@ func (w *Workspace) Start(req RunRequest) (Run, error) {
 		if len(req.Records) != 0 || req.Factory == "" {
 			return Run{}, fmt.Errorf("a mapped source requires a factory and cannot be combined with records")
 		}
-		records, err := w.mappedRecords(*req.Source)
+		records, problems, err := w.mappedRecords(*req.Source)
 		if err != nil {
 			return Run{}, err
 		}
 		req.Records = records
 		r.Records = records
+		r.ImportProblems = problems
 		ref := req.Source.SourceRef
 		r.Source = &ref
 	}

@@ -17,45 +17,59 @@ type SourceRef struct {
 
 type SourceInput struct {
 	SourceRef
-	Payload json.RawMessage `json:"payload"`
+	AllowPartial bool            `json:"allow_partial,omitempty"`
+	Payload      json.RawMessage `json:"payload"`
 }
 
-func (w *Workspace) mappedRecords(input SourceInput) ([]schema.Entity, error) {
+type ImportProblem struct {
+	Index  int    `json:"index"`
+	Reason string `json:"reason"`
+}
+
+func (w *Workspace) mappedRecords(input SourceInput) ([]schema.Entity, []ImportProblem, error) {
 	if input.Mapping == "" || input.Revision < 1 {
-		return nil, fmt.Errorf("supply a mapping id and explicit positive revision")
+		return nil, nil, fmt.Errorf("supply a mapping id and explicit positive revision")
 	}
 	docs, err := revision.Documents(w.Store, "source-mapping/"+input.Mapping)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if input.Revision > len(docs) {
-		return nil, fmt.Errorf("source mapping revision not found")
+		return nil, nil, fmt.Errorf("source mapping revision not found")
 	}
-	var m mapping.SourceMapping
+	var m mapping.ApprovedMapping
 	if err := json.Unmarshal(docs[input.Revision-1].Data, &m); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if len(input.Payload) > 1<<20 || !json.Valid(input.Payload) {
-		return nil, fmt.Errorf("supply a JSON payload up to 1 MiB")
+		return nil, nil, fmt.Errorf("supply a JSON payload up to 1 MiB")
 	}
 	var payload any
 	dec := json.NewDecoder(bytes.NewReader(input.Payload))
 	dec.UseNumber()
 	if err := dec.Decode(&payload); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	rows, err := m.Preview(payload)
+	rows, err := m.ImportRows(payload)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	records := make([]schema.Entity, len(rows))
-	for i, row := range rows {
+	var records []schema.Entity
+	var problems []ImportProblem
+	for _, row := range rows {
 		if row.Problem != "" {
-			return nil, fmt.Errorf("source row %d: %s", i, row.Problem)
+			if !input.AllowPartial {
+				return nil, nil, fmt.Errorf("source row %d: %s", row.Index, row.Problem)
+			}
+			problems = append(problems, ImportProblem{Index: row.Index, Reason: row.Problem})
+			continue
 		}
-		records[i] = *row.Record
+		records = append(records, *row.Record)
 	}
-	return records, nil
+	if len(records) == 0 {
+		return nil, nil, fmt.Errorf("no importable records: source row %d: %s", problems[0].Index, problems[0].Reason)
+	}
+	return records, problems, nil
 }
 
 // Preserve the legacy numeric representation for existing runs, and the source
