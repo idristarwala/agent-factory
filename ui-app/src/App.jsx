@@ -1,102 +1,84 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import './App.css'
 
-const INITIAL = [
-  {
-    id: 'sku-wrong-pt-1',
-    image: 'https://placehold.co/400x400/e8e8e8/333?text=Nike+Air+Max',
-    before: { title: 'Nike Air Max 270', pt: 'Apparel', weight: '12.5 oz' },
-    after: { title: "Nike Men's Air Max 270 Running Shoe", pt: 'Footwear', weight: '12.5 oz' },
-    status: 'pending',
-    reason: 'Product type corrected from Apparel to Footwear',
-  },
-  {
-    id: 'sku-wrong-weight-1',
-    image: 'https://placehold.co/400x400/e8e8e8/333?text=Nike+Tee',
-    before: { title: 'Nike Dri-FIT Tee', pt: 'Apparel', weight: '40 oz' },
-    after: { title: 'Nike Dri-FIT Training Tee', pt: 'Apparel', weight: '6 oz' },
-    status: 'pending',
-    reason: 'Weight corrected to a plausible value',
-  },
-  {
-    id: 'sku-good-1',
-    image: 'https://placehold.co/400x400/e8e8e8/333?text=Adidas',
-    before: { title: "Adidas Ultraboost 22 Men's Running Shoe", pt: 'Footwear', weight: '11.2 oz' },
-    after: { title: "Adidas Ultraboost 22 Men's Running Shoe, Size 10", pt: 'Footwear', weight: '11.2 oz' },
-    status: 'approved',
-    reason: 'Title enriched with size',
-  },
-]
-
-function localReply(text, items) {
-  const t = text.toLowerCase()
-  if (t.includes('pending') || t.includes('review')) {
-    return `There are ${items.filter(i => i.status === 'pending').length} items waiting for review.`
-  }
-  if (t.includes('approved')) {
-    return `${items.filter(i => i.status === 'approved').length} items approved.`
-  }
-  if (t.includes('goal') || t.includes('fix') || t.includes('start')) {
-    return `Got it. Starting work on: "${text}". Decisions will appear as they are ready.`
-  }
-  return `Ask about pending items, or give a goal like "Fix product types and weights".`
-}
+const API = import.meta.env.VITE_API_URL || 'http://localhost:8080'
 
 export default function App() {
-  const [items, setItems] = useState(INITIAL)
-  const [note, setNote] = useState({})
+  const [goals, setGoals] = useState([])
+  const [usage, setUsage] = useState({ tokens_used: 0, tool_calls: 0, estimated_usd: 0 })
+  const [newGoal, setNewGoal] = useState('')
   const [messages, setMessages] = useState([
-    { role: 'bot', text: 'Hi. I can answer questions about these decisions or start work if you give me a goal.' },
+    { role: 'bot', text: 'Hi. Start a goal or ask about the factory.' },
   ])
   const [input, setInput] = useState('')
   const [chatOpen, setChatOpen] = useState(true)
 
-  const pending = items.filter(i => i.status === 'pending').length
+  useEffect(() => {
+    fetch(`${API}/api/goals`).then(r => r.json()).then(setGoals).catch(() => {})
+    fetch(`${API}/api/usage`).then(r => r.json()).then(setUsage).catch(() => {})
+  }, [])
 
-  function decide(id, status) {
-    setItems(items.map(it => it.id === id ? { ...it, status, feedback: note[id] || '' } : it))
+  function createGoal() {
+    if (!newGoal.trim()) return
+    fetch(`${API}/api/goals`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ description: newGoal }),
+    })
+      .then(r => r.json())
+      .then(g => {
+        setGoals([...goals, g])
+        setNewGoal('')
+      })
+      .catch(() => {})
   }
 
   function send() {
     const text = input.trim()
     if (!text) return
-    const reply = localReply(text, items)
-    setMessages([...messages, { role: 'user', text }, { role: 'bot', text: reply }])
+    fetch(`${API}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        setMessages([...messages, { role: 'user', text }, { role: 'bot', text: data.reply || 'Done.' }])
+      })
+      .catch(() => {
+        setMessages([...messages, { role: 'user', text }, { role: 'bot', text: 'API unavailable.' }])
+      })
     setInput('')
   }
 
   return (
     <div className="app">
       <header>
-        <h1>Catalog Review</h1>
-        <div className="stats">{pending} to review · {items.length} total</div>
+        <h1>Agent Factory</h1>
+        <div className="stats">
+          {goals.length} goals · {usage.tokens_used} tokens · ${usage.estimated_usd.toFixed(4)}
+        </div>
       </header>
       <div className="layout">
         <main>
-          {items.map(it => (
-            <article key={it.id} className="card">
-              <img src={it.image} alt="" className="thumb" />
-              <div>
-                <div className="meta">{it.id}</div>
-                <h2>{it.after.title}</h2>
-                <div className="before">{it.before.title} · {it.before.pt} · {it.before.weight}</div>
-                <div className="row">
-                  <span className={`badge ${it.status}`}>{it.status}</span>
-                  <span className="reason">{it.reason}</span>
-                </div>
-                {it.status === 'pending' && (
-                  <>
-                    <div className="actions">
-                      <button className="ok" onClick={() => decide(it.id, 'approved')}>Looks good</button>
-                      <button className="no" onClick={() => decide(it.id, 'rejected')}>Needs change</button>
-                    </div>
-                    <input className="note" placeholder="Optional note…" value={note[it.id] || ''} onChange={e => setNote({ ...note, [it.id]: e.target.value })} />
-                  </>
-                )}
-                {it.feedback && <div className="feedback">Note: {it.feedback}</div>}
-              </div>
-            </article>
-          ))}
+          <section className="card">
+            <h2>Start a goal</h2>
+            <div className="actions">
+              <input className="note" placeholder="Fix product titles and product types" value={newGoal} onChange={e => setNewGoal(e.target.value)} />
+              <button className="ok" onClick={createGoal}>Start</button>
+            </div>
+          </section>
+          <section>
+            <h2>Goals</h2>
+            {goals.length === 0 && <p>No goals yet.</p>}
+            {goals.map(g => (
+              <article key={g.id} className="card">
+                <div className="meta">{g.id}</div>
+                <h3>{g.description}</h3>
+                <span className={`badge ${g.status}`}>{g.status}</span>
+              </article>
+            ))}
+          </section>
         </main>
         {chatOpen && (
           <aside className="chat">
