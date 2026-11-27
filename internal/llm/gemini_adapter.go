@@ -26,10 +26,20 @@ func NewGeminiAdapter(baseURL, apiKey string, headers map[string]string) *Gemini
 }
 
 func (a *GeminiAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
+	parts := []map[string]any{{"text": req.Messages[len(req.Messages)-1].Content}}
 	body := map[string]any{
-		"contents": []map[string]any{{
-			"parts": []map[string]any{{ "text": req.Messages[len(req.Messages)-1].Content }},
-		}},
+		"contents": []map[string]any{{"parts": parts}},
+	}
+	if len(req.Tools) > 0 {
+		decls := make([]map[string]any, len(req.Tools))
+		for i, t := range req.Tools {
+			decls[i] = map[string]any{
+				"name":        t.Name,
+				"description": t.Description,
+				"parameters":  t.Parameters,
+			}
+		}
+		body["tools"] = []map[string]any{{"functionDeclarations": decls}}
 	}
 	if budgetStr, ok := req.Metadata["reasoning_budget"]; ok {
 		if budget, err := parseInt(budgetStr); err == nil {
@@ -62,7 +72,11 @@ func (a *GeminiAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatRespons
 		Candidates []struct {
 			Content struct {
 				Parts []struct {
-					Text string `json:"text"`
+					Text         string `json:"text"`
+					FunctionCall *struct {
+						Name string         `json:"name"`
+						Args map[string]any `json:"args"`
+					} `json:"functionCall"`
 				} `json:"parts"`
 			} `json:"content"`
 		} `json:"candidates"`
@@ -71,10 +85,23 @@ func (a *GeminiAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatRespons
 		return nil, err
 	}
 	content := ""
-	if len(out.Candidates) > 0 && len(out.Candidates[0].Content.Parts) > 0 {
-		content = out.Candidates[0].Content.Parts[0].Text
+	var toolCalls []ToolCall
+	if len(out.Candidates) > 0 {
+		for _, part := range out.Candidates[0].Content.Parts {
+			if part.Text != "" {
+				content += part.Text
+			}
+			if part.FunctionCall != nil {
+				args, _ := json.Marshal(part.FunctionCall.Args)
+				toolCalls = append(toolCalls, ToolCall{
+					ID:        part.FunctionCall.Name,
+					Name:      part.FunctionCall.Name,
+					Arguments: string(args),
+				})
+			}
+		}
 	}
-	return &ChatResponse{Content: content}, nil
+	return &ChatResponse{Content: content, ToolCalls: toolCalls}, nil
 }
 
 func (a *GeminiAdapter) Stream(ctx context.Context, req ChatRequest) (Stream, error) {

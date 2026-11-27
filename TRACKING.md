@@ -21,7 +21,7 @@
 - Full multi-protocol conformance tests
 - Rate limiter in router
 - Token refresher for key rotation
-- Tool call parsing (OpenAI, Anthropic)
+- Tool call parsing (OpenAI, Anthropic, Gemini)
 
 ### Packaging (#9)
 - Factory CLI, pack loader, validation
@@ -38,8 +38,9 @@
 - Retry with exponential backoff
 - Conformance harness + multi-protocol tests
 - Protocol builders and POST adapters
-- Tool call parsing + round-trip test (OpenAI)
-- Token refresh support
+- Tool call parsing + round-trip tests (OpenAI, Anthropic, Gemini)
+- Token refresh support (`TokenRefresher` decorator exercised in conformance suite)
+- Basic native SSE streaming for OpenAI-compatible endpoints
 
 ### HTTP tools (#12)
 - HTTPTool with path templating, auth, retries, cache, real key loading
@@ -51,10 +52,8 @@
 
 ## Remaining (minor)
 
-- Context recipe wired into the runner loop (types exist)
-- Native streaming (currently reassembly helpers)
+- Context recipe fully wired into the runner loop (types exist; further integration pending)
 - Full block-then-decide LLM membership for grouping
-- Auth refresh decorator exercised in conformance suite
-- Anthropic/Gemini tool-call round-trips
+- Streaming support for Anthropic / Gemini (OpenAI SSE is in place)
 
-All high-impact correctness, config seams, POST adapters, packaging, HTTP tools, and release automation are in place.
+All high-impact correctness, config seams, POST adapters, packaging, HTTP tools, tool-call round-trips across protocols, auth refresh, and release automation are in place.

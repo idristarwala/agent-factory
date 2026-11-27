@@ -36,3 +36,10 @@ Example gateway.json:
 - Usage recording into `internal/obs` on every call
 
 See TRACKING.md for status.
+
+## Recent advances
+
+- Anthropic and Gemini tool-call round-trip conformance tests added.
+- TokenRefresher decorator exercised in the LLM conformance suite.
+- Basic SSE streaming implemented for OpenAI-compatible adapters.
+

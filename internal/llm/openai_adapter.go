@@ -1,11 +1,14 @@
 package llm
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"fmt"
 	"net/http"
+	"strings"
 )
 
 // OpenAIAdapter implements Client for OpenAI-compatible endpoints.
@@ -108,8 +111,77 @@ func (a *OpenAIAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatRespons
 }
 
 func (a *OpenAIAdapter) Stream(ctx context.Context, req ChatRequest) (Stream, error) {
-	return nil, ErrStreamingUnsupported
+	// Basic SSE streaming support for OpenAI-compatible endpoints.
+	// Falls back to ErrStreamingUnsupported only if the request cannot be built.
+	body, err := BuildOpenAIBody(req)
+	if err != nil {
+		return nil, err
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", a.BaseURL+"/chat/completions", bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	httpReq.Header.Set("Authorization", "Bearer "+a.APIKey)
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Accept", "text/event-stream")
+	for k, v := range a.Headers {
+		httpReq.Header.Set(k, v)
+	}
+	resp, err := a.Client.Do(httpReq)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode >= 400 {
+		resp.Body.Close()
+		return nil, &Error{Type: "GATEWAY", Status: resp.StatusCode, Retryable: resp.StatusCode >= 500 || resp.StatusCode == 429}
+	}
+	return &sseStream{r: resp.Body}, nil
 }
+
+type sseStream struct {
+	r    io.ReadCloser
+	sc   *bufio.Scanner
+	done bool
+}
+
+func (s *sseStream) Recv() (*StreamEvent, error) {
+	if s.done {
+		return nil, nil
+	}
+	if s.sc == nil {
+		s.sc = bufio.NewScanner(s.r)
+	}
+	for s.sc.Scan() {
+		line := strings.TrimSpace(s.sc.Text())
+		if !strings.HasPrefix(line, "data: ") {
+			continue
+		}
+		data := strings.TrimPrefix(line, "data: ")
+		if data == "[DONE]" {
+			s.done = true
+			return &StreamEvent{FinishReason: "stop"}, nil
+		}
+		var payload struct {
+			Choices []struct {
+				Delta struct {
+					Content string `json:"content"`
+				} `json:"delta"`
+			} `json:"choices"`
+		}
+		if err := json.Unmarshal([]byte(data), &payload); err != nil {
+			continue
+		}
+		for _, c := range payload.Choices {
+			if c.Delta.Content != "" {
+				return &StreamEvent{TextDelta: c.Delta.Content}, nil
+			}
+		}
+	}
+	s.done = true
+	return nil, s.sc.Err()
+}
+
+func (s *sseStream) Close() error { return s.r.Close() }
 
 // BuildOpenAIBody constructs the JSON body for an OpenAI-compatible request.
 func BuildOpenAIBody(req ChatRequest) ([]byte, error) {
