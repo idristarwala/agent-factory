@@ -8,3 +8,6 @@ var Pack string
 
 //go:embed rule.schema.json
 var Rule string
+
+//go:embed evidence-tools.schema.json
+var EvidenceTools string

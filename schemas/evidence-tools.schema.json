@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/idristarwala/agent-factory/main/schemas/evidence-tools.schema.json",
+  "title": "Agent Factory HTTP and MCP evidence configuration",
+  "type": "object",
+  "required": ["tools"],
+  "additionalProperties": false,
+  "properties": {
+    "tools": {"type": "object", "minProperties": 1, "propertyNames": {"minLength": 1}, "additionalProperties": {"$ref": "#/$defs/tool"}},
+    "context": {
+      "type": "object", "additionalProperties": false,
+      "properties": {"entity": {"type": "string"}, "neighbours": {"type": "string"}, "media": {"type": "string"}}
+    },
+    "grants": {"type": "array", "items": {
+      "type": "object", "additionalProperties": false, "required": ["pack", "tools", "side_effects"],
+      "properties": {"pack": {"type": "string", "minLength": 1}, "tools": {"$ref": "#/$defs/names"}, "side_effects": {"$ref": "#/$defs/names"}}
+    }}
+  },
+  "$defs": {
+    "names": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "stringMap": {"type": "object", "additionalProperties": {"type": "string"}},
+    "tool": {
+      "type": "object", "required": ["url"], "additionalProperties": false,
+      "properties": {
+        "url": {"type": "string", "pattern": "^https?://"},
+        "method": {"enum": ["GET", "POST"]},
+        "side_effect": {"const": "read-only"},
+        "mcp_tool": {"type": "string", "minLength": 1},
+        "headers": {"$ref": "#/$defs/stringMap"},
+        "required": {"$ref": "#/$defs/names"},
+        "query": {"$ref": "#/$defs/names"},
+        "body": {"type": "object"},
+        "proxy": {"const": "none"},
+        "response": {"type": "object", "additionalProperties": false, "properties": {"root": {"type": "string"}, "map": {"$ref": "#/$defs/stringMap"}}},
+        "tls": {"type": "object", "additionalProperties": false, "properties": {"ca_file": {"type": "string"}}},
+        "limits": {"type": "object", "additionalProperties": false, "properties": {
+          "timeout": {"type": "string"}, "cache_ttl": {"type": "string"}, "retries": {"type": "integer", "minimum": 0}
+        }},
+        "auth": {
+          "type": "object", "additionalProperties": false, "required": ["type", "key_file"],
+          "properties": {"type": {"enum": ["bearer", "header", "basic"]}, "name": {"type": "string", "minLength": 1}, "username": {"type": "string", "minLength": 1}, "key_file": {"type": "string", "minLength": 1}},
+          "allOf": [
+            {"if": {"properties": {"type": {"const": "basic"}}}, "then": {"required": ["username"]}},
+            {"if": {"properties": {"type": {"const": "header"}}}, "then": {"required": ["name"]}}
+          ]
+        }
+      },
+      "allOf": [
+        {"if": {"required": ["method"], "properties": {"method": {"const": "POST"}}}, "then": {"required": ["side_effect"]}},
+        {"if": {"required": ["mcp_tool"]}, "then": {"required": ["side_effect"], "properties": {"method": {"const": "POST"}}}},
+        {"if": {"required": ["body"]}, "then": {"anyOf": [{"required": ["mcp_tool"]}, {"required": ["method"], "properties": {"method": {"const": "POST"}}}]}}
+      ]
+    }
+  }
+}

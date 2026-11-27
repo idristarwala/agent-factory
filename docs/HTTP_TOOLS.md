@@ -141,3 +141,9 @@ factory tools import -operation getTicket -key-file secrets/tickets-token openap
 ```
 
 The importer supports a single bearer or header API-key scheme for that operation. Use `-server https://tickets.example.com/v1` for a relative, templated, or ambiguous server. The generated file references the credential path relative to its deployed location. Review the destination and parameters, add a context recipe and an explicit pack grant as shown above, then point `FACTORY_EVIDENCE_CONFIG` at the reviewed file. Import runs offline and writes only to stdout.
+
+## Validate an evidence tool file
+
+Run `factory validate --tools draft-tools.yaml` after importing or editing a tool. Pass multiple YAML or JSON paths to validate them together. The CLI checks the published schema, HTTP and MCP method restrictions, required authentication fields, JSONPath expressions, time limits and names referenced by the context recipe. An invalid file exits nonzero.
+
+Draft validation works offline with an empty grant list and before deployment secrets or CA files exist. At deployment the runtime checks the destination allowlist, loads configured CAs, and authorizes the evidence recipe for the selected pack. Credential files are read at request time. [Evidence tool file schema](../schemas/evidence-tools.schema.json)

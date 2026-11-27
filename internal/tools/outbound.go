@@ -68,6 +68,10 @@ func publicClient() *http.Client {
 	return &http.Client{Transport: t, Timeout: 20 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return fmt.Errorf("HTTP tool redirects disabled") }}
 }
 func validateDestination(template, raw string) error {
+	return validateToolURL(template, raw, true)
+}
+
+func validateToolURL(template, raw string, checkHostList bool) error {
 	original, err := url.Parse(template)
 	if err != nil {
 		return err
@@ -79,7 +83,7 @@ func validateDestination(template, raw string) error {
 	if u.Hostname() == "" || u.User != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host != original.Host || u.Scheme != original.Scheme {
 		return fmt.Errorf("tool URL must have a fixed HTTP origin")
 	}
-	if hosts, configured := os.LookupEnv("FACTORY_HTTP_ALLOWED_HOSTS"); configured {
+	if hosts, configured := os.LookupEnv("FACTORY_HTTP_ALLOWED_HOSTS"); configured && checkHostList {
 		allowed := strings.Split(hosts, ",")
 		if !slices.ContainsFunc(allowed, func(h string) bool { return strings.EqualFold(strings.TrimSpace(h), u.Hostname()) }) {
 			return fmt.Errorf("tool host is outside the configured allowlist")
