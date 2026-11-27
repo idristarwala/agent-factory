@@ -5,6 +5,11 @@ import (
 	"fmt"
 )
 
+const (
+	sqliteEntryID   = "INTEGER PRIMARY KEY AUTOINCREMENT"
+	postgresEntryID = "SERIAL PRIMARY KEY"
+)
+
 func migrateSchema(db interface {
 	Exec(string, ...any) (sql.Result, error)
 }, entryIDType string) error {

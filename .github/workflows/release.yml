@@ -32,19 +32,7 @@ jobs:
           echo "Image digest: $DIGEST"
 
       - name: Write manifest
-        run: |
-          python3 - <<'PYTHON'
-          import json, os, pathlib
-          dist = pathlib.Path("dist")
-          files = sorted(path.name for path in dist.iterdir() if path.is_file() and path.name not in {"LICENSE", "release-manifest.json"})
-          manifest = {
-              "version": os.environ["GITHUB_REF_NAME"],
-              "image": f"ghcr.io/{os.environ['GITHUB_REPOSITORY']}@{os.environ['DIGEST']}",
-              "binaries": files,
-              "license": "LICENSE",
-          }
-          (dist / "release-manifest.json").write_text(json.dumps(manifest, indent=2))
-          PYTHON
+        run: python3 scripts/release-manifest.py dist
 
       - name: Create release
         uses: softprops/action-gh-release@v1

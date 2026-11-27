@@ -11,7 +11,7 @@ ui-build:
 	npm --prefix ui-app test
 	npm --prefix ui-app run build
 
-ci: test build ui-build conformance docs-check
+ci: test build ui-build conformance docs-check manifest-check
 	go vet ./...
 
 release:
@@ -33,3 +33,7 @@ test-mixed-judges:
 .PHONY: docs-check
 docs-check:
 	python3 scripts/check-docs.py
+
+.PHONY: manifest-check
+manifest-check:
+	python3 scripts/test-release-manifest.py
