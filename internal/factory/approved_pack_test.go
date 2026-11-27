@@ -19,13 +19,16 @@ func (g *packPolicyGateway) Generate(req models.Request) (*models.Response, erro
 	if !strings.Contains(req.System+req.User, "Keep the source identifier") || strings.Contains(req.System+req.User, "Disabled policy") {
 		return nil, fmt.Errorf("unexpected policies for %s", req.CallerRole)
 	}
+	if req.CallerRole == "judge" && (!strings.Contains(req.User, `"dry_run":true`) || !strings.Contains(req.User, `"account":9007199254740993`)) {
+		return nil, fmt.Errorf("judge did not receive reviewed arguments")
+	}
 	g.roles = append(g.roles, req.CallerRole)
 	return scripted{}.Generate(req)
 }
 
 func TestWorkspaceExecutesPinnedReviewedPack(t *testing.T) {
 	st := revision.NewMemory()
-	raw := []byte("name: support\nnode_types: [request]\nworker_roles: [worker]\nrules:\n - {id: retain, text: Keep the source identifier}\n - {id: disabled, text: Disabled policy, active: false}")
+	raw := []byte("name: support\ntools_allowed: [update]\nproposal_arguments: {update: {dry_run: true, account: 9007199254740993}}\nnode_types: [request]\nworker_roles: [worker]\nrules:\n - {id: retain, text: Keep the source identifier}\n - {id: disabled, text: Disabled policy, active: false}")
 	sum := fmt.Sprintf("%x", sha256.Sum256(raw))
 	proof := []byte(fmt.Sprintf(`{"status":"passed","commit":"test-commit","pack_sha256":"%s","tests":["fixture"]}`, sum))
 	release := pack.Release{Status: "proposed", Commit: "test-commit", Pack: raw, Evidence: proof, PackSHA: sum, EvidenceSHA: fmt.Sprintf("%x", sha256.Sum256(proof))}
@@ -53,8 +56,14 @@ func TestWorkspaceExecutesPinnedReviewedPack(t *testing.T) {
 	if _, err := pinApprovedPack(st, spec); err == nil {
 		t.Fatal("accepted tool outside pack")
 	}
-	spec.ProposeTool = ""
+	spec.ProposeTool = "update"
+	save("pack/demo", 0, map[string]any{"grants": []any{map[string]any{"pack": "demo", "tools": []string{"update"}, "side_effects": []string{"reversible"}}}})
+	save("tool/update", 0, map[string]string{"side_effect": "reversible", "record_argument": "account", "changes_argument": "changes"})
 	save("factory/demo", 0, spec)
+	if _, err := Prepare(st, "demo", 1); err == nil || !strings.Contains(err.Error(), "conflicts") {
+		t.Fatalf("expected binding collision, got %v", err)
+	}
+	save("tool/update", 1, map[string]string{"side_effect": "reversible", "record_argument": "record", "changes_argument": "changes"})
 	gw := &packPolicyGateway{}
 	ws := Workspace{Store: st, Gateway: gw}
 	run, err := ws.Start(RunRequest{Factory: "demo", Description: "Set priority", SelectedRules: map[string]int{}, Records: []schema.Entity{{ID: "a", Type: "request", Attributes: map[string]any{"priority": 1}}}})
@@ -69,6 +78,10 @@ func TestWorkspaceExecutesPinnedReviewedPack(t *testing.T) {
 	saved, err := ws.Get(run.ID)
 	if err != nil || saved.Plan.ApprovedPack.Version != 2 || saved.Plan.ApprovedPack.PackSHA != sum || strings.Join(gw.roles, ",") != "worker,judge" || saved.Status != "in_review" {
 		t.Fatal(saved.Error, gw.roles, err)
+	}
+	call := saved.Decisions[0].Proposal.ToolProposal
+	if call == nil || string(call.Arguments["dry_run"]) != "true" || string(call.Arguments["account"]) != "9007199254740993" {
+		t.Fatal("saved proposal lost reviewed arguments", call)
 	}
 	if !saved.Settings.Observe {
 		t.Fatal("new pack applied before an observation")

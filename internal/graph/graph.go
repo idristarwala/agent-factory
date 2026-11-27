@@ -1,6 +1,9 @@
 package graph
 
-import "github.com/idristarwala/agent-factory/internal/llm"
+import (
+	"encoding/json"
+	"github.com/idristarwala/agent-factory/internal/llm"
+)
 
 // Central Graph is the single source of truth.
 // All agents propose mutations; Judge evaluates them before commit.
@@ -32,12 +35,12 @@ type Graph interface {
 
 // ToolProposal describes an external change submitted for review.
 type ToolProposal struct {
-	Name         string         `json:"name"`
-	ToolRevision int            `json:"tool_revision"`
-	Pack         string         `json:"pack"`
-	PackRevision int            `json:"pack_revision"`
-	SideEffect   string         `json:"side_effect"`
-	Arguments    map[string]any `json:"arguments"`
+	Name         string                     `json:"name"`
+	ToolRevision int                        `json:"tool_revision"`
+	Pack         string                     `json:"pack"`
+	PackRevision int                        `json:"pack_revision"`
+	SideEffect   string                     `json:"side_effect"`
+	Arguments    map[string]json.RawMessage `json:"arguments"`
 }
 
 type Mutation struct {

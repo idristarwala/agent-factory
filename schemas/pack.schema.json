@@ -25,6 +25,15 @@
       "type": "array",
       "items": {"type": "string"}
     },
+    "proposal_arguments": {
+      "type": "object",
+      "description": "Fixed JSON arguments keyed by allowed proposal tool name, bound from an approved pack release.",
+      "propertyNames": {"pattern": "\\S"},
+      "additionalProperties": {
+        "type": "object",
+        "propertyNames": {"pattern": "\\S"}
+      }
+    },
     "tools": {
       "type": "array",
       "items": {"type": "string"},

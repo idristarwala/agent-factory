@@ -179,3 +179,5 @@ For workspace goals that pin a pack release, observation also depends on the fac
 The connector image runs `factory tools sample SOURCE [PARAM=VALUE ...]`. Set `FACTORY_SOURCE_CONFIG` to a mounted source file and `FACTORY_PACK` to the operator-selected grant scope. The command accepts the configured source name and its declared query parameters and writes one JSON response to stdout.
 
 A workspace `factory.yaml` can declare `tool_packages`, a list of relative `path` and lowercase file `sha256` pairs. Its optional `evidence.context` and `evidence.grants` configure how the factory uses those tools. Point `FACTORY_EVIDENCE_CONFIG` or `FACTORY_SOURCE_CONFIG` at the manifest to load the pinned definitions. [Shared tool setup](HTTP_TOOLS.md#share-tool-definitions-across-factories)
+
+File packs accept optional `proposal_arguments`, keyed by an allowed proposal tool name. Each value is an object of fixed arguments visible to reviewers. The factory loads these arguments from its pinned approved pack at run creation. [Configuration example](HTTP_TOOLS.md#bind-proposal-arguments-in-a-reviewed-pack)

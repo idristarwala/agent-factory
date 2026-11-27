@@ -173,3 +173,19 @@ evidence:
 ```
 
 Run `factory validate factory.yaml` alongside pack validation. Set `FACTORY_EVIDENCE_CONFIG=factory.yaml` for the continuous runner or `FACTORY_SOURCE_CONFIG=factory.yaml` for API sampling and the connector. Mount the manifest and package files with the same directory layout. Runtime loading verifies the digest before interpreting definitions. Relative credential and CA paths in those definitions resolve from the manifest directory. Review destinations and credential references before granting a tool. To upgrade, commit the new vendored revision and file digest together and restart the consuming process.
+
+## Bind proposal arguments in a reviewed pack
+
+A file pack can specialize an allowed proposal tool with fixed JSON values. For example, two factories can use the same update tool with different tenant and dry-run settings.
+
+```yaml
+tools_allowed: [update-record]
+proposal_arguments:
+  update-record:
+    tenant: team-a
+    dry_run: true
+```
+
+Publish and approve the pack, pin its approval revision in the factory's `pack_release`, and select `update-record` as its `propose_tool`. The workspace pack must also grant the tool's side-effect class. At run creation the engine checks the fixed argument names against the tool’s record and changes argument names. A collision rejects the run. The worker supplies editable record fields. The engine binds those changes, the record ID and the reviewed constants into the proposal that the judge and human reviewer receive.
+
+These values appear in review history. Use credential references in the transport configuration for authentication. To change the constants, approve a new pack release and pin it in a new factory revision. Already queued runs retain their reviewed values. [Pack release review](RELEASE.md)
