@@ -160,18 +160,11 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 
 					var evidence []string
 					if r.Recipe.Entity != "" || r.Recipe.Neighbours != "" {
-						args := map[string]string{}
+						var props map[string]any
 						if n, err := r.Graph.GetNode(uow.InputSubgraph); err == nil {
-							for key, value := range n.Props {
-								switch v := value.(type) {
-								case string:
-									args[key] = v
-								case bool, int, int64, float64:
-									args[key] = fmt.Sprint(v)
-								}
-							}
+							props = n.Props
 						}
-						args["id"] = string(uow.InputSubgraph)
+						args := tools.RecordParams(string(uow.InputSubgraph), props)
 						result, err := r.GatherEvidence(ctx, r.Recipe, r.Tools, args)
 						if err != nil {
 							workerErrors[workerID] = errors.Join(err, r.Queue.Fail(ctx, uow.ID, err.Error()))
