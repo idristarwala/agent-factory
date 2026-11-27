@@ -52,6 +52,7 @@ Read `GET /api/settings/schema` for a machine-readable JSON Schema with types, b
 | `observe` | Boolean, false | Records an approved decision while skipping its graph write in the continuous runner. |
 | `replay_gate` | Boolean, true in a new workspace | Holds learned rule proposals for review or replay under the applicable runner. |
 | `worker_count` | Integer 1–256, default 2 | Concurrent continuous workers per round. |
+| `max_record_failures` | Positive integer, 3 | Block a record after this many failed worker executions in one continuous run. Each execution can make multiple model attempts. |
 | `max_failures` | Positive integer, 20 | Cumulative worker failures before stopping at the next round boundary. |
 | `specialist_after` | Positive integer, 5 | Occurrences of the same pattern in a run before the steward registers a specialist. [Dispatch and review](RULES_REFRESH.md) |
 | `stagnant_rounds` | Positive integer, 2 | Consecutive unchanged graph comparisons before stopping. |

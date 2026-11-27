@@ -138,7 +138,7 @@ func main() {
 		}
 	}
 	runner.SetObserve(cfg.Observe)
-	runner.SetBudget(swarm.Budget{MaxRounds: cfg.MaxRounds, MaxWallClock: time.Duration(cfg.MaxMinutes) * time.Minute, MaxTokens: cfg.MaxTokens, MaxFailures: cfg.MaxFailures})
+	runner.SetBudget(swarm.Budget{MaxRounds: cfg.MaxRounds, MaxWallClock: time.Duration(cfg.MaxMinutes) * time.Minute, MaxTokens: cfg.MaxTokens, MaxFailures: cfg.MaxFailures, MaxRecordFailures: cfg.MaxRecordFailures})
 	fmt.Printf("Settings revision %d\n", version)
 
 	goal := "Fix all entities until clean"

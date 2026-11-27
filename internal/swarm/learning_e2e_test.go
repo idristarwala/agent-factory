@@ -203,3 +203,48 @@ func TestSpecialistDispatchHonorsActiveRuleAndWorkerRevision(t *testing.T) {
 		}
 	}
 }
+
+type rejectedShapeGateway struct{ calls int }
+
+func (g *rejectedShapeGateway) Generate(req models.Request) (*models.Response, error) {
+	g.calls++
+	return &models.Response{Content: `{"wrong_field":true}`}, nil
+}
+func (g *rejectedShapeGateway) Tokens() int       { return 9 * g.calls }
+func (g *rejectedShapeGateway) RecordTool(string) {}
+
+func TestRecordAndRoundBudgetStops(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		limit, tokens int
+		stop          string
+		calls         int
+	}{
+		{"blocked_after_one_execution", 1, 100, "blocked", 2},
+		{"blocked_after_two_executions", 2, 100, "blocked", 4},
+		{"budget_exhausted_before_second_round", 3, 18, "token budget", 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			g := graph.NewMemoryGraph()
+			g.AddNode(graph.Node{ID: "case", Type: "asset", Props: map[string]any{"condition": "unknown", "status": "open"}})
+			gw := &rejectedShapeGateway{}
+			steward := agents.NewSmartSteward(unitofwork.NewMemoryStore())
+			steward.SetRuntime(gw, g, nil)
+			runner := NewContinuousRunner(steward, agents.NewLLMJudge(gw, g), queue.NewMemoryQueue(), g, rules.NewEngine(), nil)
+			runner.Workers = 1
+			runner.Usage = gw
+			runner.Stagnation = 10
+			runner.Budget.MaxRecordFailures = tc.limit
+			runner.Budget.MaxTokens = tc.tokens
+			runner.Budget.MaxRounds = 3
+			err := runner.Run(t.Context(), "Edit only condition")
+			if err == nil || !strings.Contains(err.Error(), tc.stop) || gw.calls != tc.calls {
+				t.Fatal(err, gw.calls)
+			}
+			record, err := g.GetNode("case")
+			if err != nil || record.Props["status"] != "open" || record.Props["condition"] != "unknown" {
+				t.Fatal(record, err)
+			}
+		})
+	}
+}
