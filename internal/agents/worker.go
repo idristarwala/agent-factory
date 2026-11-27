@@ -117,6 +117,9 @@ Respond ONLY with valid JSON of the allowed fields.`, uow.Description, ruleText.
 			Schema:      schema,
 		})
 		if err != nil {
+			if errors.Is(err, models.ErrTokenBudget) {
+				return nil, err
+			}
 			// Configured protocol clients already apply their transport retry policy.
 			var failure *llm.Error
 			if errors.As(err, &failure) && failure.Type != "BAD_RESPONSE" {

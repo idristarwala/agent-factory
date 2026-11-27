@@ -1,5 +1,7 @@
 package models
 
+import "errors"
+
 import "github.com/idristarwala/agent-factory/internal/llm"
 
 // ModelGateway is the single entry point for all LLM calls.
@@ -39,3 +41,6 @@ type Gateway interface {
 
 // Provider-agnostic. Concrete implementations (OpenAI-compatible, Gemini, Anthropic, etc.)
 // live behind this interface and enforce tier rules.
+
+// ErrTokenBudget stops a run before another provider call starts.
+var ErrTokenBudget = errors.New("model token budget exhausted")

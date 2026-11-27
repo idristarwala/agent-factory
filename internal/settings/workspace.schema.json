@@ -7,7 +7,7 @@
   "required": ["max_rounds", "max_tokens", "max_minutes"],
   "properties": {
     "max_rounds": {"type":"integer","minimum":1,"default":10,"description":"Maximum continuous rounds. The CLI uses 5 until the first settings revision."},
-    "max_tokens": {"type":"integer","minimum":1,"default":1000000,"description":"Provider token budget, checked between continuous rounds."},
+    "max_tokens": {"type":"integer","minimum":1,"default":1000000,"description":"Token allowance checked before each continuous model call and between rounds."},
     "max_minutes": {"type":"integer","minimum":1,"maximum":525600,"default":30,"description":"Wall-clock budget in minutes. The CLI uses 10 until the first settings revision."},
     "observe": {"type":"boolean","default":false,"description":"Skip applying approved changes during observation."},
     "replay_gate": {"type":"boolean","default":true,"description":"Hold learned rules for replay or review."},

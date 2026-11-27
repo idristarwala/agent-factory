@@ -51,7 +51,7 @@ Read `GET /api/settings/schema` for a machine-readable JSON Schema with types, b
 | --- | --- | --- |
 | `max_rounds` | Positive integer, 10 | Continuous round budget. The CLI uses 5 until a settings revision exists. |
 | `max_minutes` | Positive integer, 30 | Continuous wall-clock budget, up to 525600 minutes. The CLI uses 10 until a settings revision exists. |
-| `max_tokens` | Positive integer, 1000000 | Model token budget. The continuous runner checks at round boundaries. |
+| `max_tokens` | Positive integer, 1000000 | Continuous token allowance. Each model call reserves remaining output capacity. Reported usage is charged before another call can reuse it. Provider input and reasoning can exceed the output reservation. |
 | `observe` | Boolean, false | Records an approved decision while skipping its graph write in the continuous runner. |
 | `replay_gate` | Boolean, true in a new workspace | Holds learned rule proposals for review or replay under the applicable runner. |
 | `worker_count` | Integer 1–256, default 2 | Concurrent continuous workers per round. |

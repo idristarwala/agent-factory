@@ -2,6 +2,7 @@ package agents
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -82,6 +83,9 @@ REJECT: <reason>`, ruleText.String(), original, proposalJSON)
 		Temperature: 0.0,
 		MaxTokens:   tokens,
 	})
+	if errors.Is(err, models.ErrTokenBudget) {
+		return Decision{}, err
+	}
 	if err != nil {
 		return Decision{Approved: false, Reason: "gateway error, fail closed: " + err.Error()}, nil
 	}
