@@ -6,11 +6,14 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -39,6 +42,39 @@ func LoadEvidenceConfig(path, pack string) (*EvidenceConfig, error) {
 		return nil, err
 	}
 	return cfg, nil
+}
+
+// LoadContinuousEvidence checks the complete runner recipe, including proposal permission.
+func LoadContinuousEvidence(path, pack string) (*EvidenceConfig, error) {
+	pack = strings.TrimSpace(pack)
+	if path == "" && pack == "" {
+		return nil, nil
+	}
+	if path == "" || pack == "" {
+		return nil, fmt.Errorf("set both FACTORY_EVIDENCE_CONFIG and FACTORY_PACK")
+	}
+	cfg, err := LoadEvidenceConfig(path, pack)
+	if err != nil {
+		return nil, err
+	}
+	if !CheckGrant(cfg.Grants, pack, "propose", "read-only") {
+		return nil, fmt.Errorf("pack %q has no read-only propose grant", pack)
+	}
+	return cfg, nil
+}
+
+// CheckCredentials reads configured tool keys without contacting any endpoint.
+func (c *EvidenceConfig) CheckCredentials() error {
+	var problems []error
+	for _, name := range slices.Sorted(maps.Keys(c.Tools)) {
+		t := c.Tools[name]
+		if t.AuthType != "" {
+			if _, err := t.credential(); err != nil {
+				problems = append(problems, fmt.Errorf("tool %q needs a readable nonempty key_file", name))
+			}
+		}
+	}
+	return errors.Join(problems...)
 }
 
 func loadHTTPConfig(path string) (*EvidenceConfig, error) {

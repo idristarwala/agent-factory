@@ -1,9 +1,11 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"github.com/idristarwala/agent-factory/internal/revision"
 	"github.com/idristarwala/agent-factory/internal/store"
+	"github.com/idristarwala/agent-factory/internal/tools"
 	"log"
 	"os"
 	"os/exec"
@@ -63,7 +65,9 @@ func main() {
 			runEngineTests()
 		}
 	case "readiness":
-		runReadiness()
+		if err := runReadiness(); err != nil {
+			log.Fatal(err)
+		}
 	case "up":
 		if err := runUp(os.Args[2:]); err != nil {
 			log.Fatal(err)
@@ -116,26 +120,39 @@ func runEngineTests() {
 	fmt.Println("All selected tests passed.")
 }
 
-func runReadiness() {
-	fmt.Println("Checking tools, credentials, grants, and connectivity...")
-	secretsDir := os.Getenv("SECRETS_DIR")
-	if secretsDir == "" {
-		secretsDir = "/etc/secrets"
-	}
-	if info, err := os.Stat(secretsDir); err == nil && info.IsDir() {
-		fmt.Printf("  secrets dir present: %s\n", secretsDir)
-	} else {
-		fmt.Printf("  secrets dir not found at %s (set SECRETS_DIR or mount it)\n", secretsDir)
-	}
+func runReadiness() error {
+	var problems []error
 	db, mode, err := store.OpenFromEnv()
 	if err != nil {
-		log.Fatal(err)
+		problems = append(problems, err)
+	} else {
+		if err = db.Close(); err != nil {
+			problems = append(problems, err)
+		} else {
+			fmt.Printf("workspace store: %s (opened successfully)\n", mode)
+		}
 	}
-	if err := db.Close(); err != nil {
-		log.Fatal(err)
+	cfg, err := tools.LoadContinuousEvidence(os.Getenv("FACTORY_EVIDENCE_CONFIG"), os.Getenv("FACTORY_PACK"))
+	if err != nil {
+		problems = append(problems, errors.New("check FACTORY_EVIDENCE_CONFIG and FACTORY_PACK: the runner requires a valid recipe, its tool grants and a read-only propose grant"))
+	} else if cfg != nil {
+		if err := cfg.CheckCredentials(); err != nil {
+			problems = append(problems, err)
+		} else {
+			fmt.Println("continuous evidence: recipe, grants and credential files ready")
+		}
 	}
-	fmt.Printf("  workspace store: %s (opened successfully)\n", mode)
-	fmt.Println("Ready (grants enforced in ContinuousRunner; secrets by reference).")
+	if path := os.Getenv("FACTORY_SOURCE_CONFIG"); path != "" {
+		sampler, err := tools.LoadSourceSampler(path)
+		if err != nil {
+			problems = append(problems, errors.New("check FACTORY_SOURCE_CONFIG: expected valid tool configuration and fixed sampling URLs"))
+		} else if err := sampler.CheckCredentials(); err != nil {
+			problems = append(problems, err)
+		} else {
+			fmt.Println("API sources: configuration and credential files ready")
+		}
+	}
+	return errors.Join(problems...)
 }
 
 func printUsage() {
