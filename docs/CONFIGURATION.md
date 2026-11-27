@@ -69,7 +69,7 @@ Options below apply to a single invocation. Place named flags before positional 
 | Command | Options | Default and effect |
 | --- | --- | --- |
 | `agent-factory` | `-factory`, `-records`, `-revision` | Factory definition ID and entity-array JSON path default to `FACTORY_DEFINITION` and `FACTORY_RECORDS` and must be supplied by flag or environment. Integer revision defaults to 0 (latest). The remaining words form the goal. |
-| `continuous-swarm` | `-field`, `-review-replay` | Repeat the string field selector to constrain edits. With no selector, the runner derives scope from the goal. Review defaults to false. Enabling it requires an active replay gate and human approval after successful replay. |
+| `continuous-swarm` | `-field`, `-review-replay` | Repeat the string field selector to constrain edits. The demo defaults to editing `title` using the seeded library notice as evidence. A custom goal that targets another field needs a matching selector. Review defaults to false. Enabling it requires an active replay gate and human approval after successful replay. |
 | `factory up` | `-f` | Optional Compose file path. Overrides `COMPOSE_FILE` and project discovery. |
 | `factory validate` | `--rule`, `--tools` | Select one mode and provide one or more files. Default mode validates packs from named paths or local discovery. |
 | `factory test` | `--receipt` | Default mode tests working-tree fixtures. Receipt mode takes one pack file, tests the committed snapshot and prints JSON. |
