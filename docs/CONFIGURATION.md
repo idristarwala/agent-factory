@@ -9,6 +9,7 @@ The API and CLI read deployment configuration from their process environment. Re
 | `FACTORY_STORE_MODE` | String, unset | Select `memory`, `sqlite`, or `postgres` at process startup. Explicit selection takes precedence over inference. Unknown values fail startup. |
 | `DATABASE_URL` | PostgreSQL connection string, unset | Required for explicit PostgreSQL. Selects PostgreSQL when mode is unset. Share the same database across processes that share work. |
 | `FACTORY_DB_PATH` | File path, user config directory plus `agent-factory/factory.sqlite` | Used whenever SQLite is selected. |
+| `FACTORY_SQLITE_BUSY_TIMEOUT_MS` | Integer milliseconds, `5000` | SQLite only. Each connection waits up to this long for a lock. Zero returns immediately. Range 0–2147483647. Restart after changing. |
 | `FACTORY_ID` | String, unset | Workspace namespace for stored definitions and revisions. Use the same value in the API and CLI. |
 | `FACTORY_LISTEN_ADDR` | Host and port, `:8080` | API listener. Use `127.0.0.1:8080` for loopback only. |
 | `FACTORY_API_READ_TIMEOUT` | Go duration, `15s` | API server deadline for reading a request, including its body. Zero disables this deadline. |
@@ -141,4 +142,4 @@ Both durable drivers create missing tables when opening the store. Run `factory 
 
 At revision `9217fd1`, two API processes raced to update the same definition through 20 successive expected revisions on each durable backend. Each round returned one success and one HTTP 409. Across the 40 requests per backend, median and p95 latency were 4.6 and 10.8 ms on SQLite and 4.2 and 10.7 ms on PostgreSQL. These are local measurements. A reviewed service-desk run and its revision history survived an API restart on both stores. [SQLite field results](https://github.com/idristarwala/agent-factory/issues/144) · [PostgreSQL field results](https://github.com/idristarwala/agent-factory/issues/143)
 
-SQLite allows one writer at a time. Each Factory SQLite store uses one connection and configures a five-second busy timeout on opening it. If another writer holds the lock beyond the timeout, the store can return a busy error. Retry after the writer releases the lock. A revision conflict means a newer revision already exists. Read the current history and reconcile the edit before resubmitting.
+SQLite allows one writer at a time. Each Factory SQLite store uses one connection and applies the configured busy timeout (five seconds by default) to every new connection. If another writer holds the lock beyond the timeout, the store can return a busy error. Retry after the writer releases the lock. A revision conflict means a newer revision already exists. Read the current history and reconcile the edit before resubmitting.
