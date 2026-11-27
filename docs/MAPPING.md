@@ -110,3 +110,7 @@ A remote sample returned with `include_sample` includes a `sample_receipt`. Pass
 Goal builder sends the factory's editable field names as `editable_candidates`. The steward selects mapped destination fields for the goal. Review the checkboxes before approving. Approval stores the human selection and its steward draft revision. Identity paths and their enclosing objects stay read-only.
 
 A run started from a payload or an import page uses the intersection of the pinned factory and mapping permissions. If that intersection is empty or excludes a required factory field, the editing run cannot start. An empty `editable_fields` list allows read-only ingestion. Earlier mapping revisions that omit the property use the factory's existing field permissions. These local edit permissions grant no upstream write access.
+
+### Map relationships between records
+
+Select **Propose relationships between records** or set `include_relationships` on a proposal request. Review each proposed relation name, source pointer and normalized target in the mapping preview. An explicit mapping can supply `"relationships":[{"name":"assigned-to","path":"/assignee/id"}]`. Each pointer may select a string or integer ID, or a list of IDs. Missing and null references produce no link. Invalid targets surface as row problems. Relationship values use the existing entity relation format and accompany the record as evidence for workers and judges. Target IDs are references supplied by the source and may refer to records outside the current page.

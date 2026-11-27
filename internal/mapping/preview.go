@@ -12,12 +12,18 @@ import (
 
 // SourceMapping describes how a record collection becomes inputs to a factory.
 type SourceMapping struct {
-	EditableFields *[]string         `json:"editable_fields,omitempty"`
-	NextPath       string            `json:"next_path,omitempty"`
-	Collection     string            `json:"collection"`
-	RecordType     string            `json:"record_type"`
-	Identity       []string          `json:"identity"`
-	Fields         map[string]string `json:"fields"` // destination attribute -> source pointer
+	Relationships  []RelationshipPath `json:"relationships,omitempty"`
+	EditableFields *[]string          `json:"editable_fields,omitempty"`
+	NextPath       string             `json:"next_path,omitempty"`
+	Collection     string             `json:"collection"`
+	RecordType     string             `json:"record_type"`
+	Identity       []string           `json:"identity"`
+	Fields         map[string]string  `json:"fields"` // destination attribute -> source pointer
+}
+
+type RelationshipPath struct {
+	Name string `json:"name"`
+	Path string `json:"path"`
 }
 
 type RecordLocation struct {
@@ -124,6 +130,21 @@ func (m SourceMapping) Preview(sample any) ([]PreviewRow, error) {
 			return nil, err
 		}
 	}
+	if len(m.Relationships) > 32 {
+		return nil, fmt.Errorf("at most 32 relationship paths are supported")
+	}
+	relationPaths := make([][]string, len(m.Relationships))
+	names := map[string]bool{}
+	for i, rel := range m.Relationships {
+		if strings.TrimSpace(rel.Name) == "" || names[rel.Name] || rel.Path == "" {
+			return nil, fmt.Errorf("relationship names must be distinct and paths nonempty")
+		}
+		names[rel.Name] = true
+		relationPaths[i], err = tokens(rel.Path)
+		if err != nil {
+			return nil, err
+		}
+	}
 	records, err := m.records(sample)
 	if err != nil {
 		return nil, err
@@ -159,6 +180,11 @@ func (m SourceMapping) Preview(sample any) ([]PreviewRow, error) {
 			}
 		}
 		record := schema.Entity{ID: id, Type: m.RecordType, Version: 1, Attributes: attrs}
+		record.Relations, err = m.relations(row, relationPaths)
+		if err != nil {
+			out[i].Problem = err.Error()
+			continue
+		}
 		encoded, err := json.Marshal(record)
 		if err != nil {
 			return nil, err
@@ -179,6 +205,36 @@ func (m SourceMapping) Preview(sample any) ([]PreviewRow, error) {
 		out[i].Record = &record
 	}
 	return out, nil
+}
+
+func (m SourceMapping) relations(row any, paths [][]string) ([]schema.Relation, error) {
+	var result []schema.Relation
+	for i, path := range paths {
+		v, ok := lookup(row, path)
+		if !ok || v == nil {
+			continue
+		}
+		targets, isArray := v.([]any)
+		if !isArray {
+			targets = []any{v}
+		}
+		seen := map[string]bool{}
+		for _, target := range targets {
+			id, err := recordID(target, [][]string{nil})
+			if err != nil {
+				return nil, fmt.Errorf("relationship at %s needs string or integer target IDs", m.Relationships[i].Path)
+			}
+			if seen[id] {
+				continue
+			}
+			if len(result) >= 128 {
+				return nil, fmt.Errorf("record exceeds 128 relationship targets")
+			}
+			result = append(result, schema.Relation{Type: m.Relationships[i].Name, Target: id})
+			seen[id] = true
+		}
+	}
+	return result, nil
 }
 
 func recordID(row any, paths [][]string) (string, error) {

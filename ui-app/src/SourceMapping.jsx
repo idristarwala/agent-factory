@@ -26,6 +26,7 @@ export default function SourceMapping({factory, goal, approved, onApprove, reque
   }
   const [collection,setCollection] = useState(undefined)
   const [identity,setIdentity] = useState([])
+  const [includeRelationships,setIncludeRelationships] = useState(false)
   const [editable,setEditable] = useState([])
   const [result,setResult] = useState(null)
   const [busy,setBusy] = useState(false)
@@ -56,7 +57,7 @@ export default function SourceMapping({factory, goal, approved, onApprove, reque
     if (!recordType) throw new Error('Save a factory definition before proposing a source mapping.')
     const candidates = Object.keys(defs.at(-1).data.fields || {})
     const response = await request(base + 'proposals/' + id, {
-      sample: payload, goal, editable_candidates:candidates, record_type: recordType, expected: drafts.length, collection, identity, openapi: spec.document.trim() ? spec : undefined
+      sample: payload, goal, include_relationships:includeRelationships, editable_candidates:candidates, record_type: recordType, expected: drafts.length, collection, identity, openapi: spec.document.trim() ? spec : undefined
     },undefined,true)
     setResult({...response, sample:payload, candidates})
     setEditable(response.proposal?.data.editable_fields || [])
@@ -107,12 +108,17 @@ export default function SourceMapping({factory, goal, approved, onApprove, reque
         {f.path}{identity.includes(f.path) && ' · '+(identity.indexOf(f.path)+1)}
       </label>)}
     </fieldset>}
+    {!approved && <label><input type="checkbox" checked={includeRelationships}
+      onChange={e=>{reset();setIncludeRelationships(e.target.checked)}}/> Propose relationships between records</label>}
     {!approved && <button type="button" disabled={!factory || !mapping || !goal || !sample || (result?.status==='choose_collection' && collection===undefined) || (result?.status==='choose_identity' && !identity.length)} onClick={()=>perform(propose)}>Propose mapping</button>}
     {result?.status==='review' && <section><h3>Mapping preview · draft {result.proposal.version}</h3>
       <table><thead><tr><th>Source path</th><th>Record field</th></tr></thead><tbody>
         {Object.entries(result.proposal.data.fields).map(([name,path])=><tr key={name}><td>{path}</td><td>{name}</td></tr>)}
       </tbody></table>
       {result.proposal.data.next_path && <p>Next page token: <code>{result.proposal.data.next_path}</code></p>}
+      {result.proposal.data.relationships?.length>0 && <section><h4>Relationships</h4>
+        <ul>{result.proposal.data.relationships.map(rel=><li key={rel.name}>{rel.name} · <code>{rel.path}</code></li>)}</ul>
+      </section>}
       <p>Identity: {result.proposal.data.identity.join(', ')}</p>
       <fieldset disabled={Boolean(approved)}><legend>Fields the worker may edit</legend>
         {Object.entries(result.proposal.data.fields).filter(([name,path])=>
