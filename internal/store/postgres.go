@@ -31,8 +31,8 @@ func NewPostgresStore(driver, dsn string) (*PostgresStore, error) {
 		db.Close()
 		return nil, fmt.Errorf("postgres ping: %w", err)
 	}
-	s := &PostgresStore{db: db}
-	if err := s.migrate(); err != nil {
+	s, err := NewPostgresStoreFromDB(db)
+	if err != nil {
 		db.Close()
 		return nil, err
 	}

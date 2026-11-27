@@ -13,7 +13,6 @@ import (
 	"github.com/idristarwala/agent-factory/internal/catalog"
 	"github.com/idristarwala/agent-factory/internal/configuredgateway"
 	"github.com/idristarwala/agent-factory/internal/graph"
-	"github.com/idristarwala/agent-factory/internal/memory"
 	"github.com/idristarwala/agent-factory/internal/pack"
 	"github.com/idristarwala/agent-factory/internal/rules"
 	"github.com/idristarwala/agent-factory/internal/unitofwork"
@@ -69,7 +68,6 @@ func main() {
 
 	store := unitofwork.NewMemoryStore()
 	ruleEngine := rules.NewStoredEngine(definitions)
-	mem := memory.NewStore()
 	agentReg := registry
 
 	for _, r := range catalogPack.Rules {
@@ -160,7 +158,6 @@ func main() {
 			updated, _ := g.GetNode(n.ID)
 			fmt.Printf("  After:  %q\n", updated.Props["title"])
 			fmt.Printf("  Judge: %s\n", decision.Reason)
-			mem.Add("learning", fmt.Sprintf("%s -> %v", n.ID, updated.Props["title"]), "swarm", nil)
 			corrected++
 		} else {
 			fmt.Printf("  Rejected: %s\n", decision.Reason)
