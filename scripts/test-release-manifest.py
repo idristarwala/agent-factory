@@ -21,7 +21,7 @@ with TemporaryDirectory() as temp:
     for name in ["factory", "LICENSE"]:
         (dist / name).touch()
     digest = "sha256:" + "a" * 64
-    env = dict(os.environ, DIGEST=digest, GITHUB_REF_NAME="v0.0.0-test", GITHUB_REPOSITORY="example/factory")
+    env = dict(os.environ, ENGINE_DIGEST=digest, WORKER_DIGEST="sha256:" + "b" * 64, CONNECTOR_DIGEST="sha256:" + "c" * 64, GITHUB_REF_NAME="v0.0.0-test", IMAGE_REPOSITORY="ghcr.io/example/factory")
     command = [sys.executable, checkout / files[0], dist]
 
     def generate():
@@ -32,6 +32,11 @@ with TemporaryDirectory() as temp:
     assert generate() == original
     assert original["binaries"] == ["factory"] and original["license"] == "LICENSE"
     assert original["image"] == "ghcr.io/example/factory@" + digest
+    for role in ("engine", "worker", "connector"):
+        key = role.upper() + "_DIGEST"
+        assert original["images"][role] == "ghcr.io/example/factory@" + env[key]
+        bad = subprocess.run(command, env={**env, key: ""}, capture_output=True)
+        assert bad.returncode != 0 and key.encode() in bad.stderr
     assert original["version"] == "v0.0.0-test"
     for name in files[1:]:
         path = checkout / name

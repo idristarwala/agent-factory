@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/idristarwala/agent-factory/internal/configuredgateway"
@@ -51,6 +52,12 @@ func main() {
 		}
 		fmt.Printf("%s revision %d\n", doc.ID, doc.Version)
 	case "tools":
+		if len(os.Args) > 2 && os.Args[2] == "sample" {
+			if err := sampleTool(context.Background(), os.Getenv("FACTORY_SOURCE_CONFIG"), os.Getenv("FACTORY_PACK"), os.Args[3:], os.Stdout); err != nil {
+				log.Fatal(err)
+			}
+			return
+		}
 		if err := importTools(os.Args[2:], os.Stdout, os.Stderr); err != nil {
 			log.Fatal(err)
 		}
@@ -186,6 +193,7 @@ func printUsage() {
 	fmt.Println("  test [PATH...]   Run pack fixtures (and engine contracts in the engine checkout)")
 	fmt.Println("  test --receipt PACK_FILE   Test committed fixtures and emit publish evidence as JSON")
 	fmt.Println("  readiness [--gateway]  Check deployment readiness and optionally preflight model routes")
+	fmt.Println("  tools sample SOURCE [PARAM=VALUE ...]   Read a granted JSON source")
 	fmt.Println("  tools import [flags] FILE   Generate reviewable GET evidence tools from OpenAPI")
 	fmt.Println("  publish -pack FILE -evidence FILE -expected N   Publish a proposed revision")
 }

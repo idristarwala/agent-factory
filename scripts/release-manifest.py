@@ -24,16 +24,22 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("dist", type=Path)
     dist = parser.parse_args().dist
-    digest = os.environ["DIGEST"]
-    if not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
-        parser.error("DIGEST must be a SHA-256 registry digest")
+    images = {}
+    repository = os.environ["IMAGE_REPOSITORY"]
+    for role in ("engine", "worker", "connector"):
+        key = role.upper() + "_DIGEST"
+        digest = os.environ.get(key, "")
+        if not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
+            parser.error(f"{key} must be a SHA-256 registry digest")
+        images[role] = f"{repository}@{digest}"
     output = dist / "release-manifest.json"
     binaries = sorted(p.name for p in dist.iterdir() if p.is_file() and p.name not in {"LICENSE", output.name})
     if not binaries or not (dist / "LICENSE").is_file():
         parser.error("release assets must include binaries and LICENSE")
     manifest = {
         "version": os.environ["GITHUB_REF_NAME"],
-        "image": f"ghcr.io/{os.environ['GITHUB_REPOSITORY']}@{digest}",
+        "image": images["engine"],
+        "images": images,
         "binaries": binaries,
         "license": "LICENSE",
         "pack_spec_version": schema_version("schemas/pack.schema.json", "schemas/rule.schema.json"),
