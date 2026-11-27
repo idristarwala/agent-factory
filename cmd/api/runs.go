@@ -93,7 +93,7 @@ func runRoutes(mux *http.ServeMux, ws *factory.Workspace, engine *rules.Engine) 
 		}
 		runResponse(w, run, err)
 	}, "GET", "POST"))
-	mux.HandleFunc("/api/decisions/{id}", apiRoute(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/decisions/{id...}", apiRoute(func(w http.ResponseWriter, r *http.Request) {
 		runID := r.URL.Query().Get("run")
 		var runs []factory.Run
 		var err error
