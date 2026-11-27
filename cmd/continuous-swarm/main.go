@@ -113,6 +113,7 @@ func main() {
 	runner.Workers = cfg.WorkerCount
 	runner.Stagnation = cfg.StagnantRounds
 	started := time.Now()
+	ll.SpecialistAfter = cfg.SpecialistAfter
 	ll.ReplayGate = cfg.ReplayGate
 	if *reviewReplay && !cfg.ReplayGate {
 		log.Fatal("-review-replay requires replay_gate=true")

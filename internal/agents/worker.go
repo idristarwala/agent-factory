@@ -17,6 +17,7 @@ var ErrInvalidPatch = errors.New("worker validation failed")
 
 // LLMWorker is a real worker that calls the model gateway (cheap tier only).
 type LLMWorker struct {
+	FocusRule  string
 	Definition AgentVersion
 	ID         string
 	Role       string
@@ -48,6 +49,9 @@ func (w *LLMWorker) Execute(uow *unitofwork.UnitOfWork) (*graph.Mutation, error)
 	context = string(raw)
 	var ruleText strings.Builder
 	for _, r := range w.Rules {
+		if w.FocusRule != "" && w.FocusRule == r.ID {
+			ruleText.WriteString("Specialist focus: ")
+		}
 		ruleText.WriteString(fmt.Sprintf("- %s\n", renderRule(r)))
 	}
 	if ruleText.Len() == 0 {

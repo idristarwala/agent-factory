@@ -11,3 +11,9 @@ New workspaces require review or replay by default. Existing workspaces retain t
 A case passes when the judge approves a worker patch matching the human-approved patch. Automatic promotion requires at least one new pass and zero regressions. Pass `-review-replay` to keep a successful candidate pending for a human. Both outcomes append a revision with the baseline rule versions and per-record results. A provider or budget failure leaves the first revision pending and surfaces the error. An identical proposal can retry an interrupted evaluation. A completed replay is retained when the same pattern recurs.
 
 Replay calls count toward continuous usage. The runner checks remaining tokens and wall time before each replay call. One in-flight response can consume the remaining budget. Inspect the run's call records for unit IDs beginning with `replay/` and the rule's revision history for the comparison.
+
+## Learned specialists
+
+The continuous runner counts each recurring worker failure or judge rejection pattern across rounds. Once the pattern reaches the workspace's `specialist_after` threshold, the steward registers a versioned worker with the generic worker's current configuration and tool list. Configure the threshold under Settings or through the settings API.
+
+On the next round, a record that encountered that pattern can use the specialist if the associated rule is active. The worker receives the current rule revision as its focus. Unaffected records use the generic worker. A pending rule cannot trigger dispatch. Retiring the specialist restores generic routing. Later steward observations preserve existing human edits. The proposed mutation records the actual agent name, agent revision and active rule revisions.

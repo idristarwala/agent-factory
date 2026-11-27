@@ -149,6 +149,7 @@ func (s *SmartSteward) CreateWorker(spec WorkerSpec) (Worker, error) {
 		return nil, fmt.Errorf("unsupported worker model tier %q", def.ModelTier)
 	}
 	worker := NewLLMWorker(def.Name, def.Role, s.Gateway, s.Graph, s.Rules)
+	worker.FocusRule = spec.FocusRule
 	worker.Definition = def
 	return worker, nil
 }
