@@ -38,7 +38,7 @@ For current acceptance and outstanding field validation, see [project status](do
 - Grants check and enforcer in ContinuousRunner
 - docker-compose, Helm chart (`deploy/helm/agent-factory`), starter template
 - Observe mode, release pipeline, digest notes
-- Digest-pinned release CI workflow (.github/workflows/release.yml)
+- Digest-pinned release CI in the separate [starter repository](https://github.com/idristarwala/agent-factory-starter)
 - go.sum committed
 - Fuller factory CLI: validate loads packs via pack.Load, checks go.sum and out-of-tree example; readiness checks SECRETS_DIR and DATABASE_URL; test points at contract / conformance packages
 - Multi-binary Dockerfile (goal, factory, api)

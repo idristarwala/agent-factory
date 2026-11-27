@@ -11,7 +11,7 @@ Use the Helm chart to run the HTTP API against a shared PostgreSQL database. The
 
 ```yaml
 image:
-  repository: ghcr.io/idristarwala/agent-factory
+  repository: ghcr.io/idristarwala/agent-factory-starter
   digest: "sha256:<64 lowercase hex characters>"
 env:
   FACTORY_STORE_MODE: postgres

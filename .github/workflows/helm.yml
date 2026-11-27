@@ -27,7 +27,7 @@ jobs:
           sed -n '/^```yaml$/,/^```$/p' docs/DEPLOYMENT.md | sed '1d;$d' | sed "s/sha256:<64 lowercase hex characters>/$digest/" > /tmp/chart-values.yaml
           helm lint "$chart" -f /tmp/chart-values.yaml
           helm template factory "$chart" -f /tmp/chart-values.yaml > /tmp/chart.yaml
-          grep -Fq "ghcr.io/idristarwala/agent-factory@$digest" /tmp/chart.yaml
+          grep -Fq "ghcr.io/idristarwala/agent-factory-starter@$digest" /tmp/chart.yaml
           if helm template factory "$chart" --set image.digest=bad; then exit 1; fi
       - uses: helm/kind-action@v1.12.0
         with:
