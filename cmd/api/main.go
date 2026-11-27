@@ -23,29 +23,24 @@ type Goal struct {
 }
 
 type Decision struct {
-	ID        string    `json:"id"`
-	GoalID    string    `json:"goal_id"`
-	Approved  bool      `json:"approved"`
-	Reason    string    `json:"reason"`
-	CreatedAt time.Time `json:"created_at"`
+	ID       string `json:"id"`
+	GoalID   string `json:"goal_id"`
+	Approved bool   `json:"approved"`
+	Reason   string `json:"reason"`
 }
 
 type Usage struct {
-	TokensIn  int     `json:"tokens_in"`
-	TokensOut int     `json:"tokens_out"`
-	ToolCalls int     `json:"tool_calls"`
-	CostUSD   float64 `json:"cost_usd"`
+	TokensUsed   int     `json:"tokens_used"`
+	ToolCalls    int     `json:"tool_calls"`
+	EstimatedUSD float64 `json:"estimated_usd"`
 }
 
 var (
 	goalsMu     sync.Mutex
 	goals       = map[string]*Goal{}
 	goalSeq     int
-	decisionsMu sync.Mutex
-	decisions   = map[string]*Decision{}
-	decisionSeq int
-	usageMu     sync.Mutex
-	usage       = Usage{}
+	decisions   = []Decision{}
+	usageTotals = Usage{}
 )
 
 func main() {
@@ -103,7 +98,6 @@ func main() {
 			json.NewEncoder(w).Encode(g)
 			return
 		}
-		// GET
 		goalsMu.Lock()
 		list := make([]*Goal, 0, len(goals))
 		for _, g := range goals {
@@ -117,33 +111,19 @@ func main() {
 	mux.HandleFunc("/api/decisions", auth(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", os.Getenv("CORS_ORIGIN"))
 		w.Header().Set("Content-Type", "application/json")
-		decisionsMu.Lock()
-		list := make([]*Decision, 0, len(decisions))
-		for _, d := range decisions {
-			list = append(list, d)
-		}
-		decisionsMu.Unlock()
-		json.NewEncoder(w).Encode(list)
+		json.NewEncoder(w).Encode(decisions)
+	}))
+
+	mux.HandleFunc("/api/usage", auth(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", os.Getenv("CORS_ORIGIN"))
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(usageTotals)
 	}))
 
 	mux.HandleFunc("/api/rules", auth(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", os.Getenv("CORS_ORIGIN"))
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(ruleEngine.Active())
-	}))
-
-	mux.HandleFunc("/api/graph", auth(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", os.Getenv("CORS_ORIGIN"))
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]any{"nodes": []any{}, "edges": []any{}})
-	}))
-
-	mux.HandleFunc("/api/usage", auth(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", os.Getenv("CORS_ORIGIN"))
-		w.Header().Set("Content-Type", "application/json")
-		usageMu.Lock()
-		defer usageMu.Unlock()
-		json.NewEncoder(w).Encode(usage)
 	}))
 
 	mux.HandleFunc("/api/chat", auth(func(w http.ResponseWriter, r *http.Request) {
@@ -176,6 +156,9 @@ func main() {
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
 		}
+		// rough usage tracking
+		usageTotals.TokensUsed += 300
+		usageTotals.EstimatedUSD += 0.0003
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"reply": resp.Content})
 	}))
