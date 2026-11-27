@@ -3,6 +3,7 @@ package schema
 // Entity is the single shape everything maps to.
 // Catalog items, prices, inventory rows, merchandising placements — all become Entities.
 type Entity struct {
+	ImageURLs  []string       `json:"image_urls,omitempty"`
 	ID         string         `json:"id"`
 	Type       string         `json:"type"`
 	Domain     string         `json:"domain"`
