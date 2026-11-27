@@ -48,3 +48,6 @@ func New(name string, config map[string]string) (Client, error) { return core.Ne
 func NewTokenRefresher(client Client, refresh func(context.Context) (string, error), interval time.Duration) Client {
 	return core.NewTokenRefresher(client, refresh, interval)
 }
+
+// CollectStream assembles text, function calls, final usage and finish reason.
+func CollectStream(stream Stream) (*ChatResponse, error) { return core.CollectStream(stream) }

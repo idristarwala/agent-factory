@@ -55,7 +55,9 @@ func (a *OpenAIAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatRespons
 	defer resp.Body.Close()
 
 	var out struct {
+		Model   string `json:"model"`
 		Choices []struct {
+			Finish  string `json:"finish_reason"`
 			Message struct {
 				Content   string `json:"content"`
 				ToolCalls []struct {
@@ -93,7 +95,8 @@ func (a *OpenAIAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatRespons
 		return nil, err
 	}
 	return &ChatResponse{
-		Content:   content,
+		Content:      content,
+		FinishReason: out.Choices[0].Finish, Model: out.Model, LogicalModel: req.Model,
 		ToolCalls: toolCalls,
 		Usage: Usage{
 			Input:  out.Usage.PromptTokens,
@@ -110,7 +113,7 @@ func (a *OpenAIAdapter) Stream(ctx context.Context, req ChatRequest) (Stream, er
 
 	// Basic SSE streaming support for OpenAI-compatible endpoints.
 	// Falls back to ErrStreamingUnsupported only if the request cannot be built.
-	body, err := BuildOpenAIBody(req)
+	body, err := buildOpenAIBody(req, true)
 	if err != nil {
 		return nil, err
 	}
@@ -129,44 +132,69 @@ func (a *OpenAIAdapter) Stream(ctx context.Context, req ChatRequest) (Stream, er
 		return nil, err
 	}
 
-	return &sseStream{r: resp.Body}, nil
+	return &sseStream{r: resp.Body, decode: decodeOpenAIStream}, nil
 }
 
 type sseStream struct {
-	r    io.ReadCloser
-	sc   *bufio.Scanner
-	done bool
+	r        io.ReadCloser
+	sc       *bufio.Scanner
+	done     bool
+	finished bool
+	decode   func(string) ([]StreamEvent, error)
+	pending  []StreamEvent
 }
 
 func (s *sseStream) Recv() (*StreamEvent, error) {
-	if s.done {
-		return nil, nil
-	}
 	if s.sc == nil {
 		s.sc = bufio.NewScanner(s.r)
+		s.sc.Buffer(make([]byte, 4096), 16<<20)
 	}
-	for s.sc.Scan() {
+	for len(s.pending) == 0 {
+		if s.done {
+			return nil, nil
+		}
+		if !s.sc.Scan() {
+			s.done = true
+			return nil, s.sc.Err()
+		}
 		line := strings.TrimSpace(s.sc.Text())
-		if !strings.HasPrefix(line, "data: ") {
+		if !strings.HasPrefix(line, "data:") {
 			continue
 		}
-		data := strings.TrimPrefix(line, "data: ")
-		if data == "[DONE]" || data == "" {
+		data := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+		if data == "" {
+			continue
+		}
+		if data == "[DONE]" {
 			s.done = true
-			return &StreamEvent{FinishReason: "stop"}, nil
+			if !s.finished {
+				return &StreamEvent{FinishReason: "stop"}, nil
+			}
+			return nil, nil
 		}
-		if text := extractTextDelta(data); text != "" {
-			return &StreamEvent{TextDelta: text}, nil
+		events, err := s.decode(data)
+		if err != nil {
+			s.done = true
+			return nil, err
 		}
+		s.pending = events
 	}
-	s.done = true
-	return nil, s.sc.Err()
+	ev := s.pending[0]
+	s.pending = s.pending[1:]
+	if ev.FinishReason != "" {
+		s.finished = true
+	}
+	return &ev, nil
 }
 
 func (s *sseStream) Close() error { return s.r.Close() }
 
 // BuildOpenAIBody constructs the JSON body for an OpenAI-compatible request.
 func BuildOpenAIBody(req ChatRequest) ([]byte, error) {
+	return buildOpenAIBody(req, false)
+}
+
+func buildOpenAIBody(req ChatRequest, stream bool) ([]byte, error) {
 	msgs := make([]map[string]any, len(req.Messages))
 	for i, msg := range req.Messages {
 		m := map[string]any{"role": msg.Role, "content": msg.Content}
@@ -185,6 +213,10 @@ func BuildOpenAIBody(req ChatRequest) ([]byte, error) {
 	body := map[string]any{
 		"model":    req.Model,
 		"messages": msgs,
+	}
+	if stream {
+		body["stream"] = true
+		body["stream_options"] = map[string]bool{"include_usage": true}
 	}
 	if req.MaxTokens > 0 {
 		param := MapTokenParam("openai", req.Model)

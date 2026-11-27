@@ -188,7 +188,8 @@ func (a *AnthropicAdapter) Stream(ctx context.Context, req ChatRequest) (Stream,
 		return nil, err
 	}
 
-	return &sseStream{r: resp.Body}, nil
+	state := new(anthropicStreamState)
+	return &sseStream{r: resp.Body, decode: state.decode}, nil
 }
 
 // SetAPIKey updates the API key (used by TokenRefresher).

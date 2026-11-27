@@ -95,6 +95,7 @@ type Stream interface {
 type StreamEvent struct {
 	TextDelta     string
 	ToolCallDelta *ToolCall
+	ToolCallIndex int // provider position for interleaved function argument fragments
 	Usage         *Usage
 	FinishReason  string
 	Err           error

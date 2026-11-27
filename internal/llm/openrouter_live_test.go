@@ -26,11 +26,16 @@ func TestLiveOpenRouterToolResult(t *testing.T) {
 		{Role: "system", Content: "Use lookup to find the value. After the tool responds, copy its exact identifier into the value field, character for character, without any surrounding words."},
 		{Role: "user", Content: "Look up record A."},
 	}, Tools: []ToolSpec{{Name: "lookup", Description: "Look up a record by ID.", Parameters: map[string]any{"type": "object", "properties": map[string]any{"id": map[string]string{"type": "string"}}, "required": []string{"id"}}}}}
-	first, err := gw.Chat(ctx, req)
+	toolStream, err := gw.Stream(ctx, req)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(first.ToolCalls) != 1 || first.ToolCalls[0].Name != "lookup" {
+	defer toolStream.Close()
+	first, err := CollectStream(toolStream)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.Usage.Total == 0 || first.FinishReason == "" || len(first.ToolCalls) != 1 || first.ToolCalls[0].Name != "lookup" {
 		t.Fatal("expected a lookup request")
 	}
 	req.Messages = append(req.Messages, Message{Role: "assistant", Content: first.Content, ToolCalls: first.ToolCalls}, Message{Role: "tool", ToolCallID: first.ToolCalls[0].ID, Content: "OBS-714"})
