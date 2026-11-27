@@ -78,3 +78,15 @@ In Goal builder, select **Source API response** as the input format. Paste a sam
 Approved mappings record the observed JSON kinds at the selected identity and field paths. Missing values and explicit nulls are distinct. Imports using that revision check those paths against the approved sample; unrelated new fields are ignored. Earlier mapping revisions without observations keep their original behavior.
 
 By default, a rejected row prevents a run from starting. To process valid records from a mixed payload, set `source.allow_partial` to true or choose **Process valid rows and report rejected rows** under **Import another payload with this mapping**. The run records each rejected row's zero-based index and reason in `import_problems`. Both sides of a duplicate identity are rejected. A payload with no valid records cannot start a run.
+
+## Import cursor-paginated sources
+
+POST the following to `/api/imports/{factory}/{import-id}`. The feed must grant this factory read access and declare the cursor query parameter. Each response must include the next-token JSON Pointer. A null or empty string marks the final page.
+
+```json
+{"expected":0,"max_pages":3,"spec":{"mapping":"meters","revision":1,"feed":"meter-feed","cursor_param":"after","next_path":"/pagination/next","allow_partial":true}}
+```
+
+The server fetches up to ten pages per request. It atomically saves each page's normalized records, row-level rejections and next token as one immutable checkpoint. GET the same URL to inspect committed pages. Resume with the same specification and the number of committed pages as `expected`. A stale checkpoint returns 409. On a later-page failure, earlier commits remain available. Repeated cursors stop the import. Later occurrences of an already committed record ID are rejected; partial mode preserves other records.
+
+To review a committed page, POST a goal with `factory`, `description` and `"import":{"id":"batch","page":1}`. The run snapshots that page and pins the approved mapping revision. PostgreSQL and SQLite retain checkpoints across restarts; in-process storage retains them for the life of the process.
