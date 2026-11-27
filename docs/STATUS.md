@@ -16,3 +16,5 @@ Pull requests also compare exported internal Go helpers against the base revisio
 The environment and YAML model routes share protocol adapters, retry handling, typed errors and per-attempt usage logs. The agent-facing request interface is in `internal/models`. Wire protocol implementations are in `internal/llm`. [Gateway configuration](ENTERPRISE_GATEWAY.md)
 
 The legacy helper list in issue 16 has been reconciled. Production provider calls use the shared protocol adapters and trace model attempts with the work unit ID. Agent retirement uses the version-checked definition save. The always-approving judge is a test fixture. [Field review and named helper list](https://github.com/idristarwala/agent-factory/issues/16#issuecomment-7225398686)
+
+The production dead-code audit cleared 64 of 92 findings. The remaining 28 cover tested code, public SDK entry points and methods required by interfaces. [Audit and verification](https://github.com/idristarwala/agent-factory/issues/228)
