@@ -27,23 +27,3 @@ type Decision struct {
 	Status   string         `json:"status"`
 	Feedback string         `json:"feedback,omitempty"`
 }
-
-// StoreMode is chosen by the Steward, never by the user.
-type StoreMode string
-
-const (
-	ModeMemory StoreMode = "memory"
-	ModeDB     StoreMode = "db"
-)
-
-// ChooseMode lets the Steward pick storage based on volume.
-// Business users never see this.
-func ChooseMode(entityCount int, explicit string) StoreMode {
-	if explicit == "db" || explicit == "memory" {
-		return StoreMode(explicit)
-	}
-	if entityCount > 10_000 {
-		return ModeDB
-	}
-	return ModeMemory
-}
