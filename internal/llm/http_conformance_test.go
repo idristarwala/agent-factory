@@ -13,6 +13,10 @@ func TestHTTPFailureContract(t *testing.T) {
 		"anthropic": func(url string) llm.Client { return llm.NewAnthropicAdapter(url, "test", nil) },
 		"gemini":    func(url string) llm.Client { return llm.NewGeminiAdapter(url, "test", nil) },
 	} {
-		t.Run(name, func(t *testing.T) { t.Parallel(); llmtest.RunHTTPConformance(t, makeClient) })
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			llmtest.RunHTTPConformance(t, makeClient)
+			llmtest.RunStructuredConformance(t, name, makeClient)
+		})
 	}
 }

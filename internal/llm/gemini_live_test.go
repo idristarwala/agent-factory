@@ -4,6 +4,7 @@ package llm
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"strings"
 	"testing"
@@ -53,5 +54,15 @@ func TestLiveGeminiConversation(t *testing.T) {
 	}
 	if strings.TrimSpace(result.String()) != "XQ-719" {
 		t.Fatalf("unexpected stream %q", result.String())
+	}
+	request.ResponseSchema = map[string]any{"type": "object", "properties": map[string]any{"identifier": map[string]string{"type": "string"}}, "required": []string{"identifier"}, "additionalProperties": false}
+	request.Messages[0].Content = "Return the remembered identifier in the requested JSON object."
+	reply, err = gateway.Chat(ctx, request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var structured struct{ Identifier string }
+	if err := json.Unmarshal([]byte(reply.Content), &structured); err != nil || structured.Identifier != "XQ-719" {
+		t.Fatalf("unexpected structured output %q", reply.Content)
 	}
 }

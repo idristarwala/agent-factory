@@ -53,7 +53,8 @@ type ChatRequest struct {
 	Tools          []ToolSpec
 	Temperature    *float64
 	MaxTokens      int
-	ResponseFormat string // "text" or "json"
+	ResponseSchema map[string]any // optional JSON Schema for a complete chat response
+	ResponseFormat string         // "text" or "json"
 	Metadata       map[string]string
 	CallerRole     Role // set by router for policy
 }

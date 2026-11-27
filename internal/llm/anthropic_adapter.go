@@ -25,6 +25,11 @@ func NewAnthropicAdapter(baseURL, apiKey string, headers map[string]string) *Ant
 }
 
 func (a *AnthropicAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
+	schema, err := compileOutputSchema(req.ResponseSchema)
+	if err != nil {
+		return nil, err
+	}
+
 	msgs := make([]map[string]any, 0, len(req.Messages))
 	for _, m := range req.Messages {
 		if m.Role == "system" {
@@ -39,6 +44,9 @@ func (a *AnthropicAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatResp
 		"model":      req.Model,
 		"messages":   msgs,
 		"max_tokens": req.MaxTokens,
+	}
+	if req.ResponseSchema != nil {
+		body["output_config"] = map[string]any{"format": map[string]any{"type": "json_schema", "schema": req.ResponseSchema}}
 	}
 	if len(req.Tools) > 0 {
 		tools := make([]map[string]any, len(req.Tools))
@@ -99,10 +107,17 @@ func (a *AnthropicAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatResp
 			})
 		}
 	}
+	if err := validateOutput(schema, content); err != nil {
+		return nil, err
+	}
 	return &ChatResponse{Content: content, ToolCalls: toolCalls}, nil
 }
 
 func (a *AnthropicAdapter) Stream(ctx context.Context, req ChatRequest) (Stream, error) {
+	if req.ResponseSchema != nil {
+		return nil, ErrStreamingUnsupported
+	}
+
 	// Basic streaming support: send stream=true and parse content_block_delta events.
 	msgs := make([]map[string]any, 0, len(req.Messages))
 	for _, m := range req.Messages {
