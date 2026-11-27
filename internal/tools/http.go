@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -14,19 +15,20 @@ import (
 
 // HTTPTool is a config-driven HTTP tool for issue #12.
 type HTTPTool struct {
-	Name        string
-	Description string
-	Method      string
-	URLTemplate string
-	AuthType    string
-	KeyFile     string
-	Headers     map[string]string
-	SideEffect  string
-	Client      *http.Client
-	Retries     int
-	CacheTTL    time.Duration
-	cache       map[string]cacheEntry
-	mu          sync.Mutex
+	Name         string
+	Description  string
+	Method       string
+	URLTemplate  string
+	BodyTemplate string
+	AuthType     string
+	KeyFile      string
+	Headers      map[string]string
+	SideEffect   string
+	Client       *http.Client
+	Retries      int
+	CacheTTL     time.Duration
+	cache        map[string]cacheEntry
+	mu           sync.Mutex
 }
 
 type cacheEntry struct {
@@ -34,9 +36,8 @@ type cacheEntry struct {
 	exp  time.Time
 }
 
-// Call executes the tool with path templating, key from file, retries, and cache.
+// Call executes the tool with path/body templating, key from file, retries, and cache.
 func (t *HTTPTool) Call(ctx context.Context, params map[string]string) (string, error) {
-	// Grants check if SideEffect is set (caller can wrap for full grants)
 	if t.SideEffect != "read-only" && t.SideEffect != "" {
 		return "", fmt.Errorf("non-read-only tools must become proposals")
 	}
@@ -46,8 +47,16 @@ func (t *HTTPTool) Call(ctx context.Context, params map[string]string) (string, 
 		urlStr = strings.ReplaceAll(urlStr, "{"+k+"}", url.PathEscape(v))
 	}
 
-	// Cache lookup
-	if t.CacheTTL > 0 {
+	var body io.Reader
+	if t.BodyTemplate != "" {
+		b := t.BodyTemplate
+		for k, v := range params {
+			b = strings.ReplaceAll(b, "{"+k+"}", v)
+		}
+		body = bytes.NewReader([]byte(b))
+	}
+
+	if t.CacheTTL > 0 && body == nil {
 		t.mu.Lock()
 		if e, ok := t.cache[urlStr]; ok && time.Now().Before(e.exp) {
 			t.mu.Unlock()
@@ -65,7 +74,7 @@ func (t *HTTPTool) Call(ctx context.Context, params map[string]string) (string, 
 		if err := ctx.Err(); err != nil {
 			return "", err
 		}
-		req, err := http.NewRequestWithContext(ctx, t.Method, urlStr, nil)
+		req, err := http.NewRequestWithContext(ctx, t.Method, urlStr, body)
 		if err != nil {
 			return "", err
 		}
@@ -97,14 +106,13 @@ func (t *HTTPTool) Call(ctx context.Context, params map[string]string) (string, 
 			return "", fmt.Errorf("http %d", resp.StatusCode)
 		}
 
-		body, err := io.ReadAll(io.LimitReader(resp.Body, 512*1024))
+		respBody, err := io.ReadAll(io.LimitReader(resp.Body, 512*1024))
 		if err != nil {
 			return "", err
 		}
-		result := string(body)
+		result := string(respBody)
 
-		// Cache store
-		if t.CacheTTL > 0 {
+		if t.CacheTTL > 0 && body == nil {
 			t.mu.Lock()
 			if t.cache == nil {
 				t.cache = make(map[string]cacheEntry)
