@@ -72,20 +72,6 @@ func main() {
 	if _, err := registry.Resolve(agents.AgentVersion{Name: "judge", Role: "judge", ModelTier: "frontier", CreatedBy: "system"}); err != nil {
 		log.Fatal(err)
 	}
-	var judge agents.Judge = &demoJudge{}
-	if realGateway {
-		// Prefer real LLM judge when a real gateway is available
-		lmJudge := agents.NewLLMJudge(meter, g)
-		// Use QuorumJudge with two independent evaluations when a real gateway is present
-		judge = agents.NewQuorumJudge([]agents.Judge{lmJudge, lmJudge}, 2)
-	}
-
-	runner := swarm.NewContinuousRunner(steward, judge, q, g, re, ll)
-	if err := configureEvidence(runner, os.Getenv("FACTORY_EVIDENCE_CONFIG"), os.Getenv("FACTORY_PACK")); err != nil {
-		log.Fatal(err)
-	}
-	runner.Usage = meter
-	runner.Workers = 2
 	cfg, version, err := settings.Current(definitions)
 	if err != nil {
 		log.Fatal(err)
@@ -94,9 +80,30 @@ func main() {
 		cfg.MaxRounds = 5
 		cfg.MaxMinutes = 10
 	}
+	if err := cfg.Validate(); err != nil {
+		log.Fatal(err)
+	}
+	var judge agents.Judge = &demoJudge{}
+	if realGateway {
+		// Prefer real LLM judge when a real gateway is available
+		lmJudge := agents.NewLLMJudge(meter, g)
+		evaluations := make([]agents.Judge, cfg.JudgeEvaluations)
+		for i := range evaluations {
+			evaluations[i] = lmJudge
+		}
+		judge = agents.NewQuorumJudge(evaluations, cfg.JudgeApprovals)
+	}
+
+	runner := swarm.NewContinuousRunner(steward, judge, q, g, re, ll)
+	if err := configureEvidence(runner, os.Getenv("FACTORY_EVIDENCE_CONFIG"), os.Getenv("FACTORY_PACK")); err != nil {
+		log.Fatal(err)
+	}
+	runner.Usage = meter
+	runner.Workers = cfg.WorkerCount
+	runner.Stagnation = cfg.StagnantRounds
 	ll.ReplayGate = cfg.ReplayGate
 	runner.SetObserve(cfg.Observe)
-	runner.SetBudget(swarm.Budget{MaxRounds: cfg.MaxRounds, MaxWallClock: time.Duration(cfg.MaxMinutes) * time.Minute, MaxTokens: cfg.MaxTokens, MaxFailures: 20})
+	runner.SetBudget(swarm.Budget{MaxRounds: cfg.MaxRounds, MaxWallClock: time.Duration(cfg.MaxMinutes) * time.Minute, MaxTokens: cfg.MaxTokens, MaxFailures: cfg.MaxFailures})
 	fmt.Printf("Settings revision %d\n", version)
 
 	goal := "Fix all entities until clean"

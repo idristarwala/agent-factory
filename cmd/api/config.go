@@ -10,6 +10,7 @@ import (
 )
 
 func configRoutes(mux *http.ServeMux, s revision.Store) {
+	mux.HandleFunc("/api/settings/schema", apiRoute(func(w http.ResponseWriter, r *http.Request) { sendJSON(w, settings.Schema, nil) }, "GET"))
 	mux.HandleFunc("/api/settings", apiRoute(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" {
 			if r.URL.Query().Get("history") == "true" {
@@ -25,11 +26,21 @@ func configRoutes(mux *http.ServeMux, s revision.Store) {
 			Expected *int
 			Settings settings.Settings
 		}
+		current, _, err := settings.Current(s)
+		if err != nil {
+			sendJSON(w, nil, err)
+			return
+		}
+		edit.Settings.ContinuousLimits = current.ContinuousLimits
 		if !readEdit(w, r, &edit) {
 			return
 		}
-		if edit.Expected == nil || edit.Settings.Validate() != nil {
+		if edit.Expected == nil {
 			http.Error(w, "expected revision and valid run limits are required", 400)
+			return
+		}
+		if err := edit.Settings.Validate(); err != nil {
+			http.Error(w, err.Error(), 400)
 			return
 		}
 		data, _ := json.Marshal(edit.Settings)

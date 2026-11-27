@@ -39,7 +39,7 @@ The API and CLI read deployment configuration from their process environment. Re
 
 ## Versioned workspace settings
 
-Read `GET /api/settings` and post the complete settings object with its current revision as `Expected`. A successful edit appends a revision. A run pins the settings it reads at startup.
+Read `GET /api/settings/schema` for a machine-readable JSON Schema with types, bounds, defaults and descriptions. Read `GET /api/settings` for effective workspace values, then post the complete settings object with its current revision as `Expected`. A successful edit appends a revision. A run pins the settings it reads at startup.
 
 | JSON field | Type and default | Effect |
 | --- | --- | --- |
@@ -48,6 +48,13 @@ Read `GET /api/settings` and post the complete settings object with its current 
 | `max_tokens` | Positive integer, 1000000 | Model token budget. The continuous runner checks at round boundaries. |
 | `observe` | Boolean, false | Records an approved decision while skipping its graph write in the continuous runner. |
 | `replay_gate` | Boolean, false | Holds learned rule proposals for review or replay under the applicable runner. |
+| `worker_count` | Integer 1–256, default 2 | Concurrent continuous workers per round. |
+| `max_failures` | Positive integer, 20 | Cumulative worker failures before stopping at the next round boundary. |
+| `stagnant_rounds` | Positive integer, 2 | Consecutive unchanged graph comparisons before stopping. |
+| `judge_evaluations` | Integer 1–32, default 2 | Evaluations by the configured judge per continuous proposal when using a live gateway. Each can incur model cost. |
+| `judge_approvals` | Integer 1 through `judge_evaluations`, default 2 | Required number of approving evaluations. |
+
+Old revisions without these five fields load their original behavior. Older clients editing the original settings preserve the current values for omitted continuous-runner fields.
 
 Factory schemas, source mappings, rules, tool grants and evidence recipes have their own scoped contracts. [Definition API](API.md) · [Source mappings](MAPPING.md) · [Tool limits](HTTP_TOOLS.md)
 
