@@ -3,6 +3,7 @@ package factory
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/idristarwala/agent-factory/internal/obs"
 	"maps"
 	"slices"
 	"sync"
@@ -15,9 +16,9 @@ import (
 
 func modelCall(req models.Request, resp *models.Response, err error, prices map[string]Price) Call {
 	if err != nil {
-		return Call{Role: req.CallerRole, Failed: true}
+		return Call{UnitID: req.UnitID, Role: req.CallerRole, Failed: true}
 	}
-	c := Call{Role: req.CallerRole, Model: resp.Model, Input: resp.Usage["prompt_tokens"], Output: resp.Usage["completion_tokens"], Total: resp.Usage["total_tokens"]}
+	c := Call{UnitID: req.UnitID, Role: req.CallerRole, Model: resp.Model, Input: resp.Usage["prompt_tokens"], Output: resp.Usage["completion_tokens"], Total: resp.Usage["total_tokens"]}
 	if c.Total == 0 {
 		c.Total = c.Input + c.Output
 	}
@@ -64,10 +65,10 @@ func (u *ContinuousUsage) RecordTool(name string) {
 }
 
 // FinishContinuous publishes the terminal run to the same history read by the API.
-func (w *Workspace) FinishContinuous(goal string, started time.Time, cfg settings.Settings, revision int, usage *ContinuousUsage, runErr error) (Run, error) {
+func (w *Workspace) FinishContinuous(goal string, started time.Time, cfg settings.Settings, revision int, usage *ContinuousUsage, audit []obs.AuditEntry, runErr error) (Run, error) {
 	usage.mu.Lock()
 	r := Run{
-		Runner: "continuous", ID: uuid.NewString(), Description: goal, CreatedAt: started.UTC(),
+		Audit: audit, Runner: "continuous", ID: uuid.NewString(), Description: goal, CreatedAt: started.UTC(),
 		Settings: cfg, SettingsRevision: revision, Status: "completed",
 		Calls: slices.Clone(usage.calls), Tools: maps.Clone(usage.tools),
 	}

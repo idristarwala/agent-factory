@@ -2,8 +2,10 @@ package swarm
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/idristarwala/agent-factory/internal/obs"
 	"sync"
 	"time"
 
@@ -25,6 +27,7 @@ type Budget struct {
 
 // ContinuousRunner runs until the goal is achieved or a limit is hit.
 type ContinuousRunner struct {
+	Audit      *obs.AuditLog
 	Steward    agents.Steward
 	Judge      agents.Judge
 	Queue      queue.WorkQueue
@@ -86,6 +89,7 @@ func (r *ContinuousRunner) SetBudget(b Budget) {
 }
 
 func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
+	r.Audit = obs.NewAuditLog()
 	if r.progress == nil {
 		r.progress = NewProgress()
 	}
@@ -161,8 +165,12 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 						return
 					}
 
+					audit := func(actor, action, reason string) {
+						r.Audit.Append(obs.AuditEntry{TraceID: uow.ID, EntityID: string(uow.InputSubgraph), Actor: actor, Action: action, Reason: reason})
+					}
 					if len(r.Grants) > 0 && r.Pack != "" {
 						if !tools.CheckGrant(r.Grants, r.Pack, "propose", "read-only") {
+							audit("worker", "blocked", "grant denied")
 							r.Queue.Fail(ctx, uow.ID, "grant denied")
 							continue
 						}
@@ -177,11 +185,13 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 						args := tools.RecordParams(string(uow.InputSubgraph), props)
 						result, err := r.GatherEvidence(ctx, r.Recipe, r.Tools, args)
 						if err != nil {
+							audit("worker", "blocked", "source evidence unavailable")
 							workerErrors[workerID] = errors.Join(err, r.Queue.Fail(ctx, uow.ID, err.Error()))
 							return
 						}
 						record, err := r.Recipe.Collect(ctx, result)
 						if err != nil {
+							audit("worker", "blocked", "source evidence unavailable")
 							workerErrors[workerID] = errors.Join(err, r.Queue.Fail(ctx, uow.ID, err.Error()))
 							return
 						}
@@ -192,6 +202,7 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 
 					worker, err := r.Steward.CreateWorker(agents.WorkerSpec{Name: "generic", Role: "worker", ModelTier: "cheap"})
 					if err != nil {
+						audit("worker", "failed", "worker creation failed")
 						r.Queue.Fail(ctx, uow.ID, "create worker: "+err.Error())
 						mu.Lock()
 						failureErrs = append(failureErrs, err)
@@ -199,7 +210,11 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 						continue
 					}
 					mutation, err := worker.Execute(uow)
+					if err == nil && mutation == nil {
+						err = errors.New("worker returned an empty proposal")
+					}
 					if err != nil {
+						audit("worker", "failed", "worker produced no valid proposal")
 						r.Queue.Fail(ctx, uow.ID, err.Error())
 						mu.Lock()
 						failureErrs = append(failureErrs, err)
@@ -209,20 +224,39 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 						mu.Unlock()
 						continue
 					}
-					if mutation != nil {
-						mutation.Evidence = append(mutation.Evidence, evidence...)
+					mutation.Evidence = append(mutation.Evidence, evidence...)
+					snapshot, err := json.Marshal(mutation)
+					if err != nil {
+						audit("worker", "failed", "proposal could not be recorded")
+						workerErrors[workerID] = errors.Join(err, r.Queue.Fail(ctx, uow.ID, "invalid proposal"))
+						return
 					}
+					r.Audit.Append(obs.AuditEntry{Actor: "worker", Action: "proposed", Reason: "submitted for judge review", TraceID: uow.ID, EntityID: string(uow.InputSubgraph), Proposal: snapshot})
 					decision, err := r.Judge.Evaluate(mutation, active)
 					if err != nil {
+						audit("judge", "failed", "judge evaluation failed")
 						r.Queue.Fail(ctx, uow.ID, err.Error())
 						continue
 					}
 					decision = agents.GuardDecision(nil, decision)
+					action := "rejected"
+					if decision.Approved {
+						action = "approved"
+					}
+					audit("judge", action, decision.Reason)
 					if decision.Approved && !r.Observe {
 						if err := r.Graph.Apply(mutation); err != nil {
+							audit("runner", "apply_failed", "graph write failed")
 							writeErr := fmt.Errorf("apply mutation for unit %s: %w", uow.ID, err)
 							workerErrors[workerID] = errors.Join(writeErr, r.Queue.Fail(ctx, uow.ID, writeErr.Error()))
 							return
+						}
+					}
+					if decision.Approved {
+						if r.Observe {
+							audit("runner", "observed", "observe mode")
+						} else {
+							audit("runner", "applied", "graph write succeeded")
 						}
 					}
 					if err := r.Queue.Complete(ctx, uow.ID); err != nil {

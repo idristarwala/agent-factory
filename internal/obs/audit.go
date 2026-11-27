@@ -1,19 +1,21 @@
 package obs
 
 import (
+	"encoding/json"
 	"sync"
 	"time"
 )
 
 type AuditEntry struct {
-	TraceID   string         `json:"trace_id"`
-	EntityID  string         `json:"entity_id"`
-	Action    string         `json:"action"`
-	Before    map[string]any `json:"before,omitempty"`
-	After     map[string]any `json:"after,omitempty"`
-	Reason    string         `json:"reason"`
-	Actor     string         `json:"actor"`
-	Timestamp time.Time      `json:"timestamp"`
+	Proposal  json.RawMessage `json:"proposal,omitempty"`
+	TraceID   string          `json:"trace_id"`
+	EntityID  string          `json:"entity_id"`
+	Action    string          `json:"action"`
+	Before    map[string]any  `json:"before,omitempty"`
+	After     map[string]any  `json:"after,omitempty"`
+	Reason    string          `json:"reason"`
+	Actor     string          `json:"actor"`
+	Timestamp time.Time       `json:"timestamp"`
 }
 
 type AuditLog struct {

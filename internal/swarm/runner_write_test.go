@@ -56,6 +56,10 @@ func TestFailedGraphWriteNeverCompletesUnit(t *testing.T) {
 	if err := r.Run(context.Background(), "fix title"); !errors.Is(err, writeErr) {
 		t.Fatalf("expected graph write error, got %v", err)
 	}
+	entries := r.Audit.All()
+	if len(entries) != 3 || entries[0].Action != "proposed" || entries[1].Action != "approved" || entries[2].Action != "apply_failed" || entries[0].TraceID == "" || entries[0].TraceID != entries[2].TraceID {
+		t.Fatal(entries)
+	}
 	if q.failed != 1 || q.completed != 0 {
 		t.Fatalf("failed %d, completed %d", q.failed, q.completed)
 	}
@@ -110,6 +114,9 @@ func TestRunnerSharesAuthorizedEvidence(t *testing.T) {
 			t.Fatalf("authorized case: err=%v calls=%d completed=%d", err, len(gateway.requests), q.completed)
 		}
 		for _, req := range gateway.requests {
+			if req.UnitID == "" || req.UnitID != r.Audit.All()[0].TraceID {
+				t.Fatal("uncorrelated model request")
+			}
 			if !strings.Contains(req.User, "entity (tool source): "+payload) {
 				t.Errorf("%s missing full source evidence", req.CallerRole)
 			}

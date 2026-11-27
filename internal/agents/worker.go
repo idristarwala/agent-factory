@@ -97,6 +97,7 @@ Respond ONLY with valid JSON of the allowed fields.`, uow.Description, ruleText.
 	var lastErr error
 	for attempt := 0; attempt < 2; attempt++ {
 		resp, err := w.Gateway.Generate(models.Request{
+			UnitID:     uow.ID,
 			CallerRole: "worker",
 			Tier:       models.TierCheap,
 			System:     "You produce structured attribute updates that obey the provided rules and evidence. Output JSON only.",
