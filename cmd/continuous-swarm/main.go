@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/idristarwala/agent-factory/internal/agents"
 	"github.com/idristarwala/agent-factory/internal/graph"
@@ -27,7 +28,6 @@ func main() {
 	store := unitofwork.NewMemoryStore()
 	steward := agents.NewSmartSteward(store)
 
-	// Real or noop gateway so CreateWorker succeeds
 	var gw models.Gateway = &noopGateway{}
 	if g2, err := models.NewOpenAICompatFromEnv(); err == nil {
 		gw = g2
@@ -36,13 +36,16 @@ func main() {
 
 	var judge agents.Judge = &demoJudge{}
 	if _, ok := gw.(*noopGateway); !ok {
-		// Prefer real LLM judge when a real gateway is available
 		judge = agents.NewLLMJudge(gw, g)
 	}
 
 	runner := swarm.NewContinuousRunner(steward, judge, q, g, re, ll)
 	runner.Workers = 2
-	runner.MaxRounds = 5
+	runner.SetBudget(swarm.Budget{
+		MaxRounds:    5,
+		MaxWallClock: 10 * time.Minute,
+		MaxFailures:  20,
+	})
 
 	goal := "Fix all entities until clean"
 	if len(os.Args) > 1 {
