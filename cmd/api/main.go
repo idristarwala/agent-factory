@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 
-	_ "github.com/lib/pq" // Postgres driver for optional durable store
+	_ "github.com/lib/pq"
 
 	"github.com/idristarwala/agent-factory/internal/models"
 	"github.com/idristarwala/agent-factory/internal/rules"
@@ -42,10 +43,10 @@ func main() {
 		})
 	})
 
-	mux.HandleFunc("/api/chat", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+	mux.HandleFunc("/api/chat", auth(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", os.Getenv("CORS_ORIGIN"))
 		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return
@@ -74,12 +75,12 @@ func main() {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"reply": resp.Content})
-	})
+	}))
 
-	mux.HandleFunc("/api/feedback", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+	mux.HandleFunc("/api/feedback", auth(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", os.Getenv("CORS_ORIGIN"))
 		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return
@@ -97,7 +98,6 @@ func main() {
 			return
 		}
 		rule := ruleEngine.FromFeedback(body.Note, body.Entity, "customer")
-		// Persist the rule if the store supports it (best-effort).
 		if rule.ID != "" {
 			_ = st.SaveRuleVersion(rule.ID, rule.Version, []byte(body.Note))
 		}
@@ -108,11 +108,36 @@ func main() {
 			"version": rule.Version,
 			"source":  "feedback",
 		})
-	})
+	}))
 
 	addr := ":8080"
 	fmt.Println("API listening on", addr, "(store:", storeKindLabel(), ")")
-	http.ListenAndServe(addr, mux)
+	srv := &http.Server{
+		Addr:         addr,
+		Handler:      mux,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+	if err := srv.ListenAndServe(); err != nil {
+		fmt.Fprintf(os.Stderr, "server: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func auth(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		token := os.Getenv("API_TOKEN")
+		if token == "" {
+			next(w, r)
+			return
+		}
+		if r.Header.Get("Authorization") != "Bearer "+token {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		next(w, r)
+	}
 }
 
 func storeKindLabel() string {
