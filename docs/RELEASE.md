@@ -36,3 +36,9 @@ Deployment harnesses can fetch `GET /api/releases/{pack-name}/active` with viewe
 Set `"pack_release":{"name":"review","version":2}` in a versioned factory definition, using the approval document's version. The goal CLI and workspace API load that exact reviewed pack when preparing the run, check its evidence and digests, and require a compatible worker role and record type. Configured browser and proposal tools must also be allowed by the pack and separately granted by the workspace. Active pack policies accompany the workspace policies sent to the worker and judge. Workspace rule selections leave the pack policies in place. Give the selected workspace rules and the pack rules distinct IDs.
 
 The saved plan and each CLI result include `approved_pack` with its name, review revision, commit and digests. To adopt another approval, save a new factory definition revision. Existing definitions without a pack reference keep their existing rule selection.
+
+### Promote a reviewed observation
+
+A workspace run using a pinned pack starts in observe mode. Workers and judges produce proposals, and a human can review each one. The run retains the original record values. Inspect its decisions, calls and costs before promoting the factory.
+
+To permit subsequent approved changes to update run records, save a new revision of the same factory definition with `"pack_promotion":{"run":"RUN_ID","version":N}`. Use the exact revision of a completed observation containing a human-approved decision. Keep the other definition fields and the approved pack revision identical to the observed plan. A changed definition or pack needs its own observation. Existing queued runs retain the settings they pinned when they started. The workspace-wide `observe: true` setting continues to take precedence. Human review and tool grants still govern record changes.

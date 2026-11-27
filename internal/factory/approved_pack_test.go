@@ -70,6 +70,40 @@ func TestWorkspaceExecutesPinnedReviewedPack(t *testing.T) {
 	if err != nil || saved.Plan.ApprovedPack.Version != 2 || saved.Plan.ApprovedPack.PackSHA != sum || strings.Join(gw.roles, ",") != "worker,judge" || saved.Status != "in_review" {
 		t.Fatal(saved.Error, gw.roles, err)
 	}
+	if !saved.Settings.Observe {
+		t.Fatal("new pack applied before an observation")
+	}
+	reviewed, err := ws.Decide(saved.ID, saved.Decisions[0].ID, "approved", "verified", saved.Version)
+	if err != nil || reviewed.Records[0].Version != 0 {
+		t.Fatal(reviewed, err)
+	}
+	spec.PackPromotion = &ObservationRef{Run: run.ID, Version: saved.Version}
+	save("factory/demo", 1, spec)
+	if _, err := Prepare(st, "demo", 2); err == nil {
+		t.Fatal("accepted pending review")
+	}
+	spec.PackPromotion.Version = reviewed.Version
+	save("factory/demo", 2, spec)
+	next, err := ws.Start(RunRequest{Factory: "demo", Description: "Set priority", Records: reviewed.Records})
+	if err != nil || next.Settings.Observe {
+		t.Fatal(next, err)
+	}
+	if err := ws.Execute(next.ID); err != nil {
+		t.Fatal(err)
+	}
+	next, err = ws.Get(next.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	applied, err := ws.Decide(next.ID, next.Decisions[0].ID, "approved", "verified", next.Version)
+	if err != nil || applied.Records[0].Version != 1 {
+		t.Fatal(applied, err)
+	}
+	spec.Fields = map[string]string{"other": "string"}
+	save("factory/demo", 3, spec)
+	if _, err := Prepare(st, "demo", 4); err == nil {
+		t.Fatal("reused observation with changed fields")
+	}
 	ref.Version = 3
 	if _, err := pinApprovedPack(st, spec); err == nil {
 		t.Fatal("accepted rejected release")
