@@ -27,7 +27,7 @@ type ContinuousRunner struct {
 	Observe   bool
 	Grants    []tools.Grant
 	Pack      string
-	Tools     *tools.Registry
+	Tools     map[string]*tools.HTTPTool
 	Recipe    tools.ContextRecipe
 }
 
@@ -51,7 +51,7 @@ func (r *ContinuousRunner) SetGrants(pack string, grants []tools.Grant) {
 	r.Grants = grants
 }
 
-func (r *ContinuousRunner) SetTools(reg *tools.Registry, recipe tools.ContextRecipe) {
+func (r *ContinuousRunner) SetTools(reg map[string]*tools.HTTPTool, recipe tools.ContextRecipe) {
 	r.Tools = reg
 	r.Recipe = recipe
 }
@@ -91,8 +91,8 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 
 					// Grants check
 					if len(r.Grants) > 0 && r.Pack != "" {
-						if err := tools.CheckGrant(r.Grants, r.Pack, "propose"); err != nil {
-							r.Queue.Fail(ctx, uow.ID, "grant denied: "+err.Error())
+						if !tools.CheckGrant(r.Grants, r.Pack, "propose", "read-only") {
+							r.Queue.Fail(ctx, uow.ID, "grant denied")
 							continue
 						}
 					}
@@ -100,11 +100,11 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 					// Gather context if recipe is set
 					var evidence []string
 					if r.Tools != nil && (r.Recipe.Entity != "" || r.Recipe.Neighbours != "") {
-						args := map[string]string{"id": uow.InputSubgraph}
-						ctxResult, err := tools.GatherContext(ctx, r.Tools, r.Recipe, args)
+						args := map[string]string{"id": string(uow.InputSubgraph)}
+						ctxResult, err := tools.ExecuteRecipe(ctx, r.Recipe, r.Tools, args)
 						if err == nil && ctxResult != nil {
-							evidence = ctxResult.Evidence
-							fmt.Printf("context gathered: %v\n", evidence)
+							evidence = append(evidence, "context gathered")
+							fmt.Printf("context gathered\n")
 						}
 					}
 

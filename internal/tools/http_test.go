@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -23,5 +25,28 @@ func TestHTTPToolPathTemplating(t *testing.T) {
 	}
 	if result == "" {
 		t.Error("expected response body")
+	}
+}
+
+func TestHTTPToolBearerAuth(t *testing.T) {
+	dir := t.TempDir()
+	keyPath := filepath.Join(dir, "key.txt")
+	os.WriteFile(keyPath, []byte("secret-token"), 0600)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth := r.Header.Get("Authorization")
+		if auth != "Bearer secret-token" {
+			t.Errorf("expected bearer token, got %q", auth)
+		}
+		w.Write([]byte("ok"))
+	}))
+	defer server.Close()
+
+	tool := NewHTTPTool("auth_test", "GET", server.URL+"/test")
+	tool.AuthType = "bearer"
+	tool.KeyFile = keyPath
+	_, err := tool.Call(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
