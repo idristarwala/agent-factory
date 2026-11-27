@@ -1,16 +1,15 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
+
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/idristarwala/agent-factory/schemas"
-	"github.com/santhosh-tekuri/jsonschema/v5"
+	"github.com/idristarwala/agent-factory/internal/pack"
+
 	"gopkg.in/yaml.v3"
 )
 
@@ -31,13 +30,9 @@ func validateFiles(paths []string) error {
 			}
 		}
 	}
-	schema, err := jsonschema.CompileString("pack.schema.json", schemas.Pack)
-	if err != nil {
-		return err
-	}
 	for _, path := range paths {
 		if filepath.Base(path) != "factory.yaml" && filepath.Base(path) != "factory.yml" {
-			if err := validatePack(schema, path); err != nil {
+			if err := validatePack(path); err != nil {
 				return err
 			}
 			continue
@@ -61,7 +56,7 @@ func validateFiles(paths []string) error {
 			if !filepath.IsAbs(candidate) {
 				candidate = filepath.Join(filepath.Dir(path), candidate)
 			}
-			if err := validatePack(schema, candidate); err != nil {
+			if err := validatePack(candidate); err != nil {
 				return err
 			}
 		}
@@ -69,7 +64,7 @@ func validateFiles(paths []string) error {
 	return nil
 }
 
-func validatePack(schema *jsonschema.Schema, path string) error {
+func validatePack(path string) error {
 	info, err := os.Stat(path)
 	if err != nil {
 		return err
@@ -81,41 +76,17 @@ func validatePack(schema *jsonschema.Schema, path string) error {
 				if !entry.Mode().IsRegular() {
 					return fmt.Errorf("%s: expected a pack file", file)
 				}
-				return validatePack(schema, file)
+				return validatePack(file)
 			} else if !errors.Is(err, os.ErrNotExist) {
 				return err
 			}
 		}
 		return fmt.Errorf("%s: no pack.yaml, pack.yml or pack.json", path)
 	}
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	var value any
-	if filepath.Ext(path) == ".json" {
-		err = json.Unmarshal(raw, &value)
-	} else {
-		decoder := yaml.NewDecoder(strings.NewReader(string(raw)))
-		err = decoder.Decode(&value)
-		if err == nil && decoder.Decode(new(any)) != io.EOF {
-			return fmt.Errorf("%s: expected one YAML document", path)
-		}
-	}
+	definition, err := pack.Load(path)
 	if err != nil {
 		return fmt.Errorf("%s: %w", path, err)
 	}
-	// Convert YAML numbers and reject map keys that cannot be represented in JSON.
-	data, err := json.Marshal(value)
-	if err != nil {
-		return fmt.Errorf("%s: %w", path, err)
-	}
-	if err = json.Unmarshal(data, &value); err != nil {
-		return err
-	}
-	if err = schema.Validate(value); err != nil {
-		return fmt.Errorf("%s: %w", path, err)
-	}
-	fmt.Println("Validated pack", path)
+	fmt.Printf("Validated pack %s (%s)\n", path, definition.Name)
 	return nil
 }
