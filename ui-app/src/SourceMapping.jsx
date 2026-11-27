@@ -5,6 +5,11 @@ export default function SourceMapping({factory, goal, approved, onApprove, reque
   const [sample,setSample] = useState(approved?.sample || '')
   const [mapping,setMapping] = useState(approved?.mapping || factory)
   const [feed,setFeed] = useState('')
+  const [spec,setSpec] = useState({document:'',path:'',method:'GET',status:'200'})
+  function updateSpec(name,value) {
+    reset()
+    setSpec(previous=>({...previous,[name]:value}))
+  }
   const [collection,setCollection] = useState(undefined)
   const [identity,setIdentity] = useState([])
   const [result,setResult] = useState(null)
@@ -35,7 +40,7 @@ export default function SourceMapping({factory, goal, approved, onApprove, reque
     const recordType = defs.at(-1)?.data?.record_type
     if (!recordType) throw new Error('Save a factory definition before proposing a source mapping.')
     const response = await request(base + 'proposals/' + id, {
-      sample: payload, goal, record_type: recordType, expected: drafts.length, collection, identity
+      sample: payload, goal, record_type: recordType, expected: drafts.length, collection, identity, openapi: spec.document.trim() ? spec : undefined
     },undefined,true)
     setResult(response)
     setExpected(mappings.length)
@@ -59,6 +64,21 @@ export default function SourceMapping({factory, goal, approved, onApprove, reque
         reset();setSample(JSON.stringify(response.sample,null,2))
       })}>Fetch sample</button></details>
     <label>Source API response<textarea rows={6} value={sample} onChange={e=>{reset();setSample(e.target.value)}}/></label>
+    <details><summary>Compare with an OpenAPI response</summary>
+      <label>OpenAPI document (JSON or YAML)<textarea rows={5} value={spec.document} onChange={e=>updateSpec('document',e.target.value)}/></label>
+      <label>Operation path<input value={spec.path} onChange={e=>updateSpec('path',e.target.value)} placeholder="/records"/></label>
+      <label>Operation method<input value={spec.method} onChange={e=>updateSpec('method',e.target.value)}/></label>
+      <label>Response status<input value={spec.status} onChange={e=>updateSpec('status',e.target.value)}/></label>
+    </details>
+    {result?.declared_fields && <details><summary>Declared and observed fields</summary>
+      <table><thead><tr><th>Path</th><th>Declared type</th><th>Observed types</th></tr></thead><tbody>
+        {Array.from(new Set([...result.declared_fields,...(result.observed_fields || result.collection?.fields || [])].map(f=>f.path))).sort().map(path=>{
+          const declared=result.declared_fields.find(f=>f.path===path)
+          const observed=(result.observed_fields || result.collection?.fields || []).find(f=>f.path===path)
+          return <tr key={path}><td>{path}</td><td>{declared ? (declared.types?.join(', ') || 'Unspecified')+(declared.required?' · required':'') : 'Undeclared'}</td><td>{observed ? Object.keys(observed.types).join(', ') : 'Absent in sample'}</td></tr>
+        })}
+      </tbody></table>
+    </details>}
     {result?.status==='choose_collection' && <label>Record collection<select value={collection ?? '__choose__'} onChange={e=>setCollection(e.target.value)}>
       <option disabled value="__choose__">Choose a collection</option>
       {result.collections.map(c=><option key={c.path} value={c.path}>{c.path || '(root)'} · {c.records} records</option>)}

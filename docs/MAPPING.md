@@ -90,3 +90,9 @@ POST the following to `/api/imports/{factory}/{import-id}`. The feed must grant 
 The server fetches up to ten pages per request. It atomically saves each page's normalized records, row-level rejections and next token as one immutable checkpoint. GET the same URL to inspect committed pages. Resume with the same specification and the number of committed pages as `expected`. A stale checkpoint returns 409. On a later-page failure, earlier commits remain available. Repeated cursors stop the import. Later occurrences of an already committed record ID are rejected; partial mode preserves other records.
 
 To review a committed page, POST a goal with `factory`, `description` and `"import":{"id":"batch","page":1}`. The run snapshots that page and pins the approved mapping revision. PostgreSQL and SQLite retain checkpoints across restarts; in-process storage retains them for the life of the process.
+
+### Compare a declared OpenAPI response
+
+In Goal builder, open **Compare with an OpenAPI response** and paste an OpenAPI 3.0 or 3.1 document. Select its operation path, method and response status. The proposal API accepts the same selection as `openapi: {document, path, method, status}`. The document can be a JSON object or JSON/YAML text. The defaults are GET and status 200.
+
+After choosing a collection, compare the declared types and required properties with the observed fields. Required markers refer to the containing object. The steward receives field summaries. Examples, descriptions and server credentials in the document are excluded. Only sampled paths are eligible for a mapping. This structural comparison supports application/json responses, object properties, array items, nullable fields and local references. It does not perform full OpenAPI validation or expand composed schemas.
