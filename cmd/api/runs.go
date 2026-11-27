@@ -93,6 +93,31 @@ func runRoutes(mux *http.ServeMux, ws *factory.Workspace, engine *rules.Engine) 
 		}
 		runResponse(w, run, err)
 	}, "GET", "POST"))
+	mux.HandleFunc("/api/decisions/{id...}", apiRoute(func(w http.ResponseWriter, r *http.Request) {
+		runID := r.URL.Query().Get("run")
+		var runs []factory.Run
+		var err error
+		if runID != "" {
+			var run factory.Run
+			run, err = ws.Get(runID)
+			runs = []factory.Run{run}
+		} else {
+			runs, err = ws.List()
+		}
+		if err != nil {
+			runResponse(w, nil, err)
+			return
+		}
+		for _, run := range runs {
+			for _, decision := range run.Decisions {
+				if decision.ID == r.PathValue("id") {
+					runResponse(w, decision, nil)
+					return
+				}
+			}
+		}
+		runResponse(w, nil, factory.ErrNotFound)
+	}, "GET"))
 	mux.HandleFunc("/api/graph", apiRoute(func(w http.ResponseWriter, r *http.Request) {
 		list, err := ws.List()
 		if err != nil {
