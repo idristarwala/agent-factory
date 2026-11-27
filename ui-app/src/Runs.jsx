@@ -38,8 +38,18 @@ export default function Runs({runs, source, setSource, request, refresh, setMess
       <details><summary>Evidence and revisions</summary><pre>{JSON.stringify(d.proposal,null,2)}</pre></details>
       {d.status==='pending' && run.status==='in_review' && <><label>Reviewer note<input value={note} onChange={e=>setNote(e.target.value)}/></label>
         {['approved','rejected'].map(s=><button disabled={busy} key={s} onClick={()=>action(async()=>{await request('/api/decisions',{Run:run.id,ID:d.id,Expected:run.version,Status:s,Feedback:note});setNote('')})}>{s==='approved'?'Approve':'Reject'}</button>)}</>}</article>)}</section>
+  const recent = runs.flatMap(r => (r.decisions || []).map(d => ({ decision: d, run: r })))
+    .sort((a,b) => decisionTime(b) - decisionTime(a)).slice(0,5)
+  function decisionTime({decision,run}) {
+    const updated = Date.parse(decision.updated_at)
+    return updated > 0 ? updated : Date.parse(run.created_at) || 0
+  }
   return <section className="definitions"><h2>Workspace overview</h2>
     <p>{runs.filter(r=>['queued','running'].includes(r.status)).length} active runs · {runs.filter(r=>r.status==='in_review').length} awaiting review</p>
+    <h3>Recent decisions</h3>
+    {recent.length === 0 ? <p>No decisions yet.</p> : <ul>{recent.map(({decision,run}) =>
+      <li key={decision.id}><strong>{decision.entity_id}</strong> · {decision.status} · {run.description}</li>)}</ul>}
+    <h3>Runs</h3>
     {!runs.length && <p>No runs yet. Open Goal builder to start one.</p>}
     {runs.map(r=><article key={r.id}><strong>{r.description}</strong> · {r.status}<p>{r.id}</p>
     <p>{r.decisions?.length || 0} of {r.records?.length || 0} records evaluated · {r.calls?.reduce((n,c)=>n+c.tokens,0) || 0} tokens</p>

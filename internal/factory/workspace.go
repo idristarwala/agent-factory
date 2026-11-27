@@ -38,14 +38,15 @@ type Price struct {
 	Output float64 `json:"output_per_million"`
 }
 type Review struct {
-	ID       string          `json:"id"`
-	RecordID string          `json:"entity_id"`
-	Status   string          `json:"status"`
-	Reason   string          `json:"reason"`
-	Feedback string          `json:"feedback,omitempty"`
-	Proposal *graph.Mutation `json:"proposal"`
-	Before   map[string]any  `json:"before"`
-	After    map[string]any  `json:"after"`
+	UpdatedAt time.Time       `json:"updated_at"`
+	ID        string          `json:"id"`
+	RecordID  string          `json:"entity_id"`
+	Status    string          `json:"status"`
+	Reason    string          `json:"reason"`
+	Feedback  string          `json:"feedback,omitempty"`
+	Proposal  *graph.Mutation `json:"proposal"`
+	Before    map[string]any  `json:"before"`
+	After     map[string]any  `json:"after"`
 }
 type Run struct {
 	ID               string            `json:"id"`
@@ -230,7 +231,7 @@ func newReview(id string, index int, e schema.Entity, m *graph.Mutation, d agent
 	if !d.Approved {
 		status = "rejected"
 	}
-	return Review{ID: fmt.Sprintf("%s/%d", id, index), RecordID: e.ID, Status: status, Reason: d.Reason, Before: e.Attributes, After: m.Updates[0].Props, Proposal: m}
+	return Review{UpdatedAt: time.Now().UTC(), ID: fmt.Sprintf("%s/%d", id, index), RecordID: e.ID, Status: status, Reason: d.Reason, Before: e.Attributes, After: m.Updates[0].Props, Proposal: m}
 }
 func reviewStatus(ds []Review) string {
 	for _, d := range ds {
@@ -285,6 +286,7 @@ func (w *Workspace) Decide(id, decisionID, status, note string, expected int) (R
 		if d.Status != "pending" {
 			return Run{}, revision.ErrConflict
 		}
+		d.UpdatedAt = time.Now().UTC()
 		d.Status = status
 		d.Feedback = note
 		if status == "approved" && !r.Settings.Observe {
