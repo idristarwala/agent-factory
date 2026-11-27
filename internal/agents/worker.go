@@ -13,6 +13,7 @@ import (
 
 // LLMWorker is a real worker that calls the model gateway (cheap tier only).
 // Receives active rules, retries structured JSON parsing, and validates output.
+// Evidence from the context recipe is injected into the prompt when present.
 type LLMWorker struct {
 	ID      string
 	Role    string
@@ -64,6 +65,14 @@ func (w *LLMWorker) Execute(uow *unitofwork.UnitOfWork) (*graph.Mutation, error)
 		familyNote = "If this item has siblings, apply consistent wording across the family."
 	}
 
+	// Context recipe evidence
+	var evidenceNote string
+	if len(uow.Evidence) > 0 {
+		evidenceNote = "Gathered evidence:\n" + strings.Join(uow.Evidence, "\n") + "\n"
+	} else {
+		evidenceNote = "(no additional evidence gathered)\n"
+	}
+
 	prompt := fmt.Sprintf(`You are a specialized worker fixing entities.
 Goal / unit of work: %s
 Active rules you MUST follow:
@@ -72,11 +81,12 @@ Current entity (JSON): %s
 Original title: %s
 Original description: %s
 %s
-
+%s
 Propose improvements as a JSON object of attribute key-value pairs.
 Respect the rules (e.g. keep original wording when required).
+Use the gathered evidence and family context. Do not invent facts.
 Respond ONLY with valid JSON of this form:
-{"title":"...", "description":"...", "other_attr":"..."}`, uow.Description, ruleText.String(), context, originalTitle, originalDesc, familyNote)
+{"title":"...", "description":"...", "other_attr":"..."}`, uow.Description, ruleText.String(), context, originalTitle, originalDesc, familyNote, evidenceNote)
 
 	allowed := []string{"title", "description", "brand", "product_type", "color", "size"}
 
@@ -84,7 +94,7 @@ Respond ONLY with valid JSON of this form:
 	for attempt := 0; attempt < 2; attempt++ {
 		resp, err := w.Gateway.Generate(models.Request{
 			Tier:        models.TierCheap,
-			System:      "You produce structured attribute updates that obey the provided rules. Output JSON only.",
+			System:      "You produce structured attribute updates that obey the provided rules and evidence. Output JSON only.",
 			User:        prompt,
 			Temperature: 0.2,
 			MaxTokens:   800,

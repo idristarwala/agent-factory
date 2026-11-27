@@ -113,6 +113,11 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 						}
 					}
 
+					// Inject evidence into the unit so the worker prompt sees it
+					if len(evidence) > 0 {
+						uow.Evidence = evidence
+					}
+
 					worker, err := r.Steward.CreateWorker(agents.WorkerSpec{Name: "generic", Role: "worker", ModelTier: "cheap"})
 					if err != nil {
 						r.Queue.Fail(ctx, uow.ID, "create worker: "+err.Error())

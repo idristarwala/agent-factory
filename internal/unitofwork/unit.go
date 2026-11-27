@@ -24,6 +24,7 @@ type UnitOfWork struct {
 	Status          Status
 	ClaimedBy       string
 	Proposal        *graph.Mutation
+	Evidence        []string // context recipe results injected by the runner
 }
 
 type Store interface {

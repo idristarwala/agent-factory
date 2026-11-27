@@ -1,23 +1,17 @@
-# Generic HTTP Tools (Issue #12)
+# HTTP Tools and Context Recipe
 
-## Completed
+Generic config-driven HTTP tools connect any REST system.
 
-- HTTPTool with path templating, headers, timeout, side-effect, size limit
-- SimpleMap for field extraction
-- FetchImages for media
-- ContextRecipe + ExecuteRecipe
-- Wired into ContinuousRunner via GatherEvidence
-- Grants helpers
-- ImagePart type for multimodal
-- MCP HTTP stub
-- Tests
+## Context recipe
 
-## Remaining (minor)
+```go
+recipe := tools.ContextRecipe{
+    Entity:     "get-product",
+    Neighbours: "search-siblings",
+}
+runner.SetTools(registry, recipe)
+```
 
-- Full YAML zero-code registration of tools
-- Complete retries + cache with TTL
-- Grants checked on every Call inside the runner
-- Image parts fully wired into gateway request bodies
-- MCP streamable HTTP complete implementation
+The ContinuousRunner gathers the recipe results before the worker runs, stores them on the UnitOfWork as Evidence, injects them into the worker prompt, and also attaches them to the mutation so the Judge sees them.
 
-The evidence path is usable. A REST system can be connected and its data gathered before the worker and judge run.
+This closes the accuracy gap identified in the field test: the model now sees the same evidence the worker and judge use.

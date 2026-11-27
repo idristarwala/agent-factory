@@ -41,9 +41,14 @@ Pair-level precision/recall against a human-labelled set. Deterministic detector
 
 ```go
 proposals := grouping.BlockThenDecide(ctx, llmClient, entities, "group")
+// Then build predicted map from proposals and score:
+// predicted := applyProposals(entities, proposals)
+// metrics := grouping.ScorePairMetrics(entities, "group", predicted)
 ```
 
 Builds candidate neighbourhoods with the cheap signature, then asks the LLM for membership decisions inside each neighbourhood. Falls back to `SimpleDetector` on error or when no client is provided.
+
+Use this path for higher accuracy once a labelled set is available. The helper and scorer are ready; wire into a command or demo for end-to-end measurement.
 
 ## Customer policies
 
@@ -58,7 +63,7 @@ if weight_oz > 30 and pt == Apparel then flag weight
 
 1. Assess every entity (state + missing attributes).
 2. Fix attributes that block grouping (PT, title, missing axes).
-3. Propose regroupings.
+3. Propose regroupings (prefer BlockThenDecide when an LLM client is available).
 4. Judge approves against active rules (including customer policies).
 5. Repeat until clean.
 
