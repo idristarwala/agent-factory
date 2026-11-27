@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/idristarwala/agent-factory/internal/llm"
+	"github.com/idristarwala/agent-factory/internal/obs"
 	"gopkg.in/yaml.v3"
 )
 
@@ -118,6 +119,7 @@ func load(path string) (*Router, error) {
 		return nil, errors.New("configure at least one model")
 	}
 	router := &Router{routes: map[string]route{}}
+	logger := obs.New()
 	for name, m := range config.Models {
 		g, ok := config.Gateways[m.Gateway]
 		if !ok || strings.TrimSpace(m.Model) == "" || strings.TrimSpace(name) == "" {
@@ -157,7 +159,7 @@ func load(path string) (*Router, error) {
 		if m.ReasoningBudget != nil && (m.Protocol != "gemini" || *m.ReasoningBudget < 0) {
 			return nil, fmt.Errorf("invalid reasoning_budget for model %q", name)
 		}
-		router.routes[name] = route{m, adapter}
+		router.routes[name] = route{m, retryClient{inner: &llm.RecordingClient{Inner: adapter, Logger: logger}}}
 	}
 	return router, nil
 }
