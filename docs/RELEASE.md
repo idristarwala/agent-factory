@@ -4,6 +4,8 @@ Run `make release` to build the goal runner (`agent-factory`), management CLI (`
 
 A version tag triggers the release workflow. It builds the binaries, publishes the container, records its digest and binary filenames in the release manifest, and attaches the artifacts to the GitHub release. Ordinary pull requests run vet, race tests, the Go build, and the frontend build.
 
+The release manifest also identifies the exact schema sources shipped with the engine. Compare `pack_spec_version` to detect changes in the published pack schema or its referenced rule schema. Compare `database_schema_version` to detect changes in the shared PostgreSQL and SQLite migration source, including the dialect-specific primary keys. Each value is a SHA-256 digest of the compact, sorted JSON map from repository path to file SHA-256. Formatting edits also change these identifiers. Equal versions mean identical sources. Compatibility and migration safety require separate review.
+
 Engine releases carry the project’s proprietary license. The release assets include `LICENSE`, the release manifest names that file, and the runtime image includes the same text at `/usr/share/licenses/agent-factory/LICENSE`. [License and permission inquiries](../README.md#license)
 
 ## Publish a proposed pack revision

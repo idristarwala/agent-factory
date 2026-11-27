@@ -59,7 +59,7 @@ func (s *PostgresStore) migrate() error {
 	if _, err = tx.Exec("SELECT pg_advisory_xact_lock(17012024, 1)"); err != nil {
 		return err
 	}
-	if err = migrateSchema(tx, "SERIAL PRIMARY KEY"); err != nil {
+	if err = migrateSchema(tx, postgresEntryID); err != nil {
 		return err
 	}
 	return tx.Commit()

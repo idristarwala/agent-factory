@@ -29,6 +29,8 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: python3 scripts/check-unused-helpers.py "$BASE_SHA"
+      - name: Release manifest contract
+        run: make manifest-check
       - name: Documentation contracts
         run: make docs-check
       - name: Validate bundled example packs

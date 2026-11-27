@@ -65,7 +65,7 @@ func NewSQLStore(dsn string) (*SQLStore, error) {
 }
 
 func (s *SQLStore) migrate() error {
-	return migrateSchema(s.db, "INTEGER PRIMARY KEY AUTOINCREMENT")
+	return migrateSchema(s.db, sqliteEntryID)
 }
 
 func (s *SQLStore) GetNode(id graph.NodeID) (*graph.Node, error) { return readNode(s.db, id) }
