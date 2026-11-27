@@ -58,6 +58,16 @@ func (w *LLMWorker) Execute(uow *unitofwork.UnitOfWork) (*graph.Mutation, error)
 		ruleText.WriteString("(no active rules)\n")
 	}
 
+	// Strengthen preservation guidance when a customer rule asks to keep original wording (#10)
+	preserveWording := false
+	for _, r := range w.Rules {
+		text := strings.ToLower(r.Description + " " + r.Action + " " + r.Condition)
+		if strings.Contains(text, "original wording") || strings.Contains(text, "keep the original") || strings.Contains(text, "preserve wording") || strings.Contains(text, "do not rewrite") {
+			preserveWording = true
+			break
+		}
+	}
+
 	var familyNote string
 	if field := w.Definition.Config["group_field"]; field != "" {
 		fam, err := GatherFamily(w.Graph, uow.InputSubgraph, field)
@@ -104,13 +114,18 @@ Respond ONLY with valid JSON of the allowed fields.`, uow.Description, ruleText.
 	if err != nil {
 		return nil, err
 	}
+	systemPrompt := "You produce structured attribute updates that obey the provided rules and evidence. Output JSON only."
+	if preserveWording {
+		systemPrompt += " When a rule requires preserving original wording, keep the seller's phrasing and only fill missing factual values from evidence. Do not rewrite existing text."
+	}
+
 	var lastErr error
 	for attempt := 0; attempt < attempts; attempt++ {
 		resp, err := w.Gateway.Generate(models.Request{
 			UnitID:     uow.ID,
 			CallerRole: "worker",
 			Tier:       models.TierCheap,
-			System:     "You produce structured attribute updates that obey the provided rules and evidence. Output JSON only.",
+			System:     systemPrompt,
 			User:       prompt, Images: uow.Images,
 			Temperature: 0.2,
 			MaxTokens:   tokens,

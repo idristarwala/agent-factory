@@ -1,6 +1,7 @@
 package agents
 
 import (
+	"strings"
 	"github.com/idristarwala/agent-factory/internal/graph"
 	"github.com/idristarwala/agent-factory/internal/models"
 	"github.com/idristarwala/agent-factory/internal/unitofwork"
@@ -37,5 +38,35 @@ func TestPinnedAgentLimits(t *testing.T) {
 	decision, err := judge.Evaluate(&graph.Mutation{}, nil)
 	if err != nil || decision.Approved || len(gw.calls) != 2 || gw.calls[1].MaxTokens != 700 {
 		t.Fatal(decision, err, gw.calls)
+	}
+}
+
+func TestPreserveOriginalWordingRuleStrengthensPrompt(t *testing.T) {
+	gw := &limitsGateway{}
+	g := graph.NewMemoryGraph()
+	g.AddNode(graph.Node{ID: "item", Props: map[string]any{"title": "Original Seller Title", "brand": "Acme"}})
+	rules := []Rule{{
+		Description: "Keep original wording where possible",
+		Action:      "do not rewrite existing text",
+	}}
+	worker := NewLLMWorker("w", "worker", gw, g, rules)
+	_, err := worker.Execute(&unitofwork.UnitOfWork{
+		ID:            "u1",
+		Description:   "improve title",
+		InputSubgraph: "item",
+		AllowedFields: []string{"title"},
+	})
+	if err != nil && err.Error() != "worker validation failed" { // expected parse fail on "invalid"
+		// ignore validation error; we care about the prompt
+	}
+	if len(gw.calls) == 0 {
+		t.Fatal("no gateway call")
+	}
+	req := gw.calls[0]
+	if !strings.Contains(req.System, "preserving original wording") && !strings.Contains(req.System, "Do not rewrite existing text") {
+		t.Errorf("expected strengthened system prompt, got: %s", req.System)
+	}
+	if !strings.Contains(req.User, "Keep original wording") {
+		t.Error("rule text missing from user prompt")
 	}
 }
