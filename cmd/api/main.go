@@ -126,6 +126,16 @@ func main() {
 		json.NewEncoder(w).Encode(ruleEngine.Active())
 	}))
 
+	mux.HandleFunc("/api/graph", auth(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", os.Getenv("CORS_ORIGIN"))
+		w.Header().Set("Content-Type", "application/json")
+		// Placeholder graph snapshot for the UI explorer
+		json.NewEncoder(w).Encode(map[string]any{
+			"nodes": []map[string]string{},
+			"edges": []map[string]string{},
+		})
+	}))
+
 	mux.HandleFunc("/api/chat", auth(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", os.Getenv("CORS_ORIGIN"))
 		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
@@ -156,7 +166,6 @@ func main() {
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
 		}
-		// rough usage tracking
 		usageTotals.TokensUsed += 300
 		usageTotals.EstimatedUSD += 0.0003
 		w.Header().Set("Content-Type", "application/json")
