@@ -1,37 +1,6 @@
 # Source mapping
 
-Business users point at where their data lives (BigQuery table, REST API, SQL).  
-The Steward maps it to the unified Entity schema. Users never write mappings.
-
-## Flow
-
-1. User supplies a source (BQ dataset, API URL, or SQL connection) and a goal.
-2. Steward samples columns.
-3. `InferMapping` matches common retail names (`title`, `product_name`, `brand`, `pt`, `price`, `sku`, …).
-4. Rows are pulled and turned into Entities.
-5. Steward chooses memory vs DB based on volume.
-6. Agents work on Entities. Customers see Decisions.
-
-## Auto-mapped fields
-
-| Entity attribute | Source aliases |
-|------------------|----------------|
-| title | title, name, product_name, item_name |
-| description | description, desc, long_description |
-| brand | brand, brand_name, manufacturer |
-| pt | pt, product_type, category |
-| price | price, current_price, list_price |
-| weight_oz | weight_oz, weight, item_weight |
-| sku | sku, item_id, product_id, id |
-| image | image, image_url, primary_image |
-
-## Sources
-
-| Source | Implementation |
-|--------|----------------|
-| BigQuery | `BigQuerySource` (injectable client) |
-| REST API | `APISource` (injectable client) |
-| SQL | Use existing `SQLTool` + same mapping |
+A factory can consume a JSON sample supplied by a user or collect one from an authorized HTTP source. Profile the payload, ask the steward for a mapping proposal, preview the normalized records, then save an explicit mapping revision. The factory owner chooses the record type, identity and editable fields. Deployment settings select the storage backend. [Storage configuration](CONFIGURATION.md)
 
 ## Inspect a source API response
 
@@ -119,6 +88,6 @@ Select **Propose relationships between records** or set `include_relationships` 
 
 In Goal builder, select **Propose an image attachment path** and inspect the source pointer and normalized URLs before approving the mapping. The proposal API accepts `include_images: true`. A mapping may also specify `image_path`, a record-relative JSON Pointer to an HTTP(S) URL or a list of up to 90 URLs. Missing or null values yield no images. Drift checks cover the approved path.
 
-Preview and ingestion record the references. When a mapped record runs, the runtime downloads its images through the bounded public image transport and supplies the same bytes to the worker and judge. Each image must be PNG, JPEG or WebP within 512 KiB. The review records a SHA-256 digest per image. A later run can observe different bytes if an upstream URL changes. Use immutable source URLs for reproducible image content.
+Preview and ingestion record the references. When a mapped record runs, the runtime downloads its images through the bounded public image transport and supplies identical model inputs to the worker and judge. Sets of 11–90 images use tiled sheets with a source-position legend. Each image must be PNG, JPEG or WebP within 512 KiB. The review records a SHA-256 digest per image. A later run can observe different bytes if an upstream URL changes. Use immutable source URLs for reproducible image content.
 
 When identity selection is needed, the profile can suggest pairs of field paths that together distinguish every sampled record. Each component repeats on its own. Choose a pair in Goal builder or select fields manually in key order. The profiler checks up to 16 eligible columns in a fully sampled collection and presents up to four pairs. Uniqueness in a sample does not establish uniqueness in future imports; the importer checks actual identities for collisions.

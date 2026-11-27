@@ -1,15 +1,14 @@
 # Getting started (15 minutes)
 
-1. Clone this repo or copy `examples/starter` into your own repository.
-2. `cp examples/starter/factory.yaml .`
-3. `mkdir -p packs/catalog && cp examples/starter/packs/catalog/pack.yaml packs/catalog/`
-4. `go run ./cmd/factory validate`
-   - Loads packs with full yaml.v3 support for nested rules.
-   - Packs conform to the published schema at `schemas/pack.schema.json`.
-5. `go run ./cmd/factory test`   # runs package tests, no API keys needed
-6. Optional: `docker compose up` for the full stack (set secrets first; see SECRETS.md).
+Run [the service-desk example](RUNNING.md) from a checkout to evaluate a real record. A model gateway is required for evaluation. To inspect the sample pack and run fixture tests without provider credentials, run these commands from the repository root.
 
-The engine is a versioned dependency. Pin the image digest in factory.yaml and deploy with the Helm chart in deploy/helm/agent-factory.
+```sh
+go build -o /tmp/agent-factory-cli ./cmd/factory
+(cd examples/starter/packs/catalog && /tmp/agent-factory-cli validate)
+go run ./cmd/factory test
+```
+
+The validator looks for files in the current directory, `packs` and `examples/starter`. It reports pack parse warnings. Its exit status alone does not certify schema conformance. The published pack schema and release guide describe the interchange format and packaged binaries. [Pack schema](../schemas/pack.schema.json) · [Releases](RELEASE.md)
 
 ## Pack format
 

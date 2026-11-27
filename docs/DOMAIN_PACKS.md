@@ -2,7 +2,7 @@
 
 A pack defines how a problem domain is handled.
 
-## Built-in
+## Example Go packs
 
 | Pack | Focus |
 |------|-------|
@@ -11,18 +11,8 @@ A pack defines how a problem domain is handled.
 | inventory | Stock, replenishment, allocation |
 | merchandising | Assortment, placement |
 
-## Adding a pack
+## Configure your own factory
 
-Implement a function that returns a `domain.Pack` and register it in `All()`.
+For a runtime factory, define the record type and editable fields and import the JSON definition. For a file-based pack, supply a YAML or JSON document with worker roles, rules and allowed tool names. The service-desk example and pack schema show the two contracts. [Run guide](RUNNING.md) · [Pack schema](../schemas/pack.schema.json)
 
-```go
-func MyPack() Pack {
-    return Pack{
-        Name: "my-domain",
-        WorkerRoles: []string{"specialist"},
-        DefaultRules: []string{"Rule one"},
-    }
-}
-```
-
-The Steward selects a pack based on the goal text.
+The continuous CLI selects its external evidence grant with `FACTORY_PACK`. Workspace goals explicitly select a factory and can pin its revision.

@@ -1,0 +1,10 @@
+# Agent Factory
+
+> Run a versioned factory against caller-supplied records from a CLI or HTTP client.
+
+- [Harness quick start](docs/HARNESSES.md): Python and Node entry points, prerequisites and JSON output.
+- [HTTP API](docs/API.md): run lifecycle, review, chat and version conflicts.
+- [Configuration](docs/CONFIGURATION.md): deployment variables, model routing, storage and memory.
+- [Source mapping](docs/MAPPING.md): inspect a payload, preview a mapping and pin it for a run.
+- [Tool configuration](docs/HTTP_TOOLS.md): REST, MCP, grants, evidence and external change proposals.
+- [Project status](docs/STATUS.md): verification and outstanding work.

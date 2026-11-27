@@ -6,6 +6,7 @@ Welcome to the official documentation for Agent Factory — a domain-agnostic, s
 
 | Guide | Description |
 |-------|-------------|
+| [External harness quick start](HARNESSES.md) | Run a versioned factory from Python or Node |
 | [Overview](OVERVIEW.md) | What the factory is, who it is for, and core concepts |
 | [Quick Start](RUNNING.md) | Install, run locally, Docker, and Kubernetes |
 | [Examples](EXAMPLES.md) | Common goals and usage patterns |
@@ -16,15 +17,15 @@ Welcome to the official documentation for Agent Factory — a domain-agnostic, s
 |-------|-------------|
 | [Architecture](ARCHITECTURE.md) | Primitives, data flow, and continuous loop |
 | [Schema](SCHEMA.md) | Unified Entity model and Decisions |
-| [Rules](ARCHITECTURE.md#rules) | Versioned, immutable rule engine |
-| [Learning Loop](ARCHITECTURE.md#learning) | How the Steward improves the system |
+| [Rules](UI.md#definition-history) | Versioned, immutable rule engine |
+| [Learning Loop](CONTINUOUS.md) | How the Steward improves the system |
 
 ## Domain & Data
 
 | Topic | Description |
 |-------|-------------|
 | [Domain Packs](DOMAIN_PACKS.md) | Catalog, pricing, inventory, merchandising |
-| [Source Mapping](MAPPING.md) | Auto-map from BigQuery, API, or SQL |
+| [Source Mapping](MAPPING.md) | Profile, preview and approve a versioned mapping for JSON or HTTP sources |
 | [Dynamic Attributes](ATTRIBUTES.md) | Hundreds of product-type-specific attributes |
 | [Grouping & Variants](GROUPING.md) | Partial groups, ungrouped items, multi-axis varianting |
 
@@ -42,7 +43,7 @@ Welcome to the official documentation for Agent Factory — a domain-agnostic, s
 
 | Topic | Description |
 |-------|-------------|
-| [API Reference](API.md) | CLI, HTTP endpoints, extension points |
+| [API Reference](API.md) | HTTP endpoints and request contracts |
 | [UI](UI.md) | Customer review interface and chatbot |
 | [Clarification](CLARIFICATION.md) | How the Steward asks for missing information |
 

@@ -1,21 +1,5 @@
-# Metrics and audit
+# Metrics
 
-## Metrics
+Query `GET /api/usage?run={id}` for a run’s token totals, model attempts, failed attempts, tool counts and estimated cost. Model responses without configured prices are counted separately. The unfiltered endpoint includes workspace totals. [API reference](API.md) · [Pricing configuration](CONFIGURATION.md)
 
-| Metric | Meaning |
-|--------|---------|
-| decisions | Total Judge decisions |
-| approved / rejected | Counts |
-| reject_rate | rejected / decisions |
-| llm_calls / llm_errors | Gateway usage |
-| llm_avg_ms | Average latency |
-
-## Audit log
-
-Append-only record of every approved or rejected mutation. Query by entity.
-
-## Demo
-
-```bash
-go run ./cmd/obs-demo
-```
+Use the run and decision records to inspect approvals, rejections and their reasons. Continuous run audit entries include a timestamp and work-unit correlation ID. [Observability guide](OBSERVABILITY.md)

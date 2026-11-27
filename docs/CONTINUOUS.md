@@ -5,7 +5,7 @@ The factory is designed to run until the goal is achieved.
 ## Local continuous run
 
 ```bash
-go run ./cmd/continuous-swarm "Fix all product titles and group variants"
+go run ./cmd/continuous-swarm "Correct the title and mark the record fixed"
 ```
 
 The ContinuousRunner:
@@ -16,14 +16,9 @@ The ContinuousRunner:
 5. Learning loop reviews decisions and can propose new rules
 6. Repeats until no more units of work or MaxRounds is reached
 
-## Making an agent session continuous
+## Run history
 
-In this chat you can keep saying:
-- "Continue until all open issues are closed"
-- "Keep iterating on the remaining gaps in issue #9"
-- "Run the continuous swarm on the hard catalog and fix what it finds"
-
-The system will keep working across turns. For fully unattended long runs, use the ContinuousRunner binary or docker-compose with a long-running process.
+The command executes against its built-in fixture and publishes the terminal run to the workspace store. Inspect the proposals, judge verdicts, write outcomes and usage through the API. [Observability](OBSERVABILITY.md)
 
 ## Goal-driven
 

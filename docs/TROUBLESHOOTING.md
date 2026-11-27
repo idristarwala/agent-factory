@@ -19,7 +19,7 @@ go build ./...
 
 ```bash
 docker compose logs factory
-docker compose down -v
+docker compose ps
 ```
 
 ## Kubernetes

@@ -1,55 +1,55 @@
 # Configuration
 
-## Secrets
+## Deployment settings
 
-All credentials come from one directory.
+The API and CLI read deployment configuration from their process environment. Restart a process after changing its environment. CLI flags override the corresponding environment defaults. The UI reads its Vite setting at development startup or build time.
 
-| Setting | Default | Override |
-|---------|---------|----------|
-| Directory | `/etc/secrets` | `SECRETS_DIR` |
+| Setting | Type and default | Scope and precedence |
+| --- | --- | --- |
+| `FACTORY_STORE_MODE` | String, unset | `memory` selects process-local state ahead of all database settings. |
+| `DATABASE_URL` | PostgreSQL connection string, unset | Selects PostgreSQL ahead of SQLite. Share the same database across processes that share work. |
+| `FACTORY_DB_PATH` | File path, user config directory plus `agent-factory/factory.sqlite` | SQLite path when both higher-priority modes are absent. |
+| `FACTORY_ID` | String, unset | Workspace namespace for stored definitions and revisions. Use the same value in the API and CLI. |
+| `FACTORY_LISTEN_ADDR` | Host and port, `:8080` | API listener. Use `127.0.0.1:8080` for loopback only. |
+| `API_TOKEN` | Secret string, unset | Enables bearer authentication on API routes. Health stays public. |
+| `CORS_ORIGIN` | Origin string, unset | Permits the configured browser origin or an explicit wildcard. |
+| `VITE_API_URL` | URL, `http://localhost:8080` | Operator UI’s API base URL. |
+| `FACTORY_DEFINITION`, `FACTORY_RECORDS` | ID and JSON file path, unset | Defaults for goal CLI flags `-factory` and `-records`. `-revision` defaults to 0, selecting the latest revision. |
+| `FACTORY_SOURCE_CONFIG` | YAML path, unset | Enables named read-only source sampling in the API. [Source mapping](MAPPING.md) |
+| `FACTORY_EVIDENCE_CONFIG`, `FACTORY_PACK` | YAML path and pack name, both unset | Set both to enable a continuous runner evidence recipe and its pack grants. [Tools](HTTP_TOOLS.md) |
+| `FACTORY_MODEL_PRICES` | JSON object, empty | Per-model USD per million input and output tokens. Applied when a call is recorded. |
+| `SECRETS_DIR` | Directory, `/etc/secrets` | Central loader checks named files first, then the uppercase environment name with hyphens converted to underscores. Explicit gateway and tool key-file paths use their own configuration. |
+| `FACTORY_GITHUB_REPOSITORIES` | Comma-separated owner/repository names, empty | Limits the repositories that receive the GitHub attachment credential on an authenticated API. |
+| `FACTORY_GITHUB_TOKEN` | Secret string, unset | Fallback for the `factory-github-token` secret file when importing authorized GitHub sources. |
 
-### Files
+## Model routing
 
-| File | Used by |
-|------|---------|
-| `gemini-api-key` | Gemini gateway |
-| `llm-api-key` | OpenAI-compatible gateway |
-| `bigquery-sa.json` | BigQuery service account |
-| `bigquery-wif.json` | BigQuery Workload Identity |
-| `mcp-token` | MCP transports |
+| Setting | Type and default | Scope and precedence |
+| --- | --- | --- |
+| `LLM_GATEWAY_CONFIG` | YAML path, unset | Selects configured logical routes before environment-only provider selection. [Gateway guide](ENTERPRISE_GATEWAY.md) |
+| `LLM_PROVIDER` | Provider name, autodetected | Supports Gemini, Anthropic, OpenAI-compatible, Groq and OpenRouter. With no explicit provider or base URL, a Gemini or generic key selects Gemini. |
+| `LLM_BASE_URL`, `LLM_API_KEY` | Endpoint URL and credential, unset | Used together for environment-only OpenAI-compatible endpoints. The generic key can also supply the Gemini credential. |
+| `GEMINI_API_KEY` | Secret string, unset | Native Gemini worker or judge credential. |
+| `GEMINI_CHEAP_MODEL`, `GEMINI_FRONTIER_MODEL` | Model names, both `gemini-3.5-flash-lite` | Select Gemini worker and frontier models. |
+| `ANTHROPIC_API_KEY` | Secret string, unset | Native Anthropic credential. |
+| `ANTHROPIC_CHEAP_MODEL`, `ANTHROPIC_FRONTIER_MODEL` | Model names, `claude-3-haiku-20240307` and `claude-3-5-sonnet-20241022` | Environment-only Anthropic routes. Choose models available to your account. |
+| `OPENROUTER_API_KEY` | Secret string, unset | Direct OpenRouter access for worker or independent judge. |
+| `LLM_CHEAP_MODEL`, `LLM_FRONTIER_MODEL` | Model names | Direct OpenRouter defaults to `gpt-4o-mini`. Custom OpenAI-compatible endpoints default to `llama-3.1-8b-instant`. Frontier defaults to the cheap model. |
+| `LLM_JUDGE_PROVIDER`, `LLM_JUDGE_MODEL` | Provider and model names, both unset | Set together for independent judge routing. Otherwise judge calls use the primary provider. |
 
-Values are cached and re-read when the file mtime changes.
+## Versioned workspace settings
 
-## Environment variables
+Read `GET /api/settings` and post the complete settings object with its current revision as `Expected`. A successful edit appends a revision. A run pins the settings it reads at startup.
 
-| Variable | Purpose | Example |
-|----------|---------|---------|
-| `LLM_PROVIDER` | Which adapter to use | `gemini`, `openai` |
-| `LLM_BASE_URL` | Custom OpenAI-compatible endpoint | `https://api.groq.com/openai/v1` |
-| `GEMINI_CHEAP_MODEL` | Model for workers | `gemini-3.5-flash-lite` |
-| `GEMINI_FRONTIER_MODEL` | Model for Judge / Steward | `gemini-3.5-flash-lite` |
-| `SECRETS_DIR` | Secrets location | `/var/run/secrets` |
+| JSON field | Type and default | Effect |
+| --- | --- | --- |
+| `max_rounds` | Positive integer, 10 | Continuous round budget. The CLI uses 5 until a settings revision exists. |
+| `max_minutes` | Positive integer, 30 | Continuous wall-clock budget, up to 525600 minutes. The CLI uses 10 until a settings revision exists. |
+| `max_tokens` | Positive integer, 1000000 | Model token budget. The continuous runner checks at round boundaries. |
+| `observe` | Boolean, false | Records an approved decision while skipping its graph write in the continuous runner. |
+| `replay_gate` | Boolean, false | Holds learned rule proposals for review or replay under the applicable runner. |
 
-## Model tiers
-
-| Tier | Who may use it | Typical model |
-|------|----------------|---------------|
-| cheap | Workers | Flash / lite |
-| frontier | Steward, Judge | Pro or frontier |
-| council | Judge (optional) | Multiple models |
-
-Workers are blocked from frontier and council by the router.
-
-## Domain packs
-
-Packs live in `internal/domain`. Each pack supplies Name, NodeTypes, WorkerRoles, and DefaultRules. The Steward selects a pack by matching keywords in the goal.
-
-## Persistence
-
-| Mode | When |
-|------|------|
-| memory | Local, tests, demos |
-| sql | Production (Postgres-compatible) |
+Factory schemas, source mappings, rules, tool grants and evidence recipes have their own scoped contracts. [Definition API](API.md) · [Source mappings](MAPPING.md) · [Tool limits](HTTP_TOOLS.md)
 
 ### Independent judge model
 
