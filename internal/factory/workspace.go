@@ -21,6 +21,7 @@ var ErrNotFound = errors.New("run not found")
 
 type RunRequest struct {
 	Memory        []memory.Ref    `json:"memory,omitempty"`
+	Source        *SourceInput    `json:"source,omitempty"`
 	SelectedRules map[string]int  `json:"selected_rules"`
 	Description   string          `json:"description"`
 	Factory       string          `json:"factory"`
@@ -53,6 +54,7 @@ type Review struct {
 	After     map[string]any  `json:"after"`
 }
 type Run struct {
+	Source           *SourceRef        `json:"source,omitempty"`
 	ID               string            `json:"id"`
 	Version          int               `json:"version"`
 	Description      string            `json:"description"`
@@ -97,7 +99,7 @@ func (w *Workspace) Get(id string) (Run, error) {
 		return Run{}, ErrNotFound
 	}
 	var r Run
-	err = json.Unmarshal(h[len(h)-1].Data, &r)
+	err = decodeRun(h[len(h)-1].Data, &r)
 	return r, err
 }
 func (w *Workspace) List() ([]Run, error) {
@@ -111,7 +113,7 @@ func (w *Workspace) List() ([]Run, error) {
 			continue
 		}
 		var r Run
-		if err := json.Unmarshal(s.Data, &r); err != nil {
+		if err := decodeRun(s.Data, &r); err != nil {
 			return nil, err
 		}
 		out = append(out, r)
@@ -124,6 +126,19 @@ func (w *Workspace) Start(req RunRequest) (Run, error) {
 		return Run{}, fmt.Errorf("supply a goal, up to 100 source records and a nonnegative budget")
 	}
 	r := Run{ID: uuid.NewString(), Description: req.Description, Status: "created", CreatedAt: time.Now().UTC(), Records: req.Records}
+	if req.Source != nil {
+		if len(req.Records) != 0 || req.Factory == "" {
+			return Run{}, fmt.Errorf("a mapped source requires a factory and cannot be combined with records")
+		}
+		records, err := w.mappedRecords(*req.Source)
+		if err != nil {
+			return Run{}, err
+		}
+		req.Records = records
+		r.Records = records
+		ref := req.Source.SourceRef
+		r.Source = &ref
+	}
 	cfg, n, err := settings.Current(w.Store)
 	if err != nil {
 		return Run{}, err

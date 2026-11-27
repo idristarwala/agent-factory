@@ -6,28 +6,33 @@ Foundation complete in `internal/llm`:
 - Client / ChatRequest / ChatResponse / Message / ToolSpec / ToolCall / Usage
 - Adapter registry with Register/New
 - Typed Error with IsRetryable
-- Router and basic streaming types
-- Basic conformance helper
+- Router with tier policy and rate limiter
+- Retry with exponential backoff
+- Protocol builders and POST adapters (OpenAI, Gemini, Anthropic)
+- Tool call parsing + round-trip tests
+- Token refresh support with key injection
+- Basic native SSE streaming with multi-protocol delta extraction
+- `RunConformance` with basic chat, multi-turn, streaming optional, context cancel, and 50-way concurrency
+- Concrete out-of-tree gateway example that runs the suite against an httptest server
+- Schema / response_format support on OpenAI and Gemini adapters; worker sets Schema
 
 Remaining for full close:
-- Complete conformance suite covering all cases in #8
-- Rate limiting
-- Full context cancellation wiring in every call path
-- Example out-of-tree adapter
-- Declarative config loading
+- Additional protocol-specific error and auth cases inside the shared suite (many already exist as adapter tests)
+- Optional further streaming reassembly assertions for every protocol
 
 ## #9 Packaging as Installable Product
 
-Started:
-- `cmd/factory` CLI skeleton with validate/test/readiness commands
-- `internal/pack.Load` for file-based packs
+Present:
+- `cmd/factory` CLI with import / validate / test / readiness / up / publish
+- `internal/pack.Load` (JSON + simple YAML converter)
+- Tool model with side-effect classes and grants check in ContinuousRunner
+- Observe mode
+- docker-compose, Helm chart, starter template, digest-pinned release workflow
+- Multi-binary Dockerfile and optional Postgres wiring
 
 Remaining:
-- Full CLI implementation
-- Packs replace Go domain packs
-- Tool model with side-effect classes
-- Observe mode
-- Release pipeline and starter template
-- Docker/k8s production packaging
+- Optional full yaml.v3 for deeply nested packs
+- Fuller learning-loop end-to-end tests with scripted failure patterns
+- Live field-test re-run to confirm #10 accuracy items
 
-These are tracked as ongoing work. The core factory loop is functional; these issues make it a distributable product.
+The core factory loop is functional and the packaging surface is usable for local and CI/CD use.

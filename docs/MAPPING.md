@@ -38,3 +38,13 @@ The Steward maps it to the unified Entity schema. Users never write mappings.
 Send a JSON response sample as the body of `POST /api/sources/profile`. The endpoint accepts up to 1 MiB and uses the same API authentication as factory runs. It returns candidate record locations as JSON Pointers. An empty pointer denotes the root. Each candidate reports the record count and profiles the first 100 records, including nested field paths, observed types, missing counts, and whether a string or integer field has distinct nonempty values across the sample. A single observation cannot establish uniqueness.
 
 The endpoint returns structural statistics only. It does not save the sample, select an identity or start a run. Arrays inside candidate records remain array fields. For example, in `{"data":{"records":[{"key":"A"},{"key":"B"}]}}`, the pointer `/data/records` identifies the two-record collection and `/key` is unique in that sample.
+
+Post a sample and a mapping to `/api/sources/preview`. The following mapping selects an array, uses two fields for identity and copies a nested value into a factory attribute.
+
+```json
+{"collection":"/items","record_type":"meter","identity":["/tenant","/key"],"fields":{"reading":"/info/reading"}}
+```
+
+The preview body has `sample` and `mapping` keys. It returns indexed rows with normalized records or identity errors. Missing optional attributes are omitted. To save a valid mapping, POST the same body and an `expected` revision (zero for creation) to `/api/sources/mappings/{id}`. GET that path for immutable history. Only the mapping is saved.
+
+To run it, POST a goal with `factory`, `description` and `source: {"mapping":"meters","revision":1,"payload":…}`. The server applies that exact mapping, validates record identities again and queues the run. Its record snapshot and mapping reference are retained for review.

@@ -129,6 +129,7 @@ Respond ONLY with valid JSON of the allowed fields.`, uow.Description, ruleText.
 			err = validateFields(updates, types, uow.RequiredFields)
 		}
 		if err != nil {
+			LogValidationFailure(resp.Content, err)
 			lastErr = fmt.Errorf("worker validation failed: %w; content length=%d", err, len(resp.Content))
 			continue
 		}
