@@ -8,6 +8,7 @@ import (
 
 // TokenRefresher wraps a Client and refreshes an API key before calls when needed.
 // Used for key rotation / auth refresh hooks (issues #3 / #8).
+// When the inner client is an adapter that exposes SetAPIKey, the new key is injected.
 type TokenRefresher struct {
 	Inner    Client
 	Refresh  func(ctx context.Context) (string, error)
@@ -16,6 +17,11 @@ type TokenRefresher struct {
 	mu        sync.Mutex
 	key       string
 	expiresAt time.Time
+}
+
+// APIKeySetter is implemented by adapters that can accept a rotated key.
+type APIKeySetter interface {
+	SetAPIKey(key string)
 }
 
 // NewTokenRefresher creates a refresher that calls Refresh when the key is stale.
@@ -39,9 +45,9 @@ func (t *TokenRefresher) ensure(ctx context.Context) error {
 	}
 	t.key = key
 	t.expiresAt = time.Now().Add(t.Interval)
-	// Note: adapters currently hold their own key; a real implementation would
-	// inject the new key into the inner client. This decorator records the
-	// refresh and can be extended to set headers.
+	if setter, ok := t.Inner.(APIKeySetter); ok {
+		setter.SetAPIKey(key)
+	}
 	return nil
 }
 

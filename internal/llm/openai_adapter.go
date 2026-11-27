@@ -220,3 +220,8 @@ func BuildOpenAIBody(req ChatRequest) ([]byte, error) {
 	}
 	return json.Marshal(body)
 }
+
+// SetAPIKey updates the API key (used by TokenRefresher).
+func (a *OpenAIAdapter) SetAPIKey(key string) {
+	a.APIKey = key
+}

@@ -105,5 +105,47 @@ func (a *AnthropicAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatResp
 }
 
 func (a *AnthropicAdapter) Stream(ctx context.Context, req ChatRequest) (Stream, error) {
-	return nil, ErrStreamingUnsupported
+	// Basic streaming support: send stream=true and parse content_block_delta events.
+	msgs := make([]map[string]any, 0, len(req.Messages))
+	for _, m := range req.Messages {
+		if m.Role == "system" {
+			continue
+		}
+		msgs = append(msgs, map[string]any{"role": m.Role, "content": m.Content})
+	}
+	if len(msgs) == 0 {
+		msgs = []map[string]any{{"role": "user", "content": ""}}
+	}
+	body := map[string]any{
+		"model":      req.Model,
+		"messages":   msgs,
+		"max_tokens": req.MaxTokens,
+		"stream":     true,
+	}
+	b, _ := json.Marshal(body)
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", a.BaseURL+"/v1/messages", bytes.NewReader(b))
+	if err != nil {
+		return nil, err
+	}
+	httpReq.Header.Set("x-api-key", a.APIKey)
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("anthropic-version", "2023-06-01")
+	httpReq.Header.Set("Accept", "text/event-stream")
+	for k, v := range a.Headers {
+		httpReq.Header.Set(k, v)
+	}
+	resp, err := a.Client.Do(httpReq)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode >= 400 {
+		resp.Body.Close()
+		return nil, &Error{Type: "GATEWAY", Status: resp.StatusCode, Retryable: resp.StatusCode >= 500 || resp.StatusCode == 429}
+	}
+	return &sseStream{r: resp.Body}, nil
+}
+
+// SetAPIKey updates the API key (used by TokenRefresher).
+func (a *AnthropicAdapter) SetAPIKey(key string) {
+	a.APIKey = key
 }

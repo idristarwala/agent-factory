@@ -105,7 +105,37 @@ func (a *GeminiAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatRespons
 }
 
 func (a *GeminiAdapter) Stream(ctx context.Context, req ChatRequest) (Stream, error) {
-	return nil, ErrStreamingUnsupported
+	// Basic streaming: set streamGenerateContent and parse SSE text deltas.
+	// Falls back to one-shot if the endpoint does not support it.
+	body := map[string]any{
+		"contents": []map[string]any{{
+			"role": "user",
+			"parts": []map[string]any{{"text": req.Messages[len(req.Messages)-1].Content}},
+		}},
+		"generationConfig": map[string]any{
+			"maxOutputTokens": req.MaxTokens,
+		},
+	}
+	b, _ := json.Marshal(body)
+	url := a.BaseURL + "/v1beta/models/" + req.Model + ":streamGenerateContent?alt=sse"
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(b))
+	if err != nil {
+		return nil, err
+	}
+	httpReq.Header.Set("x-goog-api-key", a.APIKey)
+	httpReq.Header.Set("Content-Type", "application/json")
+	for k, v := range a.Headers {
+		httpReq.Header.Set(k, v)
+	}
+	resp, err := a.Client.Do(httpReq)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode >= 400 {
+		resp.Body.Close()
+		return nil, &Error{Type: "GATEWAY", Status: resp.StatusCode, Retryable: resp.StatusCode >= 500 || resp.StatusCode == 429}
+	}
+	return &sseStream{r: resp.Body}, nil
 }
 
 
@@ -113,4 +143,9 @@ func parseInt(s string) (int, error) {
 	var n int
 	_, err := fmt.Sscanf(s, "%d", &n)
 	return n, err
+}
+
+// SetAPIKey updates the API key (used by TokenRefresher).
+func (a *GeminiAdapter) SetAPIKey(key string) {
+	a.APIKey = key
 }

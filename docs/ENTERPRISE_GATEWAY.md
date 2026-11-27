@@ -26,20 +26,20 @@ Example gateway.json:
 - Typed errors (RATE_LIMITED, AUTH, BAD_REQUEST) with retryable flag
 - Basic multi-protocol conformance against `httptest` servers
 - Extended conformance: auth errors, concurrency, SSE reassembly
+- Tool-call parsing and round-trip tests for all three protocols
+- TokenRefresher with API key injection into adapters
+- Basic SSE streaming for OpenAI, Gemini (`streamGenerateContent`), and Anthropic
 
 ## Remaining for full native support
 
-- Tool-call parsing in adapters
-- Auth token refresh / rotation reload
-- Full parameter mapping (max_completion_tokens, reasoning_budget) wired end-to-end
-- Streaming native (currently reassembly helpers + one-shot fallback)
-- Usage recording into `internal/obs` on every call
+- Full parameter mapping (max_completion_tokens, reasoning_budget) wired end-to-end in all paths
+- Streaming event parsing refined for Gemini/Anthropic content blocks (OpenAI delta parsing is solid)
+- Usage recording into `internal/obs` on every call (RecordingClient exists)
 
 See TRACKING.md for status.
 
 ## Recent advances
 
-- Anthropic and Gemini tool-call round-trip conformance tests added.
-- TokenRefresher decorator exercised in the LLM conformance suite.
-- Basic SSE streaming implemented for OpenAI-compatible adapters.
-
+- Anthropic and Gemini tool-call round-trip conformance tests.
+- TokenRefresher now injects the refreshed key via `SetAPIKey` on adapters.
+- Basic SSE streaming implemented for OpenAI, Gemini, and Anthropic adapters.

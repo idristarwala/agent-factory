@@ -20,8 +20,9 @@
 - OpenAI, Gemini, and Anthropic POST adapters
 - Full multi-protocol conformance tests
 - Rate limiter in router
-- Token refresher for key rotation
+- Token refresher for key rotation (now injects key into adapters that implement SetAPIKey)
 - Tool call parsing (OpenAI, Anthropic, Gemini)
+- Basic native SSE streaming for OpenAI, Gemini (streamGenerateContent), and Anthropic
 
 ### Packaging (#9)
 - Factory CLI, pack loader, validation
@@ -39,8 +40,8 @@
 - Conformance harness + multi-protocol tests
 - Protocol builders and POST adapters
 - Tool call parsing + round-trip tests (OpenAI, Anthropic, Gemini)
-- Token refresh support (`TokenRefresher` decorator exercised in conformance suite)
-- Basic native SSE streaming for OpenAI-compatible endpoints
+- Token refresh support (`TokenRefresher` decorator with key injection, exercised in tests)
+- Basic native SSE streaming for OpenAI-compatible, Gemini, and Anthropic endpoints
 
 ### HTTP tools (#12)
 - HTTPTool with path templating, auth, retries, cache, real key loading
@@ -54,6 +55,6 @@
 
 - Context recipe fully wired into the runner loop (types exist; further integration pending)
 - Full block-then-decide LLM membership for grouping
-- Streaming support for Anthropic / Gemini (OpenAI SSE is in place)
+- Streaming delta parsing is OpenAI-shaped; Gemini/Anthropic event shapes can be refined further
 
-All high-impact correctness, config seams, POST adapters, packaging, HTTP tools, tool-call round-trips across protocols, auth refresh, and release automation are in place.
+All high-impact correctness, config seams, POST adapters, packaging, HTTP tools, tool-call round-trips across protocols, auth refresh with key injection, and release automation are in place.
