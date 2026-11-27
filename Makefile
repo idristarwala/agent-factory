@@ -8,6 +8,7 @@ build:
 
 ui-build:
 	npm --prefix ui-app ci
+	npm --prefix ui-app test
 	npm --prefix ui-app run build
 
 ci: test build ui-build
