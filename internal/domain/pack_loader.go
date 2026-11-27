@@ -18,8 +18,3 @@ func LoadPackFromJSON(path string) (Pack, error) {
 	}
 	return p, nil
 }
-
-// StructuredOutputHint returns a note for models that support response_format.
-func StructuredOutputHint() string {
-	return "Respond with valid JSON only. Do not include markdown fences or explanations."
-}

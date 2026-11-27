@@ -78,7 +78,7 @@ grants:
 			if err != nil {
 				t.Fatal(err)
 			}
-			tool := c.registry["lookup"]
+			tool := c.Tools["lookup"]
 			tr := tool.Client.Transport.(*http.Transport)
 			if tr.Proxy != nil || tool.Client.Timeout != 2*time.Second || tool.CacheTTL != 0 {
 				t.Fatal("configured transport limits not applied")

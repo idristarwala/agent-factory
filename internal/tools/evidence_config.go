@@ -18,9 +18,9 @@ import (
 
 // EvidenceConfig is an operator-supplied recipe for the pack selected by the caller.
 type EvidenceConfig struct {
-	recipe   ContextRecipe
-	registry map[string]*HTTPTool
-	grants   []Grant
+	Recipe ContextRecipe
+	Tools  map[string]*HTTPTool
+	Grants []Grant
 }
 
 func LoadEvidenceConfig(path, pack string) (*EvidenceConfig, error) {
@@ -28,13 +28,13 @@ func LoadEvidenceConfig(path, pack string) (*EvidenceConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	if cfg.recipe.Entity == "" && cfg.recipe.Neighbours == "" {
+	if cfg.Recipe.Entity == "" && cfg.Recipe.Neighbours == "" {
 		return nil, fmt.Errorf("missing entity or neighbours evidence source")
 	}
-	if cfg.recipe.Media != "" && cfg.recipe.Entity == "" {
+	if cfg.Recipe.Media != "" && cfg.Recipe.Entity == "" {
 		return nil, fmt.Errorf("media requires an entity evidence tool")
 	}
-	if err := cfg.recipe.Authorize(pack, cfg.grants); err != nil {
+	if err := cfg.Recipe.Authorize(pack, cfg.Grants); err != nil {
 		return nil, err
 	}
 	return cfg, nil
@@ -178,7 +178,7 @@ func loadHTTPConfig(path string) (*EvidenceConfig, error) {
 			return nil, fmt.Errorf("missing evidence tool %q", step.name)
 		}
 	}
-	return &EvidenceConfig{recipe: config.Context, registry: registry, grants: config.Grants}, nil
+	return &EvidenceConfig{Recipe: config.Context, Tools: registry, Grants: config.Grants}, nil
 }
 
 func RecordParams(id string, props map[string]any) map[string]string {
@@ -199,9 +199,9 @@ func (c *EvidenceConfig) Gather(ctx context.Context, id string, props map[string
 }
 
 func (c *EvidenceConfig) GatherRecord(ctx context.Context, id string, props map[string]any) (RecordEvidence, error) {
-	result, err := ExecuteRecipe(ctx, c.recipe, c.registry, RecordParams(id, props))
+	result, err := ExecuteRecipe(ctx, c.Recipe, c.Tools, RecordParams(id, props))
 	if err != nil {
 		return RecordEvidence{}, err
 	}
-	return c.recipe.Collect(ctx, result)
+	return c.Recipe.Collect(ctx, result)
 }

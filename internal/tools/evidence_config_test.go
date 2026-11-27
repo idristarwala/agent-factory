@@ -52,7 +52,7 @@ grants:
 		if err != nil {
 			t.Fatal(err)
 		}
-		c.registry["source"].Client = srv.Client()
+		c.Tools["source"].Client = srv.Client()
 		evidence, err := c.Gather(t.Context(), "a/b", map[string]any{"id": "wrong", "label": "x & y"})
 		if err != nil || len(evidence) != 1 || evidence[0] != "entity (tool source): source record" {
 			t.Fatalf("unexpected evidence %v, %v", evidence, err)

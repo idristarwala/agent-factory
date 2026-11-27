@@ -21,23 +21,15 @@ type LLMWorker struct {
 	Gateway    models.Gateway
 	Graph      graph.Graph
 	Rules      []Rule
-	Refresh    RuleRefresher
 }
-
-type RuleRefresher func() []Rule
 
 func NewLLMWorker(id, role string, gw models.Gateway, g graph.Graph, rules []Rule) *LLMWorker {
 	return &LLMWorker{ID: id, Role: role, Gateway: gw, Graph: g, Rules: rules}
 }
 
-func (w *LLMWorker) SetRefresher(fn RuleRefresher) { w.Refresh = fn }
-
 func (w *LLMWorker) Claim(uow *unitofwork.UnitOfWork) error { return nil }
 
 func (w *LLMWorker) Execute(uow *unitofwork.UnitOfWork) (*graph.Mutation, error) {
-	if w.Refresh != nil {
-		w.Rules = w.Refresh()
-	}
 
 	var context string
 	if uow.InputSubgraph == "" {

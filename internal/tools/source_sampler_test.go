@@ -31,7 +31,7 @@ func TestAuthorizedSourceSample(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s.config.registry["meter"].Client = srv.Client()
+	s.config.Tools["meter"].Client = srv.Client()
 	if _, err := s.Sample(t.Context(), "other", "meter", nil); !errors.Is(err, ErrSourceDenied) {
 		t.Fatal(err)
 	}
