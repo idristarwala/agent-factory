@@ -48,6 +48,10 @@ func (t *HTTPTool) Call(ctx context.Context, params map[string]string) (string, 
 		urlStr = strings.ReplaceAll(urlStr, "{"+k+"}", url.PathEscape(v))
 	}
 
+	if err := validateDestination(t.URLTemplate, urlStr); err != nil {
+		return "", err
+	}
+
 	// Add query params
 	if len(t.QueryParams) > 0 {
 		u, err := url.Parse(urlStr)
@@ -147,7 +151,7 @@ func NewHTTPTool(name, method, urlTemplate string) *HTTPTool {
 		Method:      method,
 		URLTemplate: urlTemplate,
 		SideEffect:  "read-only",
-		Client:      &http.Client{Timeout: 20 * time.Second},
+		Client:      publicClient(),
 		Headers:     map[string]string{},
 		Retries:     2,
 		CacheTTL:    10 * time.Minute,

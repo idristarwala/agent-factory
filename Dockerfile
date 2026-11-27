@@ -3,9 +3,7 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 go build -o /out/agent-factory ./cmd/goal \
- && CGO_ENABLED=0 go build -o /out/factory ./cmd/factory \
- && CGO_ENABLED=0 go build -o /out/api ./cmd/api
+RUN sh scripts/build-binaries.sh /out
 
 FROM alpine:3.20
 RUN apk add --no-cache ca-certificates
