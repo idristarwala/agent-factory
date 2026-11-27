@@ -32,8 +32,11 @@ Present:
 - docker-compose, Helm chart, starter template, digest-pinned release workflow
 - Multi-binary Dockerfile and optional Postgres wiring
 
-Remaining:
-- Optional fuller learning-loop end-to-end tests with scripted failure patterns
+Remaining (updated 2026-11-27):
 - Live field-test re-run to confirm #10 accuracy items
 
 The core factory loop is functional and the packaging surface is usable for local and CI/CD use. Packs can now express nested rules that the starter template already uses.
+
+## Learning-loop coverage
+
+Added a scripted failure-pattern test (`internal/swarm/learning_improvement_test.go`) that exercises format vs truncation causes end-to-end through Review → ProposeUpdates → Apply and verifies distinct actionable rules. This closes the “optional fuller learning-loop e2e tests” note for packaging and accuracy work. Live field-test re-run remains the external validation step for #10.
