@@ -98,24 +98,6 @@ func (r *Registry) Register(v AgentVersion) AgentVersion {
 		return out
 	}
 }
-func (r *Registry) Deregister(name string) {
-	for {
-		v, ok := r.Get(name)
-		if !ok {
-			return
-		}
-		v.Retired = true
-		v.CreatedBy = "system"
-		_, err := r.Save(v, v.Revision)
-		if errors.Is(err, revision.ErrConflict) {
-			continue
-		}
-		if err != nil {
-			panic(err)
-		}
-		return
-	}
-}
 func (r *Registry) Running() []AgentVersion {
 	h, err := r.History("")
 	if err != nil {

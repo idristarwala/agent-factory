@@ -14,3 +14,5 @@ The continuous CLI processes work in an in-memory graph and queue and publishes 
 Pull requests also compare exported internal Go helpers against the base revision and flag newly unreachable helpers. Run `make ci` before pushing. Install the repository hook with `git config core.hooksPath .githooks`. The Go module and its checksums are committed.
 
 The environment and YAML model routes share protocol adapters, retry handling, typed errors and per-attempt usage logs. The agent-facing request interface is in `internal/models`. Wire protocol implementations are in `internal/llm`. [Gateway configuration](ENTERPRISE_GATEWAY.md)
+
+The legacy helper list in issue 16 has been reconciled. Production provider calls use the shared protocol adapters and trace model attempts with the work unit ID. Agent retirement uses the version-checked definition save. The always-approving judge is a test fixture. [Field review and named helper list](https://github.com/idristarwala/agent-factory/issues/16#issuecomment-7225398686)

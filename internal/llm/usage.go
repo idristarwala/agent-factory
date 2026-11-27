@@ -23,10 +23,6 @@ type Recorder struct {
 	Records []UsageRecord
 }
 
-func NewRecorder() *Recorder {
-	return &Recorder{}
-}
-
 func (r *Recorder) Record(u UsageRecord) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
