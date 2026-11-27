@@ -3,7 +3,6 @@ package tools
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"sync"
 
 	"github.com/idristarwala/agent-factory/schemas"
@@ -17,7 +16,7 @@ var evidenceSchema = sync.OnceValues(func() (*jsonschema.Schema, error) {
 
 // ValidateEvidenceFile checks a draft before its grants and deployment files exist.
 func ValidateEvidenceFile(path string) error {
-	data, err := os.ReadFile(path)
+	data, err := readEvidenceFile(path)
 	if err != nil {
 		return err
 	}

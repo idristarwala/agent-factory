@@ -86,7 +86,7 @@ func (c *EvidenceConfig) CheckCredentials() error {
 }
 
 func loadHTTPConfig(path string) (*EvidenceConfig, error) {
-	data, err := os.ReadFile(path)
+	data, err := readEvidenceFile(path)
 	if err != nil {
 		return nil, err
 	}

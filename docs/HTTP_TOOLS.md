@@ -155,3 +155,21 @@ The importer supports a single bearer or header API-key scheme for that operatio
 Run `factory validate --tools draft-tools.yaml` after importing or editing a tool. Pass multiple YAML or JSON paths to validate them together. The CLI checks the published schema, HTTP and MCP method restrictions, required authentication fields, JSONPath expressions, time limits and names referenced by the context recipe. An invalid file exits nonzero.
 
 Draft validation works offline with an empty grant list and before deployment secrets or CA files exist. At deployment the runtime checks the destination allowlist, loads configured CAs, and authorizes the evidence recipe for the selected pack. Credential files are read at request time. [Evidence tool file schema](../schemas/evidence-tools.schema.json)
+
+## Share tool definitions across factories
+
+Publish a YAML or JSON file containing a single `tools` mapping in a Git repository or an OCI artifact. Vendor the reviewed file in the consuming workspace. For a Git submodule, commit the submodule revision and check it out recursively in CI. For OCI, use your existing artifact client to pull the reviewed artifact by digest before validation. The factory reads local files and can run offline after checkout.
+
+Compute the definition file's digest with `sha256sum vendor/records/tools.yaml`. Add the following fields to the workspace's existing `factory.yaml`, replacing the placeholder with the 64 lowercase hex digits. Each package must use distinct tool names. Define the context recipe and grants in the consuming factory.
+
+```yaml
+tool_packages:
+  - path: vendor/records/tools.yaml
+    sha256: "<digest of the exact file bytes>"
+evidence:
+  context: {entity: lookup}
+  grants:
+    - {pack: review, tools: [lookup, propose], side_effects: [read-only]}
+```
+
+Run `factory validate factory.yaml` alongside pack validation. Set `FACTORY_EVIDENCE_CONFIG=factory.yaml` for the continuous runner or `FACTORY_SOURCE_CONFIG=factory.yaml` for API sampling and the connector. Mount the manifest and package files with the same directory layout. Runtime loading verifies the digest before interpreting definitions. Relative credential and CA paths in those definitions resolve from the manifest directory. Review destinations and credential references before granting a tool. To upgrade, commit the new vendored revision and file digest together and restart the consuming process.

@@ -177,3 +177,5 @@ A rolled-back configuration insert left zero rows. On an analyzed table with 8,0
 For workspace goals that pin a pack release, observation also depends on the factory definition. A new pack pin starts in observe mode. A compatible `pack_promotion` reference permits approved edits when workspace observation is off. The effective mode is stored with each run. [Observation and promotion](RELEASE.md#promote-a-reviewed-observation)
 
 The connector image runs `factory tools sample SOURCE [PARAM=VALUE ...]`. Set `FACTORY_SOURCE_CONFIG` to a mounted source file and `FACTORY_PACK` to the operator-selected grant scope. The command accepts the configured source name and its declared query parameters and writes one JSON response to stdout.
+
+A workspace `factory.yaml` can declare `tool_packages`, a list of relative `path` and lowercase file `sha256` pairs. Its optional `evidence.context` and `evidence.grants` configure how the factory uses those tools. Point `FACTORY_EVIDENCE_CONFIG` or `FACTORY_SOURCE_CONFIG` at the manifest to load the pinned definitions. [Shared tool setup](HTTP_TOOLS.md#share-tool-definitions-across-factories)
