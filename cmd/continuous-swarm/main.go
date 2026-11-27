@@ -8,6 +8,7 @@ import (
 	"github.com/idristarwala/agent-factory/internal/agents"
 	"github.com/idristarwala/agent-factory/internal/graph"
 	"github.com/idristarwala/agent-factory/internal/learning"
+	"github.com/idristarwala/agent-factory/internal/models"
 	"github.com/idristarwala/agent-factory/internal/queue"
 	"github.com/idristarwala/agent-factory/internal/rules"
 	"github.com/idristarwala/agent-factory/internal/swarm"
@@ -16,8 +17,7 @@ import (
 
 func main() {
 	g := graph.NewMemoryGraph()
-	// Seed a node that needs fixing
-	g.Upsert(graph.Node{ID: "item-1", Type: "item", Props: map[string]any{"status": "needs_fix", "title": "bad title"}})
+	g.AddNode(graph.Node{ID: "item-1", Type: "item", Props: map[string]any{"status": "needs_fix", "title": "bad title"}})
 
 	q := queue.NewMemoryQueue()
 	re := rules.NewEngine()
@@ -26,7 +26,13 @@ func main() {
 
 	store := unitofwork.NewMemoryStore()
 	steward := agents.NewSmartSteward(store)
-	steward.Graph = g // enables graph-clean detection
+
+	// Real or noop gateway so CreateWorker succeeds
+	var gw models.Gateway = &noopGateway{}
+	if g2, err := models.NewOpenAICompatFromEnv(); err == nil {
+		gw = g2
+	}
+	steward.SetRuntime(gw, g, nil)
 
 	judge := &demoJudge{}
 
@@ -39,13 +45,9 @@ func main() {
 		goal = os.Args[1]
 	}
 
-	fmt.Println("Continuous swarm with SmartSteward (stops when graph is clean)")
+	fmt.Println("Continuous swarm with real gateway (stops when graph is clean)")
 	if err := runner.Run(context.Background(), goal); err != nil {
 		fmt.Println("Runner finished:", err)
-	}
-	fmt.Println("Final graph snapshot:")
-	for _, n := range g.Snapshot() {
-		fmt.Printf("  %s: %v\n", n.ID, n.Props)
 	}
 }
 
@@ -53,4 +55,10 @@ type demoJudge struct{}
 
 func (j *demoJudge) Evaluate(m *graph.Mutation, rules []agents.Rule) (agents.Decision, error) {
 	return agents.Decision{Approved: true, Reason: "demo approve"}, nil
+}
+
+type noopGateway struct{}
+
+func (n *noopGateway) Generate(req models.Request) (*models.Response, error) {
+	return &models.Response{Content: `{"title":"fixed title","status":"fixed"}`, Model: "noop"}, nil
 }
