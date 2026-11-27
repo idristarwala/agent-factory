@@ -1,6 +1,7 @@
 package grouping
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/idristarwala/agent-factory/internal/schema"
