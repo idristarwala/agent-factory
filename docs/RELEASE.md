@@ -8,9 +8,10 @@ Engine releases carry the project’s proprietary license. The release assets in
 
 ## Publish a proposed pack revision
 
-Run your checks on the committed pack in your user repository. After they pass, have CI write a JSON receipt with `status` set to `passed`, the full Git `commit`, the lowercase hex `pack_sha256` of the exact pack file, and a nonempty `tests` array naming the checks. Additional evidence fields are retained. The publisher trusts the CI producer’s test report. It verifies the commit and pack digest against the checkout.
+Run the two commands below in your pack repository. The first reads the pack, fixtures and referenced definitions from the same Git commit, runs the fixture suite offline and prints a JSON receipt only after all fixtures pass. Working-tree edits are exercised by plain `factory test`. For a custom CI suite, write a JSON receipt with `status` set to `passed`, the full Git `commit`, the lowercase hex `pack_sha256` of the exact pack file, and a nonempty `tests` array naming the checks. Additional evidence fields are retained. The publisher trusts the CI producer’s test report. It verifies the commit and pack digest against the checkout.
 
 ```sh
+factory test --receipt packs/support/pack.yaml > test-evidence.json
 factory publish -pack packs/support/pack.yaml -evidence test-evidence.json -expected 0
 ```
 

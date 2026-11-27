@@ -51,7 +51,7 @@ func runFixtures(paths []string) error {
 				continue
 			}
 			file := filepath.Join(dir, "fixtures", entry.Name())
-			if err := checkFixture(file, dir, p); err != nil {
+			if err := checkFixture(file, dir, p, os.ReadFile); err != nil {
 				return fmt.Errorf("%s: %w", file, err)
 			}
 			fmt.Println("PASS", file)
@@ -64,8 +64,8 @@ func runFixtures(paths []string) error {
 	})
 }
 
-func checkFixture(path, dir string, p *pack.Pack) error {
-	raw, err := os.ReadFile(path)
+func checkFixture(path, dir string, p *pack.Pack, readFile func(string) ([]byte, error)) error {
+	raw, err := readFile(path)
 	if err != nil {
 		return err
 	}
@@ -82,7 +82,7 @@ func checkFixture(path, dir string, p *pack.Pack) error {
 	if f.Definition == "" || len(f.Worker) == 0 || f.Judge == "" || f.Approved == nil || f.Expected == nil {
 		return fmt.Errorf("supply a definition, both gateway replies, expected_patch and expected_approved")
 	}
-	def, err := os.ReadFile(filepath.Join(dir, f.Definition))
+	def, err := readFile(filepath.Join(dir, f.Definition))
 	if err != nil {
 		return err
 	}

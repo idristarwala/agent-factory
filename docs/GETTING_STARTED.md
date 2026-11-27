@@ -57,3 +57,5 @@ active: true
 The CLI embeds the same schema used for entries in a pack’s `rules` array. Validation works offline and exits nonzero on the first invalid file. To use a validated rule in a pack, include its object in the pack’s `rules` array. [Rule schema](../schemas/rule.schema.json)
 
 For deployment with a pinned image and shared PostgreSQL database, follow the [production Helm guide](DEPLOYMENT.md).
+
+To use a passing fixture suite as publication evidence, run `factory test --receipt path/to/pack.yaml` in the pack repository. It emits one JSON object for the committed pack and its committed fixtures. [Publication workflow](RELEASE.md#publish-a-proposed-pack-revision)

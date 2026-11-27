@@ -65,12 +65,7 @@ func publishPack(args []string) error {
 	if err != nil {
 		return err
 	}
-	var receipt struct {
-		Status  string
-		Commit  string
-		PackSHA string `json:"pack_sha256"`
-		Tests   []string
-	}
+	var receipt packReceipt
 	digest := fmt.Sprintf("%x", sha256.Sum256(data))
 	if err := json.Unmarshal(raw, &receipt); err != nil {
 		return fmt.Errorf("decode evidence: %w", err)

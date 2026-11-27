@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -47,5 +50,48 @@ func TestStandalonePackFixtures(t *testing.T) {
 	}
 	if err := runFixtures(nil); err == nil {
 		t.Fatal("no fixtures reported success")
+	}
+}
+
+func TestReceiptUsesOneCommittedSnapshot(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.CopyFS(filepath.Join(dir, "pack"), os.DirFS("../../examples/service-desk")); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(dir)
+	git := func(args ...string) {
+		t.Helper()
+		if out, err := exec.Command("git", args...).CombinedOutput(); err != nil {
+			t.Fatalf("%s: %v", out, err)
+		}
+	}
+	git("init", "-q")
+	git("add", "pack")
+	commit := func() { git("-c", "user.name=CI", "-c", "user.email=ci@example.org", "commit", "-qm", "snapshot") }
+	commit()
+	if err := os.WriteFile("pack/factory.json", []byte("broken definition"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	if err := fixtureReceipt("pack/pack.yaml", &out); err != nil {
+		t.Fatal(err)
+	}
+	var receipt packReceipt
+	if err := json.Unmarshal(out.Bytes(), &receipt); err != nil || receipt.Status != "passed" || len(receipt.Tests) != 1 || receipt.Tests[0] != "fixtures/routing.json" {
+		t.Fatal(receipt, err)
+	}
+	t.Setenv("FACTORY_STORE_MODE", "sqlite")
+	t.Setenv("FACTORY_DB_PATH", filepath.Join(dir, "store.sqlite"))
+	if err := os.WriteFile("receipt.json", out.Bytes(), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := publishPack([]string{"-pack", "pack/pack.yaml", "-evidence", "receipt.json", "-expected", "0"}); err != nil {
+		t.Fatal(err)
+	}
+	git("add", "pack")
+	commit()
+	out.Reset()
+	if err := fixtureReceipt("pack/pack.yaml", &out); err == nil || out.Len() != 0 {
+		t.Fatal(out.String(), err)
 	}
 }
