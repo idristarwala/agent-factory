@@ -35,9 +35,23 @@ type WorkerSpec struct {
 }
 
 type Rule struct {
+	Version     int
 	ID          string
 	Description string
 	Condition   string
 	Action      string
 	Source      string // "human", "feedback", "agent"
+}
+
+func ruleRevisions(rules []Rule) map[string]int {
+	var versions map[string]int
+	for _, r := range rules {
+		if r.ID != "" && r.Version > 0 {
+			if versions == nil {
+				versions = make(map[string]int)
+			}
+			versions[r.ID] = r.Version
+		}
+	}
+	return versions
 }

@@ -20,7 +20,21 @@ func TestInvalidActivationPreservesRuleHistory(t *testing.T) {
 		t.Fatal(err)
 	}
 	active := e.Active()
-	if len(active) != 1 || active[0].Version != next.Version {
+	if len(active) != 1 || active[0].Version != next.Version+1 || active[0].ActivatedFrom != next.Version {
 		t.Fatalf("active rules: %+v", active)
+	}
+}
+
+func TestPromotingHistoricalContentAppendsRollback(t *testing.T) {
+	e := NewEngine()
+	a := e.Propose(VersionedRule{ID: "r", Description: "original", Active: true})
+	b := e.Propose(VersionedRule{ID: "r", Description: "edit", Active: true})
+	rollback, err := e.Promote("r", a.Version, b.Version, "human")
+	if err != nil || rollback.Version != 3 || rollback.Description != a.Description || rollback.CreatedBy != "human" || rollback.ParentID != "r:2" {
+		t.Fatal(rollback, err)
+	}
+	h := e.History("r")
+	if h[0] != a || h[1] != b {
+		t.Fatal("rewrote history")
 	}
 }

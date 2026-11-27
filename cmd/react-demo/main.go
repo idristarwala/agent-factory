@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	factoryStore "github.com/idristarwala/agent-factory/internal/store"
+	"log"
 	"os"
 
 	"github.com/idristarwala/agent-factory/internal/agents"
@@ -13,6 +15,14 @@ import (
 )
 
 func main() {
+	database, err := factoryStore.NewFromEnv()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer database.Close()
+	definitions := factoryStore.FactoryDefinitions(database, "react-demo")
+	registry := agents.NewStoredRegistry(definitions)
+
 	gw, err := models.NewGatewayFromEnv()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "gateway: %v\n", err)
@@ -38,8 +48,17 @@ func main() {
 	tr.Register(&tools.BigQueryTool{Project: "demo", Dataset: "catalog"})
 
 	store := unitofwork.NewMemoryStore()
+	if _, err := registry.Resolve(agents.AgentVersion{Name: "steward", Role: "steward", ModelTier: "frontier", CreatedBy: "system"}); err != nil {
+		log.Fatal(err)
+	}
 	steward := agents.NewSmartSteward(store)
-	worker := agents.NewReactWorker("react-1", "catalog-enricher", gw, g, tr)
+	steward.Registry = registry
+	def, err := registry.Resolve(agents.AgentVersion{Name: "react-1", Role: "catalog-enricher", ModelTier: "cheap", CreatedBy: "steward"})
+	if err != nil {
+		log.Fatal(err)
+	}
+	worker := agents.NewReactWorker(def.Name, def.Role, gw, g, tr)
+	worker.Definition = def
 
 	uows, err := steward.InterpretGoal("Enrich title using brand guidelines", nil)
 	if err != nil || len(uows) == 0 {

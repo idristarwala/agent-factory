@@ -2,6 +2,7 @@ package store
 
 import (
 	"fmt"
+	"github.com/idristarwala/agent-factory/internal/revision"
 	"sync"
 
 	"github.com/idristarwala/agent-factory/internal/graph"
@@ -11,11 +12,11 @@ import (
 // MemoryStore is a fully in-process implementation of Store.
 // No external dependencies. Suitable for tests and local runs.
 type MemoryStore struct {
-	mu    sync.RWMutex
-	nodes map[graph.NodeID]*graph.Node
-	units map[string]*unitofwork.UnitOfWork
-	rules map[string][][]byte // id -> versions
-	entries []struct {
+	mu          sync.RWMutex
+	nodes       map[graph.NodeID]*graph.Node
+	units       map[string]*unitofwork.UnitOfWork
+	definitions *revision.Memory
+	entries     []struct {
 		Kind, Content, Source string
 		Meta                  []byte
 	}
@@ -23,9 +24,9 @@ type MemoryStore struct {
 
 func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{
-		nodes: make(map[graph.NodeID]*graph.Node),
-		units: make(map[string]*unitofwork.UnitOfWork),
-		rules: make(map[string][][]byte),
+		nodes:       make(map[graph.NodeID]*graph.Node),
+		units:       make(map[string]*unitofwork.UnitOfWork),
+		definitions: revision.NewMemory(),
 	}
 }
 
@@ -103,25 +104,11 @@ func (s *MemoryStore) AttachProposal(id string, m *graph.Mutation) error {
 	return nil
 }
 
-func (s *MemoryStore) SaveRuleVersion(id string, version int, data []byte) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.rules[id] = append(s.rules[id], data)
-	return nil
+func (s *MemoryStore) Definitions() revision.Store { return s.definitions }
+func (s *MemoryStore) SaveRuleVersion(id string, v int, data []byte) error {
+	return s.definitions.Insert(revision.Rule, revision.Snapshot{ID: id, Version: v, Data: data})
 }
-
-func (s *MemoryStore) ActiveRules() ([][]byte, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	var out [][]byte
-	for _, versions := range s.rules {
-		if len(versions) > 0 {
-			out = append(out, versions[len(versions)-1])
-		}
-	}
-	return out, nil
-}
-
+func (s *MemoryStore) ActiveRules() ([][]byte, error) { return latestRuleData(s.definitions) }
 func (s *MemoryStore) SaveEntry(kind, content, source string, meta []byte) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	factoryStore "github.com/idristarwala/agent-factory/internal/store"
+	"log"
 	"os"
 
 	"github.com/idristarwala/agent-factory/internal/agents"
@@ -14,6 +16,14 @@ import (
 )
 
 func main() {
+	database, err := factoryStore.NewFromEnv()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer database.Close()
+	definitions := factoryStore.FactoryDefinitions(database, "")
+	registry := agents.NewStoredRegistry(definitions)
+
 	if len(os.Args) < 2 {
 		fmt.Fprintf(os.Stderr, "usage: goal \"<goal text>\"\n")
 		os.Exit(1)
@@ -28,7 +38,7 @@ func main() {
 
 	g := graph.NewMemoryGraph()
 	store := unitofwork.NewMemoryStore()
-	ruleEngine := rules.NewEngine()
+	ruleEngine := rules.NewStoredEngine(definitions)
 	mem := memory.NewStore()
 
 	g.AddNode(graph.Node{
@@ -41,16 +51,28 @@ func main() {
 		},
 	})
 
-	for _, r := range domain.CatalogPack().DefaultRules {
-		ruleEngine.Propose(rules.VersionedRule{Description: r, Source: "domain-pack", CreatedBy: "system"})
+	for i, r := range domain.CatalogPack().DefaultRules {
+		if err := ruleEngine.Install(rules.VersionedRule{ID: fmt.Sprintf("catalog/default/%d", i+1), Description: r, Active: true, Source: "domain-pack", CreatedBy: "system"}); err != nil {
+			log.Fatal(err)
+		}
 	}
 
-	steward := agents.NewSmartSteward(store)
-	var activeRules []agents.Rule
-	for _, vr := range ruleEngine.Active() {
-		activeRules = append(activeRules, agents.Rule{Description: vr.Description})
+	if _, err := registry.Resolve(agents.AgentVersion{Name: "steward", Role: "steward", ModelTier: "frontier", CreatedBy: "system"}); err != nil {
+		log.Fatal(err)
 	}
-	worker := agents.NewLLMWorker("worker-1", "catalog-enricher", gw, g, activeRules)
+	steward := agents.NewSmartSteward(store)
+	steward.Registry = registry
+	activeRules := ruleEngine.ToAgentsRules()
+	steward.SetRuntime(gw, g, activeRules)
+	def, err := registry.Resolve(agents.AgentVersion{Name: "worker-1", Role: "catalog-enricher", ModelTier: "cheap", CreatedBy: "steward"})
+	if err != nil {
+		log.Fatal(err)
+	}
+	worker := agents.NewLLMWorker(def.Name, def.Role, gw, g, activeRules)
+	worker.Definition = def
+	if _, err := registry.Resolve(agents.AgentVersion{Name: "judge", Role: "judge", ModelTier: "frontier", CreatedBy: "system"}); err != nil {
+		log.Fatal(err)
+	}
 	judge := agents.NewLLMJudge(gw, g)
 
 	fmt.Printf("Goal: %s\n", goal)

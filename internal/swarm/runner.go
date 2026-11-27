@@ -43,6 +43,9 @@ type ContinuousRunner struct {
 }
 
 func NewContinuousRunner(s agents.Steward, j agents.Judge, q queue.WorkQueue, g graph.Graph, re *rules.Engine, ll *learning.LearningLoop) *ContinuousRunner {
+	if smart, ok := s.(*agents.SmartSteward); ok && ll != nil && ll.Registry != nil {
+		smart.Registry = ll.Registry
+	}
 	return &ContinuousRunner{
 		Steward:  s,
 		Judge:    j,
@@ -97,10 +100,7 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 		fmt.Printf("===== Round %d =====\n", round)
 
 		if smart, ok := r.Steward.(*agents.SmartSteward); ok && r.Rules != nil {
-			var active []agents.Rule
-			for _, vr := range r.Rules.Active() {
-				active = append(active, agents.Rule{Description: vr.Description})
-			}
+			active := r.Rules.ToAgentsRules()
 			smart.SetRuntime(smart.Gateway, smart.Graph, active)
 		}
 

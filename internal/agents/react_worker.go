@@ -14,12 +14,13 @@ import (
 
 // ReactWorker runs a bounded observe-think-act loop before proposing a mutation.
 type ReactWorker struct {
-	ID       string
-	Role     string
-	Gateway  models.Gateway
-	Graph    graph.Graph
-	Tools    *tools.Registry
-	MaxSteps int
+	Definition AgentVersion
+	ID         string
+	Role       string
+	Gateway    models.Gateway
+	Graph      graph.Graph
+	Tools      *tools.Registry
+	MaxSteps   int
 }
 
 func NewReactWorker(id, role string, gw models.Gateway, g graph.Graph, tr *tools.Registry) *ReactWorker {
@@ -90,7 +91,7 @@ Only use FINAL when you have enough information.`, uow.Description, scratch, too
 				nodeID = "product-unknown"
 			}
 			return &graph.Mutation{
-				UnitOfWorkID: uow.ID,
+				UnitOfWorkID: uow.ID, AgentName: w.Definition.Name, AgentRevision: w.Definition.Revision,
 				Updates: []graph.Node{{
 					ID:   graph.NodeID(nodeID),
 					Type: "product",

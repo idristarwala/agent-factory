@@ -2,6 +2,7 @@ package learning
 
 import (
 	"fmt"
+	"github.com/google/uuid"
 	"strings"
 	"time"
 
@@ -153,6 +154,7 @@ func (l *LearningLoop) Apply(updates []AgentUpdate) []string {
 				active = ShouldActivate(nil)
 			}
 			r := l.RuleEngine.Propose(rules.VersionedRule{
+				ID:          uuid.NewSHA1(uuid.NameSpaceOID, []byte("steward-rule/"+u.Payload["pattern"])).String(),
 				Description: u.Payload["description"],
 				Source:      u.Payload["source"],
 				CreatedBy:   "steward",
@@ -167,6 +169,7 @@ func (l *LearningLoop) Apply(updates []AgentUpdate) []string {
 		case "new_agent":
 			l.Registry.Register(agents.AgentVersion{
 				Name:      u.Payload["role"],
+				CreatedBy: "steward",
 				Role:      "worker",
 				Version:   u.Payload["version"],
 				ModelTier: "cheap",

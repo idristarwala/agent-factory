@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	factoryStore "github.com/idristarwala/agent-factory/internal/store"
+	"log"
 	"os"
 	"time"
 
@@ -17,16 +19,28 @@ import (
 )
 
 func main() {
+	database, err := factoryStore.NewFromEnv()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer database.Close()
+	definitions := factoryStore.FactoryDefinitions(database, "")
+	registry := agents.NewStoredRegistry(definitions)
+
 	g := graph.NewMemoryGraph()
 	g.AddNode(graph.Node{ID: "item-1", Type: "item", Props: map[string]any{"status": "needs_fix", "title": "bad title"}})
 
 	q := queue.NewMemoryQueue()
-	re := rules.NewEngine()
-	reg := agents.NewRegistry()
+	re := rules.NewStoredEngine(definitions)
+	reg := registry
 	ll := learning.NewLearningLoop(re, reg)
 
 	store := unitofwork.NewMemoryStore()
+	if _, err := registry.Resolve(agents.AgentVersion{Name: "steward", Role: "steward", ModelTier: "frontier", CreatedBy: "system"}); err != nil {
+		log.Fatal(err)
+	}
 	steward := agents.NewSmartSteward(store)
+	steward.Registry = registry
 
 	// Real or noop gateway so CreateWorker succeeds
 	var gw models.Gateway = &noopGateway{}
@@ -35,6 +49,9 @@ func main() {
 	}
 	steward.SetRuntime(gw, g, nil)
 
+	if _, err := registry.Resolve(agents.AgentVersion{Name: "judge", Role: "judge", ModelTier: "frontier", CreatedBy: "system"}); err != nil {
+		log.Fatal(err)
+	}
 	var judge agents.Judge = &demoJudge{}
 	if _, ok := gw.(*noopGateway); !ok {
 		// Prefer real LLM judge when a real gateway is available

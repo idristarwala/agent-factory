@@ -13,12 +13,13 @@ import (
 
 // LLMWorker is a real worker that calls the model gateway (cheap tier only).
 type LLMWorker struct {
-	ID      string
-	Role    string
-	Gateway models.Gateway
-	Graph   graph.Graph
-	Rules   []Rule
-	Refresh RuleRefresher
+	Definition AgentVersion
+	ID         string
+	Role       string
+	Gateway    models.Gateway
+	Graph      graph.Graph
+	Rules      []Rule
+	Refresh    RuleRefresher
 }
 
 type RuleRefresher func() []Rule
@@ -101,6 +102,9 @@ Respond ONLY with valid JSON of the allowed fields.`, uow.Description, ruleText.
 		required = []string{"title"}
 	}
 	schema := BuildResponseSchema(allowed, required)
+	if instructions := w.Definition.Config["instructions"]; instructions != "" {
+		prompt += "\nWorker instructions: " + instructions
+	}
 
 	var lastErr error
 	for attempt := 0; attempt < 2; attempt++ {
@@ -133,6 +137,7 @@ Respond ONLY with valid JSON of the allowed fields.`, uow.Description, ruleText.
 
 		return &graph.Mutation{
 			UnitOfWorkID: uow.ID,
+			AgentName:    w.Definition.Name, AgentRevision: w.Definition.Revision, RuleRevisions: ruleRevisions(w.Rules),
 			Updates: []graph.Node{{
 				ID:    nodeID,
 				Type:  "entity",

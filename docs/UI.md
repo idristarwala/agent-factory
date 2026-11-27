@@ -1,30 +1,15 @@
-# Customer UI
+# Operator workspace
 
-Customers never see agents, rules, or units of work. They see:
+The workspace provides goals, chat, an agent editor and a rule manager. The Figma file also contains designs for the remaining operator screens and configurable experiences. [Design file](https://www.figma.com/design/jPNDukgzOzcM6n1e6UpV9R/Agent-Factory?node-id=28-2)
 
-1. **Images** of the items
-2. **Decisions** — what changed (before → after)
-3. **Feedback** — Looks good / Needs change + optional note
+Run `npm ci` and `npm run dev` in `ui-app`. Configure `VITE_API_URL` for the API and `CORS_ORIGIN` on the server for the browser origin.
 
-## Run the React app
+## Definition history
 
-```bash
-cd ui-app
-npm install
-npm run dev
-```
+Choose **Agents** to edit a definition or retire it. The build version identifies the software release. The server allocates the numeric definition revision. Changing a role, model tier, instructions, tools or retirement state produces a new snapshot. Relaunching the same definition reuses its revision.
 
-Open the URL Vite prints (usually http://localhost:5173).
+Choose **Rules** to save a proposal, inspect its snapshot or activate a revision. Activating an earlier rule appends a rollback revision. Existing history remains available. The active rule can be older than the latest proposal.
 
-## Build
+The API supports GET and POST on `/api/agents` and `/api/rules`. Request all rule revisions with `?history=true`. Filter rule history by `id` or agent history by `name`. Include the expected head revision in each write, using zero on creation. A concurrent edit returns HTTP 409. Reload before applying the intended change.
 
-```bash
-cd ui-app
-npm run build
-```
-
-## What happens on feedback
-
-- "Looks good" marks the decision approved.
-- "Needs change" + note is stored as feedback.
-- Behind the scenes that feedback becomes a versioned rule for the next pass. The customer never writes a rule.
+The API and runners use PostgreSQL when `DATABASE_URL` is configured. Locally they share SQLite at `FACTORY_DB_PATH`, defaulting to `agent-factory/factory.sqlite` under the user configuration directory. Set `FACTORY_ID` consistently for the API and runner to isolate definitions by factory. API edits record a human actor class. The shared bearer-token authentication does not identify individual people. Store credential references in configuration and keep secret values in the secret store.

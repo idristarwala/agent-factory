@@ -12,6 +12,7 @@ import (
 
 	_ "github.com/lib/pq"
 
+	"github.com/idristarwala/agent-factory/internal/agents"
 	"github.com/idristarwala/agent-factory/internal/models"
 	"github.com/idristarwala/agent-factory/internal/rules"
 	"github.com/idristarwala/agent-factory/internal/store"
@@ -42,6 +43,7 @@ var (
 	goals       = map[string]*Goal{}
 	goalSeq     int
 	decisions   = []Decision{}
+	usageMu     sync.Mutex
 	usageTotals = Usage{}
 )
 
@@ -59,11 +61,12 @@ func main() {
 	}
 	defer st.Close()
 
-	ruleEngine := rules.NewEngine()
+	definitions := store.FactoryDefinitions(st, "")
+	ruleEngine := rules.NewStoredEngine(definitions)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		storeKind := "memory"
+		storeKind := "sqlite"
 		if os.Getenv("DATABASE_URL") != "" {
 			storeKind = "postgres"
 		}
@@ -112,14 +115,13 @@ func main() {
 	mux.HandleFunc("/api/usage", apiRoute(func(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(usageTotals)
+		usageMu.Lock()
+		snapshot := usageTotals
+		usageMu.Unlock()
+		json.NewEncoder(w).Encode(snapshot)
 	}, "GET"))
 
-	mux.HandleFunc("/api/rules", apiRoute(func(w http.ResponseWriter, r *http.Request) {
-
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(ruleEngine.Active())
-	}, "GET"))
+	definitionRoutes(mux, ruleEngine, agents.NewStoredRegistry(definitions))
 
 	mux.HandleFunc("/api/graph", apiRoute(func(w http.ResponseWriter, r *http.Request) {
 
@@ -141,7 +143,7 @@ func main() {
 		}
 		resp, err := gw.Generate(models.Request{
 			Tier:        models.TierCheap,
-			System:      "You are a helpful catalog assistant. Answer briefly. If the user gives a goal, confirm you will start a factory run for it.",
+			System:      "You are a helpful factory assistant. Answer briefly. If the user gives a goal, confirm you will start a factory run for it.",
 			User:        req.Message,
 			Temperature: 0.3,
 			MaxTokens:   300,
@@ -150,8 +152,9 @@ func main() {
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
 		}
-		usageTotals.TokensUsed += 300
-		usageTotals.EstimatedUSD += 0.0003
+		usageMu.Lock()
+		usageTotals.TokensUsed += resp.Usage["total_tokens"]
+		usageMu.Unlock()
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"reply": resp.Content})
 	}, "POST"))
@@ -165,9 +168,14 @@ func main() {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		rule := ruleEngine.FromFeedback(body.Note, body.Entity, "customer")
-		if rule.ID != "" {
-			_ = st.SaveRuleVersion(rule.ID, rule.Version, []byte(body.Note))
+		if strings.TrimSpace(body.Note) == "" {
+			http.Error(w, "note is required", 400)
+			return
+		}
+		rule, err := ruleEngine.Save(rules.VersionedRule{Description: body.Note, Condition: body.Entity, Action: "constrain future proposals", Source: "feedback", CreatedBy: "customer", Active: true}, 0)
+		if err != nil {
+			sendJSON(w, nil, err)
+			return
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]any{
@@ -229,5 +237,5 @@ func storeKindLabel() string {
 	if os.Getenv("DATABASE_URL") != "" {
 		return "postgres"
 	}
-	return "memory"
+	return "sqlite"
 }

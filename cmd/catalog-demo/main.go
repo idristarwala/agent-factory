@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	factoryStore "github.com/idristarwala/agent-factory/internal/store"
+	"log"
 	"os"
 
 	"github.com/idristarwala/agent-factory/internal/agents"
@@ -12,6 +14,14 @@ import (
 )
 
 func main() {
+	database, err := factoryStore.NewFromEnv()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer database.Close()
+	definitions := factoryStore.FactoryDefinitions(database, "catalog-demo")
+	registry := agents.NewStoredRegistry(definitions)
+
 	gw, err := models.NewGatewayFromEnv()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "gateway: %v\n", err)
@@ -20,7 +30,7 @@ func main() {
 
 	g := graph.NewMemoryGraph()
 	store := unitofwork.NewMemoryStore()
-	ruleEngine := rules.NewEngine()
+	ruleEngine := rules.NewStoredEngine(definitions)
 
 	g.AddNode(graph.Node{
 		ID:   "sku-1001",
@@ -37,12 +47,22 @@ func main() {
 		CreatedBy:   "operator",
 	})
 
-	steward := agents.NewStubSteward(store)
-	var activeRules []agents.Rule
-	for _, vr := range ruleEngine.Active() {
-		activeRules = append(activeRules, agents.Rule{Description: vr.Description})
+	if _, err := registry.Resolve(agents.AgentVersion{Name: "steward", Role: "steward", ModelTier: "frontier", CreatedBy: "system"}); err != nil {
+		log.Fatal(err)
 	}
-	worker := agents.NewLLMWorker("worker-1", "catalog-enricher", gw, g, activeRules)
+	steward := agents.NewStubSteward(store)
+	steward.Registry = registry
+	activeRules := ruleEngine.ToAgentsRules()
+	steward.SetDependencies(gw, g)
+	def, err := registry.Resolve(agents.AgentVersion{Name: "worker-1", Role: "catalog-enricher", ModelTier: "cheap", CreatedBy: "steward"})
+	if err != nil {
+		log.Fatal(err)
+	}
+	worker := agents.NewLLMWorker(def.Name, def.Role, gw, g, activeRules)
+	worker.Definition = def
+	if _, err := registry.Resolve(agents.AgentVersion{Name: "judge", Role: "judge", ModelTier: "frontier", CreatedBy: "system"}); err != nil {
+		log.Fatal(err)
+	}
 	judge := agents.NewLLMJudge(gw, g)
 
 	uows, err := steward.InterpretGoal("Enrich title and description for sku-1001", nil)
