@@ -14,7 +14,7 @@ import (
 type MemoryStore struct {
 	mu          sync.RWMutex
 	nodes       map[graph.NodeID]nodeRow
-	units       map[string]*unitofwork.UnitOfWork
+	units       map[string]unitRow
 	definitions *revision.Memory
 	entries     []struct {
 		Kind, Content, Source string
@@ -25,7 +25,7 @@ type MemoryStore struct {
 func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{
 		nodes:       make(map[graph.NodeID]nodeRow),
-		units:       make(map[string]*unitofwork.UnitOfWork),
+		units:       make(map[string]unitRow),
 		definitions: revision.NewMemory(),
 	}
 }
@@ -79,7 +79,11 @@ func (s *MemoryStore) CreateUnit(u *unitofwork.UnitOfWork) error {
 	if _, exists := s.units[u.ID]; exists {
 		return fmt.Errorf("unit exists: %s", u.ID)
 	}
-	s.units[u.ID] = u
+	row, err := encodeUnit(u)
+	if err != nil {
+		return err
+	}
+	s.units[u.ID] = row
 	return nil
 }
 
@@ -90,7 +94,7 @@ func (s *MemoryStore) GetUnit(id string) (*unitofwork.UnitOfWork, error) {
 	if !ok {
 		return nil, fmt.Errorf("unit not found: %s", id)
 	}
-	return u, nil
+	return u.unit()
 }
 
 func (s *MemoryStore) UpdateUnitStatus(id string, status unitofwork.Status) error {
@@ -100,7 +104,8 @@ func (s *MemoryStore) UpdateUnitStatus(id string, status unitofwork.Status) erro
 	if !ok {
 		return fmt.Errorf("unit not found: %s", id)
 	}
-	u.Status = status
+	u.status = status
+	s.units[id] = u
 	return nil
 }
 
@@ -111,7 +116,12 @@ func (s *MemoryStore) AttachProposal(id string, m *graph.Mutation) error {
 	if !ok {
 		return fmt.Errorf("unit not found: %s", id)
 	}
-	u.Proposal = m
+	data, err := proposalJSON(m)
+	if err != nil {
+		return err
+	}
+	u.proposal = data
+	s.units[id] = u
 	return nil
 }
 
