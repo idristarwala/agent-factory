@@ -18,6 +18,7 @@ type Request struct {
 	Temperature float64
 	MaxTokens   int
 	Tools       []string
+	Schema      map[string]any // optional JSON schema for provider-enforced output
 }
 
 type Response struct {
