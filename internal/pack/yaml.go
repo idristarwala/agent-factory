@@ -2,31 +2,26 @@ package pack
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"strings"
 )
 
 // LoadYAMLOrJSON loads a pack file. Simple YAML is converted to JSON for the common case.
-// Full YAML library can be added later for nested structures.
 func LoadYAMLOrJSON(path string) ([]byte, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
 	if strings.HasSuffix(path, ".yaml") || strings.HasSuffix(path, ".yml") {
-		// Convert simple YAML to JSON for flat and list cases.
 		jsonData, err := SimpleYAMLToJSON(data)
 		if err != nil {
-			return data, nil // fall back to raw if conversion fails
+			return data, nil
 		}
 		return jsonData, nil
 	}
 	return data, nil
 }
 
-// SimpleYAMLToJSON converts a limited YAML subset (maps and simple lists) to JSON.
-// Sufficient for pack.yaml files with name, worker_roles, rules, tools_allowed.
 func SimpleYAMLToJSON(data []byte) ([]byte, error) {
 	lines := strings.Split(string(data), "\n")
 	result := make(map[string]any)
@@ -63,7 +58,6 @@ func SimpleYAMLToJSON(data []byte) ([]byte, error) {
 	return json.Marshal(result)
 }
 
-// ParseSimpleYAML does a very basic YAML-to-map conversion for flat files.
 func ParseSimpleYAML(data []byte) (map[string]string, error) {
 	out := make(map[string]string)
 	lines := strings.Split(string(data), "\n")
