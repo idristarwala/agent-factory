@@ -28,6 +28,7 @@ type Criterion struct {
 	Citations []artifact.Citation `json:"citations"`
 }
 type Spec struct {
+	PackRelease     *PackRef          `json:"pack_release,omitempty"`
 	BrowserTool     string            `json:"browser_tool,omitempty"`
 	ProposeTool     string            `json:"propose_tool,omitempty"`
 	Goal            string            `json:"goal,omitempty"`
@@ -40,6 +41,7 @@ type Spec struct {
 	Worker          string            `json:"worker"`
 }
 type Plan struct {
+	ApprovedPack           *ApprovedPack `json:"approved_pack,omitempty"`
 	BrowserTool            *BrowserTool  `json:"browser_tool,omitempty"`
 	ProposalTool           *ProposalTool `json:"proposal_tool,omitempty"`
 	UseGoalArtifacts       bool          `json:"use_goal_artifacts,omitempty"`
@@ -92,6 +94,12 @@ func Prepare(st revision.Store, name string, number int) (Plan, error) {
 	}
 	registry := agents.NewStoredRegistry(st)
 	plan := Plan{Factory: name, Revision: number, Spec: def}
+	if def.PackRelease != nil {
+		plan.ApprovedPack, err = pinApprovedPack(st, def)
+		if err != nil {
+			return Plan{}, err
+		}
+	}
 	if def.BrowserTool != "" {
 		plan.BrowserTool, err = pinBrowserTool(st, name, def.BrowserTool)
 		if err != nil {
@@ -133,7 +141,13 @@ func (p Plan) evaluate(gw models.Gateway, goal string, e schema.Entity, origin *
 	g := graph.NewMemoryGraph()
 	g.AddNode(graph.Node{ID: graph.NodeID(e.ID), Type: e.Type, Props: e.Attributes})
 	active := make([]agents.Rule, 0, len(p.Rules))
+	if p.ApprovedPack != nil {
+		active = append(active, p.ApprovedPack.Rules...)
+	}
 	for _, r := range p.Rules {
+		if p.ApprovedPack != nil && slices.ContainsFunc(p.ApprovedPack.Rules, func(rule agents.Rule) bool { return rule.ID == r.ID }) {
+			return nil, agents.Decision{}, fmt.Errorf("workspace and pack both supply rule %q", r.ID)
+		}
 		active = append(active, agents.Rule{ID: r.ID, Version: r.Version, Condition: r.Condition, Action: r.Action, Description: r.Description, Source: r.Source})
 	}
 	worker := agents.NewLLMWorker(p.Worker.Name, p.Worker.Role, gw, g, active)

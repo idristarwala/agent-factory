@@ -30,3 +30,9 @@ Read the proposed revision with `GET /api/releases/{pack-name}`. Inspect its com
 Use `reject` to record a rejection. A successful review appends a human-authored revision with the original bytes and a `proposal_revision` reference. Repeating the same decision and note while it is the latest review returns the existing revision. A stale or conflicting edit returns HTTP 409.
 
 Deployment harnesses can fetch `GET /api/releases/{pack-name}/active` with viewer access to obtain the most recently approved snapshot. Before the first approval this returns HTTP 404. A newer proposal or rejection leaves the previous approval available. Pin the returned version and digests when deploying the pack. Workspace pack approval does not publish an engine tag or change swarm execution mode.
+
+### Use an approved pack in a goal
+
+Set `"pack_release":{"name":"review","version":2}` in a versioned factory definition, using the approval document's version. The goal CLI and workspace API load that exact reviewed pack when preparing the run, check its evidence and digests, and require a compatible worker role and record type. Configured browser and proposal tools must also be allowed by the pack and separately granted by the workspace. Active pack policies accompany the workspace policies sent to the worker and judge. Workspace rule selections leave the pack policies in place. Give the selected workspace rules and the pack rules distinct IDs.
+
+The saved plan and each CLI result include `approved_pack` with its name, review revision, commit and digests. To adopt another approval, save a new factory definition revision. Existing definitions without a pack reference keep their existing rule selection.
