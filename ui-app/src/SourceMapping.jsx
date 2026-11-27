@@ -1,5 +1,18 @@
 import {useState} from 'react'
-import {parseSample} from './sourceInput'
+import {parseSample, valueAtPointer} from './sourceInput'
+
+function RecordPreview({rows, sample}) {
+  const [index,setIndex] = useState(0)
+  const row = rows[index]
+  if (!row) return null
+  return <details><summary>Preview {rows.length} mapped records</summary>
+    <label>Source record<select value={index} onChange={e=>setIndex(Number(e.target.value))}>
+      {rows.map((item,i)=><option key={item.index} value={i}>{item.location?.pointer || '(root)'} · {item.record?.id ?? item.index}</option>)}
+    </select></label>
+    {row.location && <><h4>Source JSON</h4><pre>{JSON.stringify(valueAtPointer(sample,row.location.pointer),null,2)}</pre></>}
+    <h4>Normalized record</h4><pre>{JSON.stringify(row.record,null,2)}</pre>
+  </details>
+}
 
 export default function SourceMapping({factory, goal, approved, onApprove, request, setMessage}) {
   const [sample,setSample] = useState(approved?.sample || '')
@@ -43,7 +56,7 @@ export default function SourceMapping({factory, goal, approved, onApprove, reque
     const response = await request(base + 'proposals/' + id, {
       sample: payload, goal, record_type: recordType, expected: drafts.length, collection, identity, openapi: spec.document.trim() ? spec : undefined
     },undefined,true)
-    setResult(response)
+    setResult({...response, sample:payload})
     setExpected(mappings.length)
     if (response.status === 'choose_identity') setCollection(response.collection.path)
   }
@@ -97,7 +110,7 @@ export default function SourceMapping({factory, goal, approved, onApprove, reque
         {Object.entries(result.proposal.data.fields).map(([name,path])=><tr key={name}><td>{path}</td><td>{name}</td></tr>)}
       </tbody></table>
       <p>Identity: {result.proposal.data.identity.join(', ')}</p>
-      <details><summary>Preview {result.rows.length} mapped records</summary><pre>{JSON.stringify(result.rows,null,2)}</pre></details>
+      <RecordPreview key={result.proposal.version} rows={result.rows} sample={result.sample}/>
       {!approved && <button type="button" onClick={()=>perform(approve)}>Approve mapping for this run</button>}
     </section>}
     {approved && <>

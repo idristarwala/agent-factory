@@ -8,6 +8,15 @@ export function parseSample(text) {
   })
 }
 
+// The API returns RFC 6901 pointers into the exact submitted sample.
+export function valueAtPointer(sample, pointer) {
+  if (pointer === '') return sample
+  return pointer.slice(1).split('/').reduce((value, token) => {
+    const key = token.replaceAll('~1', '/').replaceAll('~0', '~')
+    return value[key]
+  }, sample)
+}
+
 export function runSource(source) {
   const base = {factory: source.factory, selected_rules: source.rules, max_tokens: Number(source.budget)}
   if (source.inputMode === 'mapped') {
