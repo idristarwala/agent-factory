@@ -30,6 +30,7 @@ type Worker interface {
 }
 
 type WorkerSpec struct {
+	FocusRule string
 	Name      string
 	Role      string
 	ModelTier string // "cheap" only for workers

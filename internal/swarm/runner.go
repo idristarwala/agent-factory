@@ -100,6 +100,7 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 		initialTokens = r.Usage.Tokens()
 	}
 	totalFailures := 0
+	previousPatterns := map[graph.NodeID]string{}
 
 	for round := 1; round <= r.Budget.MaxRounds; round++ {
 		if reason := budgets.Exhausted(round); reason != "" {
@@ -149,6 +150,7 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 		workerErrors := make([]error, r.Workers)
 		decisions := make([]agents.Decision, 0)
 		var failureErrs []error
+		nextPatterns := map[graph.NodeID]string{}
 		var mu sync.Mutex
 
 		for i := 0; i < r.Workers; i++ {
@@ -200,7 +202,15 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 						uow.Evidence = append(uow.Evidence, evidence...)
 					}
 
-					worker, err := r.Steward.CreateWorker(agents.WorkerSpec{Name: "generic", Role: "worker", ModelTier: "cheap"})
+					spec := agents.WorkerSpec{Name: "generic", Role: "worker", ModelTier: "cheap"}
+					if r.Learning != nil {
+						spec, err = r.Learning.WorkerForPattern(previousPatterns[uow.InputSubgraph], active)
+						if err != nil {
+							workerErrors[workerID] = errors.Join(err, r.Queue.Fail(ctx, uow.ID, "worker lookup failed"))
+							return
+						}
+					}
+					worker, err := r.Steward.CreateWorker(spec)
 					if err != nil {
 						audit("worker", "failed", "worker creation failed")
 						r.Queue.Fail(ctx, uow.ID, "create worker: "+err.Error())
@@ -218,6 +228,7 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 						r.Queue.Fail(ctx, uow.ID, err.Error())
 						mu.Lock()
 						failureErrs = append(failureErrs, err)
+						nextPatterns[uow.InputSubgraph] = "worker failure: " + learning.FailureCause(err)
 						if r.progress.RecordFailure(string(uow.InputSubgraph)) {
 							fmt.Printf("Unit %s blocked after repeated failures\n", uow.InputSubgraph)
 						}
@@ -263,12 +274,16 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 						return
 					}
 					mu.Lock()
+					if !decision.Approved {
+						nextPatterns[uow.InputSubgraph] = learning.RejectionPattern(decision.Reason)
+					}
 					decisions = append(decisions, decision)
 					mu.Unlock()
 				}
 			}(i)
 		}
 		wg.Wait()
+		previousPatterns = nextPatterns
 		if err := errors.Join(workerErrors...); err != nil {
 			return err
 		}

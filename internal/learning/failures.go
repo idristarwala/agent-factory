@@ -19,8 +19,21 @@ func RecordFailure(signals []FailureSignal, err error) []FailureSignal {
 		return signals
 	}
 	msg := err.Error()
+	cause := FailureCause(err)
+	for i := range signals {
+		if signals[i].Cause == cause {
+			signals[i].Count++
+			signals[i].Detail = msg
+			return signals
+		}
+	}
+	return append(signals, FailureSignal{Cause: cause, Detail: msg, Count: 1})
+}
+
+// FailureCause classifies a worker error without copying record details into routing.
+func FailureCause(err error) string {
 	cause := "other"
-	lower := strings.ToLower(msg)
+	lower := strings.ToLower(err.Error())
 	var provider *llm.Error
 	switch {
 	case errors.As(err, &provider) && provider.Type != "BAD_RESPONSE":
@@ -32,12 +45,5 @@ func RecordFailure(signals []FailureSignal, err error) []FailureSignal {
 	case strings.Contains(lower, "timeout"), strings.Contains(lower, "429"), strings.Contains(lower, "rate limit"):
 		cause = "provider"
 	}
-	for i := range signals {
-		if signals[i].Cause == cause {
-			signals[i].Count++
-			signals[i].Detail = msg
-			return signals
-		}
-	}
-	return append(signals, FailureSignal{Cause: cause, Detail: msg, Count: 1})
+	return cause
 }

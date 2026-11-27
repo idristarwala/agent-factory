@@ -53,6 +53,7 @@ Read `GET /api/settings/schema` for a machine-readable JSON Schema with types, b
 | `replay_gate` | Boolean, true in a new workspace | Holds learned rule proposals for review or replay under the applicable runner. |
 | `worker_count` | Integer 1–256, default 2 | Concurrent continuous workers per round. |
 | `max_failures` | Positive integer, 20 | Cumulative worker failures before stopping at the next round boundary. |
+| `specialist_after` | Positive integer, 5 | Occurrences of the same pattern in a run before the steward registers a specialist. [Dispatch and review](RULES_REFRESH.md) |
 | `stagnant_rounds` | Positive integer, 2 | Consecutive unchanged graph comparisons before stopping. |
 | `judge_evaluations` | Integer 1–32, default 1 | Distinct judge evaluations per continuous proposal when using a live gateway. Each can incur model cost. |
 | `judge_approvals` | Integer 1 through `judge_evaluations`, default 1 | Required number of approving evaluations. |

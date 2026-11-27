@@ -11,6 +11,7 @@ import (
 var Schema json.RawMessage
 
 type ContinuousLimits struct {
+	SpecialistAfter  int `json:"specialist_after,omitempty"`
 	WorkerCount      int `json:"worker_count,omitempty"`
 	MaxFailures      int `json:"max_failures,omitempty"`
 	StagnantRounds   int `json:"stagnant_rounds,omitempty"`
@@ -35,7 +36,7 @@ func Current(s revision.Store) (Settings, int, error) {
 		return Settings{}, 0, err
 	}
 	v := Settings{MaxRounds: 10, MaxTokens: 1000000, MaxMinutes: 30, ContinuousLimits: ContinuousLimits{
-		WorkerCount: 2, MaxFailures: 20, StagnantRounds: 2, JudgeEvaluations: 2, JudgeApprovals: 2,
+		SpecialistAfter: 5, WorkerCount: 2, MaxFailures: 20, StagnantRounds: 2, JudgeEvaluations: 2, JudgeApprovals: 2,
 	}}
 	if len(h) == 0 {
 		v.ReplayGate = true
@@ -50,6 +51,9 @@ func Current(s revision.Store) (Settings, int, error) {
 func (v Settings) Validate() error {
 	if v.MaxRounds <= 0 || v.MaxTokens <= 0 || v.MaxMinutes <= 0 || v.MaxMinutes > 525600 {
 		return fmt.Errorf("limits must be positive and wall time must be at most one year")
+	}
+	if v.SpecialistAfter < 1 {
+		return fmt.Errorf("specialist_after must be positive")
 	}
 	if v.WorkerCount < 1 || v.WorkerCount > 256 {
 		return fmt.Errorf("worker_count must be between 1 and 256")

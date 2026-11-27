@@ -1,6 +1,7 @@
 package swarm
 
 import (
+	"encoding/json"
 	"github.com/idristarwala/agent-factory/internal/graph"
 	"github.com/idristarwala/agent-factory/internal/models"
 	"github.com/idristarwala/agent-factory/internal/queue"
@@ -112,5 +113,93 @@ func TestScriptedRoundImprovement(t *testing.T) {
 	}
 	if q.failed != 1 || q.completed != 1 || gateway.invalid != 2 || gateway.corrected != 1 || gateway.judged != 1 || len(re.Active()) != 1 {
 		t.Fatalf("failed=%d completed=%d model calls=%+v rules=%v", q.failed, q.completed, gateway, re.Active())
+	}
+}
+
+type dispatchGateway struct{ focused int }
+
+func (g *dispatchGateway) Generate(req models.Request) (*models.Response, error) {
+	if req.CallerRole == "judge" {
+		return &models.Response{Content: "APPROVE: grounded"}, nil
+	}
+	if strings.Contains(req.User, "Specialist focus:") && strings.Contains(req.User, "Worker instructions: Use routing evidence") {
+		g.focused++
+		return &models.Response{Content: `{"assigned_team":"support"}`}, nil
+	}
+	return &models.Response{Content: `{"unexpected":true}`}, nil
+}
+
+func TestSpecialistDispatchHonorsActiveRuleAndWorkerRevision(t *testing.T) {
+	for _, gated := range []bool{false, true} {
+		g := graph.NewMemoryGraph()
+		for _, id := range []graph.NodeID{"request-a", "request-b"} {
+			g.AddNode(graph.Node{ID: id, Type: "ticket", Props: map[string]any{"status": "open", "assigned_team": "unknown"}})
+		}
+		gw := &dispatchGateway{}
+		steward := agents.NewSmartSteward(unitofwork.NewMemoryStore())
+		steward.SetRuntime(gw, g, nil)
+		re := rules.NewEngine()
+		reg := agents.NewRegistry()
+		loop := learning.NewLearningLoop(re, reg)
+		loop.SpecialistAfter = 2
+		loop.ReplayGate = gated
+		if _, err := reg.Save(agents.AgentVersion{Name: "generic", Role: "worker", ModelTier: "cheap", Config: map[string]string{"instructions": "Use routing evidence"}, CreatedBy: "human"}, 0); err != nil {
+			t.Fatal(err)
+		}
+		runner := NewContinuousRunner(steward, agents.NewLLMJudge(gw, g), queue.NewMemoryQueue(), g, re, loop)
+		runner.Workers = 1
+		runner.Budget.MaxRounds = 2
+		err := runner.Run(t.Context(), "Assign the support team")
+		if gated {
+			if err == nil || gw.focused != 0 {
+				t.Fatal("pending rule reached a specialist", err, gw.focused)
+			}
+			continue
+		}
+		if err != nil || gw.focused != 2 {
+			t.Fatal(err, gw.focused)
+		}
+		proposals := 0
+		for _, entry := range runner.Audit.All() {
+			if entry.Action != "proposed" {
+				continue
+			}
+			var m graph.Mutation
+			if err := json.Unmarshal(entry.Proposal, &m); err != nil {
+				t.Fatal(err)
+			}
+			if !strings.HasPrefix(m.AgentName, "specialist-") || m.AgentRevision != 1 || len(m.RuleRevisions) != 1 {
+				t.Fatal(m)
+			}
+			proposals++
+		}
+		if proposals != 2 {
+			t.Fatal(proposals)
+		}
+		active := re.ToAgentsRules()
+		for _, pattern := range []string{"", "worker failure: provider"} {
+			spec, err := loop.WorkerForPattern(pattern, active)
+			if err != nil || spec.Name != "generic" {
+				t.Fatal(spec, err)
+			}
+		}
+		pattern := "worker failure: format"
+		spec, err := loop.WorkerForPattern(pattern, active)
+		if err != nil {
+			t.Fatal(err)
+		}
+		def, ok := reg.Get(spec.Name)
+		if !ok {
+			t.Fatal(spec)
+		}
+		def.Retired = true
+		def.CreatedBy = "human"
+		if _, err = reg.Save(def, 1); err != nil {
+			t.Fatal(err)
+		}
+		spec, err = loop.WorkerForPattern(pattern, active)
+		if err != nil || spec.Name != "generic" {
+			t.Fatal(spec, err)
+		}
 	}
 }

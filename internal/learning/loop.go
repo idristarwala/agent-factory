@@ -32,6 +32,7 @@ type AgentUpdate struct {
 type LearningLoop struct {
 	RuleEngine             *rules.Engine
 	Registry               *agents.Registry
+	SpecialistAfter        int
 	ReplayGate             bool
 	ReplayRequiresApproval bool
 	Replay                 func(rules.VersionedRule, []rules.VersionedRule) (*rules.ReplayReport, error)
@@ -40,9 +41,10 @@ type LearningLoop struct {
 
 func NewLearningLoop(re *rules.Engine, reg *agents.Registry) *LearningLoop {
 	return &LearningLoop{
-		RuleEngine: re,
-		Registry:   reg,
-		cumulative: make(map[string]int),
+		RuleEngine:      re,
+		Registry:        reg,
+		SpecialistAfter: 5,
+		cumulative:      make(map[string]int),
 	}
 }
 
@@ -62,7 +64,7 @@ func (l *LearningLoop) ReviewSignals(decisions []agents.Decision, signals []Fail
 	rejectReasons := map[string]int{}
 	for _, d := range decisions {
 		if !d.Approved {
-			key := extractTheme(d.Reason)
+			key := RejectionPattern(d.Reason)
 			rejectReasons[key]++
 			l.cumulative[key]++
 		}
@@ -74,14 +76,14 @@ func (l *LearningLoop) ReviewSignals(decisions []agents.Decision, signals []Fail
 				Pattern:     theme,
 				Evidence:    []string{fmt.Sprintf("%d this round, %d cumulative", count, total)},
 				Occurrences: total,
-				Severity:    severity(total),
+				Severity:    l.severity(total),
 			})
 		}
 	}
 	for _, signal := range signals {
 		pattern := "worker failure: " + signal.Cause
 		l.cumulative[pattern] += signal.Count
-		gaps = append(gaps, Gap{Pattern: pattern, Evidence: []string{BuildActionableRule(signal)}, Occurrences: l.cumulative[pattern], Severity: severity(l.cumulative[pattern])})
+		gaps = append(gaps, Gap{Pattern: pattern, Evidence: []string{BuildActionableRule(signal)}, Occurrences: l.cumulative[pattern], Severity: l.severity(l.cumulative[pattern])})
 	}
 	return gaps
 }
@@ -152,7 +154,7 @@ func (l *LearningLoop) Apply(updates []AgentUpdate) ([]string, error) {
 		switch u.ChangeType {
 		case "rule":
 			active := !l.ReplayGate
-			id := uuid.NewSHA1(uuid.NameSpaceOID, []byte("steward-rule/"+u.Payload["pattern"])).String()
+			id := ruleID(u.Payload["pattern"])
 			r, err := l.RuleEngine.Save(rules.VersionedRule{
 				ID:          id,
 				Description: u.Payload["description"],
@@ -212,8 +214,13 @@ func (l *LearningLoop) Apply(updates []AgentUpdate) ([]string, error) {
 			}
 			applied = append(applied, fmt.Sprintf("rule %s v%d [%s]: %s", r.ID[:8], r.Version, status, r.Description))
 		case "new_agent":
-			_, err := l.Registry.Save(agents.AgentVersion{
-				Name:      u.Payload["role"],
+			base, err := l.Registry.Resolve(agents.AgentVersion{Name: "generic", Role: "worker", ModelTier: "cheap", CreatedBy: "steward"})
+			if err != nil {
+				return applied, err
+			}
+			_, err = l.Registry.Save(agents.AgentVersion{
+				Name:   u.Payload["role"],
+				Config: base.Config, Tools: base.Tools,
 				CreatedBy: "steward",
 				Role:      "worker",
 				Version:   u.Payload["version"],
@@ -232,7 +239,7 @@ func (l *LearningLoop) Apply(updates []AgentUpdate) ([]string, error) {
 	return applied, nil
 }
 
-func extractTheme(reason string) string {
+func RejectionPattern(reason string) string {
 	lower := strings.ToLower(reason)
 	if strings.Contains(lower, "title") {
 		return "title quality"
@@ -255,8 +262,8 @@ func extractTheme(reason string) string {
 	return "general rejection"
 }
 
-func severity(count int) string {
-	if count >= 5 {
+func (l *LearningLoop) severity(count int) string {
+	if l.SpecialistAfter > 0 && count >= l.SpecialistAfter {
 		return "high"
 	}
 	if count >= 2 {
@@ -267,4 +274,36 @@ func severity(count int) string {
 
 func slug(s string) string {
 	return strings.ToLower(strings.ReplaceAll(strings.TrimSpace(s), " ", "-"))
+}
+
+func ruleID(pattern string) string {
+	return uuid.NewSHA1(uuid.NameSpaceOID, []byte("steward-rule/"+pattern)).String()
+}
+
+// WorkerForPattern dispatches only when the governing rule is active this round.
+func (l *LearningLoop) WorkerForPattern(pattern string, active []agents.Rule) (agents.WorkerSpec, error) {
+	spec := agents.WorkerSpec{Name: "generic", Role: "worker", ModelTier: "cheap"}
+	if pattern == "" {
+		return spec, nil
+	}
+	id := ruleID(pattern)
+	for _, r := range active {
+		if r.ID != id {
+			continue
+		}
+		name := "specialist-" + slug(pattern)
+		history, err := l.Registry.History(name)
+		if err != nil {
+			return spec, err
+		}
+		if len(history) > 0 {
+			def := history[len(history)-1]
+			if !def.Retired && def.Role == "worker" {
+				spec.Name = name
+				spec.FocusRule = id
+			}
+		}
+		break
+	}
+	return spec, nil
 }

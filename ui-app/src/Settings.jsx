@@ -32,7 +32,7 @@ export default function Settings({ fetchAPI }) {
     {state && <form onSubmit={save}><p>Revision {state.version} · Gateway {state.gateway || 'configured by environment'}</p>
       {[['max_rounds','Maximum rounds'],['max_tokens','Token budget'],['max_minutes','Time limit in minutes'],
         ['worker_count','Concurrent workers'],['max_failures','Maximum failures'],['stagnant_rounds','Rounds without progress'],
-        ['judge_evaluations','Judge evaluations per proposal'],['judge_approvals','Approvals required']].map(([k,label]) =>
+        ['specialist_after','Occurrences before creating a specialist'],['judge_evaluations','Judge evaluations per proposal'],['judge_approvals','Approvals required']].map(([k,label]) =>
         <label key={k}>{label}<input type="number" min="1" required value={state.settings[k]} onChange={e=>change(k,Number(e.target.value))}/></label>)}
       {[['replay_gate','Hold learned rules for review'],['observe','Observe proposed changes']].map(([k,label]) =>
         <label key={k}><input type="checkbox" checked={state.settings[k]} onChange={e=>change(k,e.target.checked)}/> {label}</label>)}
