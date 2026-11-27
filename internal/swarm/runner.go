@@ -19,10 +19,11 @@ import (
 
 // Budget caps the continuous run.
 type Budget struct {
-	MaxRounds    int
-	MaxWallClock time.Duration
-	MaxFailures  int
-	MaxTokens    int
+	MaxRounds         int
+	MaxWallClock      time.Duration
+	MaxFailures       int
+	MaxRecordFailures int
+	MaxTokens         int
 }
 
 // ContinuousRunner runs until the goal is achieved or a limit is hit.
@@ -46,7 +47,6 @@ type ContinuousRunner struct {
 		Tokens() int
 		RecordTool(string)
 	}
-	progress *Progress
 }
 
 func NewContinuousRunner(s agents.Steward, j agents.Judge, q queue.WorkQueue, g graph.Graph, re *rules.Engine, ll *learning.LearningLoop) *ContinuousRunner {
@@ -68,7 +68,6 @@ func NewContinuousRunner(s agents.Steward, j agents.Judge, q queue.WorkQueue, g 
 			MaxTokens:    1000000,
 		},
 		Stagnation: 2,
-		progress:   NewProgress(),
 	}
 }
 
@@ -90,10 +89,11 @@ func (r *ContinuousRunner) SetBudget(b Budget) {
 
 func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 	r.Audit = obs.NewAuditLog()
-	if r.progress == nil {
-		r.progress = NewProgress()
+	progress := NewProgress()
+	if r.Budget.MaxRecordFailures > 0 {
+		progress.MaxUnitFails = r.Budget.MaxRecordFailures
 	}
-	r.progress.MaxStagnant = r.Stagnation
+	progress.MaxStagnant = r.Stagnation
 	budgets := NewBudgets(r.Budget.MaxRounds, r.Budget.MaxWallClock, r.Budget.MaxTokens)
 	initialTokens := 0
 	if r.Usage != nil {
@@ -133,12 +133,14 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 		}
 
 		blocked := map[string]bool{}
-		for _, id := range r.progress.BlockedNodes() {
+		for _, id := range progress.BlockedNodes() {
 			blocked[string(id)] = true
 		}
 
+		blockedCount := 0
 		for _, uow := range uows {
 			if blocked[string(uow.InputSubgraph)] {
+				blockedCount++
 				continue
 			}
 			if err := r.Queue.Enqueue(ctx, uow); err != nil {
@@ -146,6 +148,9 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 			}
 		}
 
+		if len(uows) > 0 && blockedCount == len(uows) {
+			return fmt.Errorf("all %d remaining work units are blocked by the per-record failure limit", blockedCount)
+		}
 		var wg sync.WaitGroup
 		workerErrors := make([]error, r.Workers)
 		decisions := make([]agents.Decision, 0)
@@ -229,7 +234,8 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 						mu.Lock()
 						failureErrs = append(failureErrs, err)
 						nextPatterns[uow.InputSubgraph] = "worker failure: " + learning.FailureCause(err)
-						if r.progress.RecordFailure(string(uow.InputSubgraph)) {
+						if progress.RecordFailure(string(uow.InputSubgraph)) {
+							audit("runner", "blocked", "per-record worker failure limit reached")
 							fmt.Printf("Unit %s blocked after repeated failures\n", uow.InputSubgraph)
 						}
 						mu.Unlock()
@@ -322,9 +328,9 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 			fmt.Println("Goal achieved. Graph verified clean.")
 			return nil
 		}
-		if r.progress.Observe(snapshot) {
-			fmt.Printf("No progress for %d rounds. Stopping.\n", r.progress.Stagnant)
-			return fmt.Errorf("stagnation: no progress for %d rounds", r.progress.Stagnant)
+		if progress.Observe(snapshot) {
+			fmt.Printf("No progress for %d rounds. Stopping.\n", progress.Stagnant)
+			return fmt.Errorf("stagnation: no progress for %d rounds", progress.Stagnant)
 		}
 
 		pending, _ := r.Queue.PendingCount(ctx)

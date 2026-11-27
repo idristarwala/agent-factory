@@ -31,3 +31,5 @@ Use a repeated `-field` flag before the goal to give the continuous worker an ex
 The worker rejects an entire reply containing an out-of-scope property. A successful continuous write can also update the runner-managed completion status. Workspace factories declare their editable fields and types in the pinned factory definition. [Worker output schema](SCHEMA.md)
 
 After each round the smart steward checks the updated graph. Completing the last record on the final allowed round produces a completed run. If work remains at the limit, the CLI saves the failed run and exits with a nonzero status.
+
+Set `max_record_failures` in the versioned workspace settings to bound retries on an individual record. The count advances once when a worker execution exhausts its attempts. Other records can continue. When every remaining unit is blocked, the run reports the per-record limit and stops. A new run starts fresh failure counts. [Configuration](CONFIGURATION.md)
