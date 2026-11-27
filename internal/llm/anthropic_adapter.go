@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 )
 
@@ -64,15 +63,11 @@ func (a *AnthropicAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatResp
 		httpReq.Header.Set(k, v)
 	}
 
-	resp, err := a.Client.Do(httpReq)
+	resp, err := gatewayResponse(a.Client, httpReq)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		return nil, &Error{Type: "GATEWAY", Status: resp.StatusCode, Retryable: resp.StatusCode >= 500 || resp.StatusCode == 429, Message: fmt.Sprintf("status %d", resp.StatusCode)}
-	}
 
 	var out struct {
 		Content []struct {
@@ -83,8 +78,11 @@ func (a *AnthropicAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatResp
 			Input any    `json:"input"`
 		} `json:"content"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+	if err := decodeReply(ctx, resp, &out); err != nil {
 		return nil, err
+	}
+	if len(out.Content) == 0 {
+		return nil, &Error{Type: "BAD_RESPONSE", Message: "no Anthropic content"}
 	}
 	content := ""
 	var toolCalls []ToolCall
@@ -134,14 +132,11 @@ func (a *AnthropicAdapter) Stream(ctx context.Context, req ChatRequest) (Stream,
 	for k, v := range a.Headers {
 		httpReq.Header.Set(k, v)
 	}
-	resp, err := a.Client.Do(httpReq)
+	resp, err := gatewayResponse(a.Client, httpReq)
 	if err != nil {
 		return nil, err
 	}
-	if resp.StatusCode >= 400 {
-		resp.Body.Close()
-		return nil, &Error{Type: "GATEWAY", Status: resp.StatusCode, Retryable: resp.StatusCode >= 500 || resp.StatusCode == 429}
-	}
+
 	return &sseStream{r: resp.Body}, nil
 }
 

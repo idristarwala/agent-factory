@@ -117,6 +117,8 @@ func (e *Error) Error() string {
 	return e.Type + ": " + e.Message
 }
 
+func (e *Error) Unwrap() error { return e.Cause }
+
 func IsRetryable(err error) bool {
 	if e, ok := err.(*Error); ok {
 		return e.Retryable

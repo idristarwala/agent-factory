@@ -122,15 +122,11 @@ func (a *GeminiAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatRespons
 		httpReq.Header.Set(k, v)
 	}
 
-	resp, err := a.Client.Do(httpReq)
+	resp, err := gatewayResponse(a.Client, httpReq)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		return nil, &Error{Type: "GATEWAY", Status: resp.StatusCode, Retryable: resp.StatusCode >= 500 || resp.StatusCode == 429, Message: fmt.Sprintf("status %d", resp.StatusCode)}
-	}
 
 	var out struct {
 		Model string `json:"modelVersion"`
@@ -152,7 +148,7 @@ func (a *GeminiAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatRespons
 			} `json:"content"`
 		} `json:"candidates"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+	if err := decodeReply(ctx, resp, &out); err != nil {
 		return nil, err
 	}
 	content := ""
@@ -197,14 +193,11 @@ func (a *GeminiAdapter) Stream(ctx context.Context, req ChatRequest) (Stream, er
 	for k, v := range a.Headers {
 		httpReq.Header.Set(k, v)
 	}
-	resp, err := a.Client.Do(httpReq)
+	resp, err := gatewayResponse(a.Client, httpReq)
 	if err != nil {
 		return nil, err
 	}
-	if resp.StatusCode >= 400 {
-		resp.Body.Close()
-		return nil, &Error{Type: "GATEWAY", Status: resp.StatusCode, Retryable: resp.StatusCode >= 500 || resp.StatusCode == 429}
-	}
+
 	return &sseStream{r: resp.Body}, nil
 }
 

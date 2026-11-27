@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"fmt"
 	"net/http"
 	"strings"
 )
@@ -44,26 +43,11 @@ func (a *OpenAIAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatRespons
 		httpReq.Header.Set(k, v)
 	}
 
-	resp, err := a.Client.Do(httpReq)
+	resp, err := gatewayResponse(a.Client, httpReq)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		typ := "GATEWAY"
-		retryable := resp.StatusCode >= 500 || resp.StatusCode == 429
-		if resp.StatusCode == 429 {
-			typ = "RATE_LIMITED"
-		} else if resp.StatusCode == 401 || resp.StatusCode == 403 {
-			typ = "AUTH"
-			retryable = false
-		} else if resp.StatusCode >= 400 && resp.StatusCode < 500 {
-			typ = "BAD_REQUEST"
-			retryable = false
-		}
-		return nil, &Error{Type: typ, Status: resp.StatusCode, Retryable: retryable, Message: fmt.Sprintf("status %d", resp.StatusCode)}
-	}
 
 	var out struct {
 		Choices []struct {
@@ -84,20 +68,21 @@ func (a *OpenAIAdapter) Chat(ctx context.Context, req ChatRequest) (*ChatRespons
 			CompletionTokens int `json:"completion_tokens"`
 		} `json:"usage"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+	if err := decodeReply(ctx, resp, &out); err != nil {
 		return nil, err
 	}
 	content := ""
 	var toolCalls []ToolCall
-	if len(out.Choices) > 0 {
-		content = out.Choices[0].Message.Content
-		for _, tc := range out.Choices[0].Message.ToolCalls {
-			toolCalls = append(toolCalls, ToolCall{
-				ID:        tc.ID,
-				Name:      tc.Function.Name,
-				Arguments: tc.Function.Arguments,
-			})
-		}
+	if len(out.Choices) == 0 {
+		return nil, &Error{Type: "BAD_RESPONSE", Message: "no OpenAI choices"}
+	}
+	content = out.Choices[0].Message.Content
+	for _, tc := range out.Choices[0].Message.ToolCalls {
+		toolCalls = append(toolCalls, ToolCall{
+			ID:        tc.ID,
+			Name:      tc.Function.Name,
+			Arguments: tc.Function.Arguments,
+		})
 	}
 	return &ChatResponse{
 		Content:   content,
@@ -127,14 +112,11 @@ func (a *OpenAIAdapter) Stream(ctx context.Context, req ChatRequest) (Stream, er
 	for k, v := range a.Headers {
 		httpReq.Header.Set(k, v)
 	}
-	resp, err := a.Client.Do(httpReq)
+	resp, err := gatewayResponse(a.Client, httpReq)
 	if err != nil {
 		return nil, err
 	}
-	if resp.StatusCode >= 400 {
-		resp.Body.Close()
-		return nil, &Error{Type: "GATEWAY", Status: resp.StatusCode, Retryable: resp.StatusCode >= 500 || resp.StatusCode == 429}
-	}
+
 	return &sseStream{r: resp.Body}, nil
 }
 

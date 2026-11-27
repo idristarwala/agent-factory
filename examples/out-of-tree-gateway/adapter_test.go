@@ -46,3 +46,9 @@ func TestCorpGatewayPassesConformance(t *testing.T) {
 type conformanceHarness struct{ c llm.Client }
 
 func (h conformanceHarness) Client() llm.Client { return h.c }
+
+func TestCorpGatewayHTTPFailures(t *testing.T) {
+	llmtest.RunHTTPConformance(t, func(url string) llm.Client {
+		return NewCorpGateway(url, "fixture", nil).Client()
+	})
+}
