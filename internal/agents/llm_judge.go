@@ -59,6 +59,9 @@ APPROVE: <reason>
 or
 REJECT: <reason>`, ruleText.String(), original, proposalJSON)
 
+	if len(proposal.Images) > 0 {
+		prompt += "\nInspect the attached images as primary evidence. Evaluate whether their visible content supports the proposed updates in the context of the requested task."
+	}
 	if extra := j.Definition.Config["instructions"]; extra != "" {
 		prompt += "\nJudge instructions: " + extra
 	}

@@ -90,3 +90,22 @@ func (r ContextRecipe) Collect(ctx context.Context, result map[string]any) (Reco
 	defer client.CloseIdleConnections()
 	return r.collect(ctx, result, client)
 }
+
+// CollectMappedImages uses the same bounded public transport as tool-provided media.
+func CollectMappedImages(ctx context.Context, urls []string) (RecordEvidence, error) {
+	var evidence RecordEvidence
+	if len(urls) > 10 {
+		return evidence, fmt.Errorf("maximum 10 images per record")
+	}
+	client := publicClient()
+	defer client.CloseIdleConnections()
+	for i, url := range urls {
+		part, hash, err := readRecordImage(ctx, client, url)
+		if err != nil {
+			return RecordEvidence{}, fmt.Errorf("mapped image %d: %w", i+1, err)
+		}
+		evidence.Images = append(evidence.Images, part)
+		evidence.Text = append(evidence.Text, fmt.Sprintf("mapped image %d: sha256 %x", i+1, hash))
+	}
+	return evidence, nil
+}

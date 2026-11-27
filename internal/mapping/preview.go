@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -12,6 +13,7 @@ import (
 
 // SourceMapping describes how a record collection becomes inputs to a factory.
 type SourceMapping struct {
+	ImagePath      string             `json:"image_path,omitempty"`
 	Relationships  []RelationshipPath `json:"relationships,omitempty"`
 	EditableFields *[]string          `json:"editable_fields,omitempty"`
 	NextPath       string             `json:"next_path,omitempty"`
@@ -145,6 +147,10 @@ func (m SourceMapping) Preview(sample any) ([]PreviewRow, error) {
 			return nil, err
 		}
 	}
+	imagePath, err := tokens(m.ImagePath)
+	if err != nil {
+		return nil, err
+	}
 	records, err := m.records(sample)
 	if err != nil {
 		return nil, err
@@ -180,6 +186,14 @@ func (m SourceMapping) Preview(sample any) ([]PreviewRow, error) {
 			}
 		}
 		record := schema.Entity{ID: id, Type: m.RecordType, Version: 1, Attributes: attrs}
+		if len(imagePath) > 0 {
+			v, _ := lookup(row, imagePath)
+			record.ImageURLs, err = imageURLs(v)
+			if err != nil {
+				out[i].Problem = fmt.Sprintf("image path %s: %v", m.ImagePath, err)
+				continue
+			}
+		}
 		record.Relations, err = m.relations(row, relationPaths)
 		if err != nil {
 			out[i].Problem = err.Error()
@@ -205,6 +219,32 @@ func (m SourceMapping) Preview(sample any) ([]PreviewRow, error) {
 		out[i].Record = &record
 	}
 	return out, nil
+}
+
+func imageURLs(v any) ([]string, error) {
+	if v == nil {
+		return nil, nil
+	}
+	values, ok := v.([]any)
+	if !ok {
+		values = []any{v}
+	}
+	if len(values) > 10 {
+		return nil, fmt.Errorf("maximum 10 images per record")
+	}
+	var urls []string
+	for _, value := range values {
+		raw, ok := value.(string)
+		if !ok {
+			return nil, fmt.Errorf("expected an image URL or list of URLs")
+		}
+		u, err := url.Parse(raw)
+		if err != nil || u.Hostname() == "" || u.User != nil || (u.Scheme != "http" && u.Scheme != "https") {
+			return nil, fmt.Errorf("invalid image URL")
+		}
+		urls = append(urls, raw)
+	}
+	return urls, nil
 }
 
 func (m SourceMapping) relations(row any, paths [][]string) ([]schema.Relation, error) {

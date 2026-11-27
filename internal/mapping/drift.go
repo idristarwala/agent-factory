@@ -45,6 +45,9 @@ func (m SourceMapping) Observe(sample any) ([]PathShape, error) {
 	for _, p := range m.Fields {
 		paths = append(paths, p)
 	}
+	if m.ImagePath != "" {
+		paths = append(paths, m.ImagePath)
+	}
 	relationPaths := map[string]bool{}
 	for _, rel := range m.Relationships {
 		relationPaths[rel.Path] = true
@@ -65,8 +68,8 @@ func (m SourceMapping) Observe(sample any) ([]PathShape, error) {
 				kinds = append(kinds, kind)
 			}
 		}
-		if relationPaths[p] && len(kinds) == 1 && kinds[0] == "missing" {
-			return nil, fmt.Errorf("relationship path %s was absent from the approval sample", p)
+		if (relationPaths[p] || p == m.ImagePath) && len(kinds) == 1 && kinds[0] == "missing" {
+			return nil, fmt.Errorf("reference path %s was absent from the approval sample", p)
 		}
 		sort.Strings(kinds)
 		shapes = append(shapes, PathShape{p, kinds})

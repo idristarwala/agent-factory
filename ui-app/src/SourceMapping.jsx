@@ -28,6 +28,7 @@ export default function SourceMapping({factory, goal, approved, onApprove, reque
   }
   const [collection,setCollection] = useState(undefined)
   const [identity,setIdentity] = useState([])
+  const [includeImages,setIncludeImages] = useState(false)
   const [includeRelationships,setIncludeRelationships] = useState(false)
   const [relationshipNames,setRelationshipNames] = useState(new Map())
   const [editable,setEditable] = useState([])
@@ -60,7 +61,7 @@ export default function SourceMapping({factory, goal, approved, onApprove, reque
     if (!recordType) throw new Error('Save a factory definition before proposing a source mapping.')
     const candidates = Object.keys(defs.at(-1).data.fields || {})
     const response = await request(base + 'proposals/' + id, {
-      sample: payload, goal, include_relationships:includeRelationships, editable_candidates:candidates, record_type: recordType, expected: drafts.length, collection, identity, openapi: spec.document.trim() ? spec : undefined
+      sample: payload, goal, include_images:includeImages, include_relationships:includeRelationships, editable_candidates:candidates, record_type: recordType, expected: drafts.length, collection, identity, openapi: spec.document.trim() ? spec : undefined
     },undefined,true)
     setResult({...response, sample:payload, candidates})
     setRelationshipNames(new Map())
@@ -112,6 +113,8 @@ export default function SourceMapping({factory, goal, approved, onApprove, reque
         {f.path}{identity.includes(f.path) && ' · '+(identity.indexOf(f.path)+1)}
       </label>)}
     </fieldset>}
+    {!approved && <label><input type="checkbox" checked={includeImages}
+      onChange={e=>{reset();setIncludeImages(e.target.checked)}}/> Propose an image attachment path</label>}
     {!approved && <label><input type="checkbox" checked={includeRelationships}
       onChange={e=>{reset();setIncludeRelationships(e.target.checked)}}/> Propose relationships between records</label>}
     {!approved && <button type="button" disabled={!factory || !mapping || !goal || !sample || (result?.status==='choose_collection' && collection===undefined) || (result?.status==='choose_identity' && !identity.length)} onClick={()=>perform(propose)}>Propose mapping</button>}
@@ -119,6 +122,7 @@ export default function SourceMapping({factory, goal, approved, onApprove, reque
       <table><thead><tr><th>Source path</th><th>Record field</th></tr></thead><tbody>
         {Object.entries(result.proposal.data.fields).map(([name,path])=><tr key={name}><td>{path}</td><td>{name}</td></tr>)}
       </tbody></table>
+      {result.proposal.data.image_path && <p>Image evidence for worker and judge: <code>{result.proposal.data.image_path}</code></p>}
       {result.proposal.data.next_path && <p>Next page token: <code>{result.proposal.data.next_path}</code></p>}
       {result.proposal.data.relationships?.length>0 && <section><h4>Relationships</h4>
         {result.proposal.data.relationships.map(rel=><label key={rel.name}>Relationship name for {rel.path}

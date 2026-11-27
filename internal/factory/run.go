@@ -2,12 +2,15 @@
 package factory
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/idristarwala/agent-factory/internal/memory"
+	"github.com/idristarwala/agent-factory/internal/tools"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/idristarwala/agent-factory/internal/agents"
 	"github.com/idristarwala/agent-factory/internal/graph"
@@ -110,7 +113,17 @@ func (p Plan) evaluate(gw models.Gateway, goal string, e schema.Entity, origin *
 		fields = append(fields, k)
 	}
 	sort.Strings(fields)
-	var evidence []string
+	var media tools.RecordEvidence
+	if origin != nil && len(e.ImageURLs) > 0 {
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+		var err error
+		media, err = tools.CollectMappedImages(ctx, e.ImageURLs)
+		if err != nil {
+			return nil, agents.Decision{}, err
+		}
+	}
+	evidence := media.Text
 	if len(e.Relations) > 0 {
 		data, err := json.Marshal(e.Relations)
 		if err != nil {
@@ -128,10 +141,11 @@ func (p Plan) evaluate(gw models.Gateway, goal string, e schema.Entity, origin *
 	for _, file := range p.Memory {
 		evidence = append(evidence, fmt.Sprintf("Factory memory %q revision %d (%s): %s", file.Path, file.Version, file.Author, file.Content))
 	}
-	mutation, err := worker.Execute(&unitofwork.UnitOfWork{ID: e.ID, InputSubgraph: graph.NodeID(e.ID), Evidence: evidence, Description: goal, AllowedFields: fields, RequiredFields: p.Spec.Required, FieldTypes: p.Spec.Fields, PreserveStatus: true})
+	mutation, err := worker.Execute(&unitofwork.UnitOfWork{ID: e.ID, InputSubgraph: graph.NodeID(e.ID), Evidence: evidence, Images: media.Images, Description: goal, AllowedFields: fields, RequiredFields: p.Spec.Required, FieldTypes: p.Spec.Fields, PreserveStatus: true})
 	if err != nil {
 		return nil, agents.Decision{}, err
 	}
+	mutation.Evidence = append(mutation.Evidence, "Requested goal: "+goal)
 	mutation.Evidence = append(mutation.Evidence, evidence...)
 	judge := agents.NewLLMJudge(gw, g)
 	judge.Definition = p.Judge

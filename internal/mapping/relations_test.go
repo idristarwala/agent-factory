@@ -33,3 +33,24 @@ func TestRelationshipTargetsAndDrift(t *testing.T) {
 		t.Fatal(rows, err)
 	}
 }
+
+func TestMappedImagePath(t *testing.T) {
+	m := SourceMapping{ImagePath: "/media/urls", RecordType: "inspection", Identity: []string{"/id"}, Fields: map[string]string{"id": "/id"}}
+	row := map[string]any{"id": "x", "media": map[string]any{"urls": []any{"https://example.org/a.png", "https://example.org/b.jpg"}}}
+	rows, err := m.Preview(row)
+	if err != nil || rows[0].Problem != "" || len(rows[0].Record.ImageURLs) != 2 {
+		t.Fatal(rows, err)
+	}
+	observed, err := m.Observe(row)
+	if err != nil {
+		t.Fatal(err)
+	}
+	approved := ApprovedMapping{SourceMapping: m, Observed: observed}
+	for _, v := range []any{"https://example.org/changed-shape", []any{true}, []any{"file:///etc/passwd"}} {
+		row["media"] = map[string]any{"urls": v}
+		rows, err := approved.ImportRows(row)
+		if err != nil || rows[0].Problem == "" {
+			t.Fatal(rows, err)
+		}
+	}
+}
