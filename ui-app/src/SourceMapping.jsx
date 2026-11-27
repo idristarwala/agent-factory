@@ -107,6 +107,8 @@ export default function SourceMapping({factory, goal, approved, onApprove, reque
       {result.collections.map(c=><option key={c.path} value={c.path}>{c.path || '(root)'} · {c.records} records</option>)}
     </select></label>}
     {result?.status==='choose_identity' && <fieldset><legend>Identity fields, in key order</legend>
+      {result.collection.composite_keys?.map(pair=><button type="button" key={JSON.stringify(pair)}
+        onClick={()=>setIdentity(pair)}>Use sample-unique pair {pair.join(' + ')}</button>)}
       {result.problem && <p role="alert">Row {result.row}: {result.problem}</p>}
       {result.collection.fields.filter(f=>Object.hasOwn(f.types,'string') || Object.hasOwn(f.types,'number')).map(f=><label key={f.path}>
         <input type="checkbox" checked={identity.includes(f.path)} onChange={e=>setIdentity(current=>e.target.checked?[...current,f.path]:current.filter(p=>p!==f.path))}/>
