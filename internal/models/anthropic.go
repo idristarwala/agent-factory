@@ -69,12 +69,12 @@ func (g *AnthropicGateway) Generate(req Request) (*Response, error) {
 		"messages":   messages,
 	}
 
-	// Forced tool call for schema enforcement
-	if req.ResponseSchema != nil {
+	// Forced tool call for schema enforcement — uses Schema field
+	if len(req.Schema) > 0 {
 		body["tools"] = []map[string]any{{
 			"name":         "attribute_update",
 			"description":  "Return the attribute updates",
-			"input_schema": req.ResponseSchema,
+			"input_schema": req.Schema,
 		}}
 		body["tool_choice"] = map[string]any{
 			"type": "tool",
@@ -123,7 +123,6 @@ func (g *AnthropicGateway) Generate(req Request) (*Response, error) {
 		return nil, fmt.Errorf("anthropic: %s", parsed.Error.Message)
 	}
 
-	// Extract from tool use if present
 	for _, c := range parsed.Content {
 		if c.Type == "tool_use" && c.Input != nil {
 			b, _ := json.Marshal(c.Input)
