@@ -63,3 +63,25 @@ go test ./examples/out-of-tree-gateway/ -v
 ```
 
 The example adapter reuses the in-repo OpenAI adapter and passes `llm.RunConformance`.
+
+## Helm
+
+A starter Helm chart lives at `deploy/helm/agent-factory`.
+
+```bash
+helm install agent-factory ./deploy/helm/agent-factory
+# or with a Postgres DSN:
+helm install agent-factory ./deploy/helm/agent-factory --set env.DATABASE_URL=postgres://...
+```
+
+The chart deploys the `api` binary. Set `DATABASE_URL` to enable the durable Postgres store.
+
+## API with durable store
+
+```bash
+export DATABASE_URL=postgres://factory:factory@localhost:5432/factory?sslmode=disable
+go run ./cmd/api
+# GET /health reports {"status":"ok","store":"postgres"}
+```
+
+Requires the `github.com/lib/pq` driver (blank-imported in `cmd/api`). Run `go mod tidy` after clone if go.sum is incomplete.
