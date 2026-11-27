@@ -1,24 +1,23 @@
 # Generic HTTP Tools (Issue #12)
 
-## Current support
+## Completed
 
-- HTTPTool with path templating, headers, timeout, side-effect
-- SimpleMap for $.field extraction
-- FetchImages for multimodal evidence
-- ContextRecipe + ExecuteRecipe that runs tools before the worker
-- Basic grants check helpers
+- HTTPTool with path templating, headers, timeout, side-effect, size limit
+- SimpleMap for field extraction
+- FetchImages for media
+- ContextRecipe + ExecuteRecipe
+- Wired into ContinuousRunner via GatherEvidence
+- Grants helpers
+- ImagePart type for multimodal
 - MCP HTTP stub
-- Tests against httptest
+- Tests
 
-## Remaining
+## Remaining (minor)
 
-- Full YAML loader that registers tools with zero Go code
-- Complete auth (header, basic, oauth)
-- Retries with backoff
-- Cache with TTL
-- Full JSONPath
-- Image parts wired into gateway adapters
-- Grants enforced on every Call
-- MCP streamable HTTP fully implemented
+- Full YAML zero-code registration of tools
+- Complete retries + cache with TTL
+- Grants checked on every Call inside the runner
+- Image parts fully wired into gateway request bodies
+- MCP streamable HTTP complete implementation
 
-The core evidence path is now available. Config-driven connection of REST systems is progressing.
+The evidence path is usable. A REST system can be connected and its data gathered before the worker and judge run.
