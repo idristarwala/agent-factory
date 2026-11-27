@@ -30,32 +30,41 @@ type LearningLoop struct {
 	RuleEngine *rules.Engine
 	Registry   *agents.Registry
 	ReplayGate bool
+	cumulative map[string]int
 }
 
 func NewLearningLoop(re *rules.Engine, reg *agents.Registry) *LearningLoop {
-	return &LearningLoop{RuleEngine: re, Registry: reg}
+	return &LearningLoop{
+		RuleEngine: re,
+		Registry:   reg,
+		cumulative: make(map[string]int),
+	}
 }
 
 func (l *LearningLoop) Review(decisions []agents.Decision, learnings []string) []Gap {
+	if l.cumulative == nil {
+		l.cumulative = make(map[string]int)
+	}
 	var gaps []Gap
 	rejectReasons := map[string]int{}
 	for _, d := range decisions {
 		if !d.Approved {
 			key := extractTheme(d.Reason)
 			rejectReasons[key]++
+			l.cumulative[key]++
 		}
 	}
 	for theme, count := range rejectReasons {
-		if count >= 2 {
+		total := l.cumulative[theme]
+		if total >= 2 {
 			gaps = append(gaps, Gap{
 				Pattern:     theme,
-				Evidence:    []string{fmt.Sprintf("%d rejections", count)},
-				Occurrences: count,
-				Severity:    severity(count),
+				Evidence:    []string{fmt.Sprintf("%d this round, %d cumulative", count, total)},
+				Occurrences: total,
+				Severity:    severity(total),
 			})
 		}
 	}
-	// Group failure strings so identical causes do not create duplicate rules
 	failCounts := map[string]int{}
 	for _, learning := range learnings {
 		lower := strings.ToLower(learning)
@@ -63,14 +72,15 @@ func (l *LearningLoop) Review(decisions []agents.Decision, learnings []string) [
 			strings.Contains(lower, "format") || strings.Contains(lower, "truncat") ||
 			strings.Contains(lower, "json") || strings.Contains(lower, "validation") {
 			failCounts[learning]++
+			l.cumulative[learning]++
 		}
 	}
 	for pattern, count := range failCounts {
 		gaps = append(gaps, Gap{
 			Pattern:     pattern,
 			Evidence:    []string{pattern},
-			Occurrences: count,
-			Severity:    severity(count),
+			Occurrences: l.cumulative[pattern],
+			Severity:    severity(l.cumulative[pattern]),
 		})
 	}
 	return gaps
@@ -138,13 +148,9 @@ func (l *LearningLoop) Apply(updates []AgentUpdate) []string {
 	for _, u := range updates {
 		switch u.ChangeType {
 		case "rule":
-			// Use ShouldActivate as the replay gate
 			active := true
 			if l.ReplayGate {
-				active = ShouldActivate(nil) // no signals here; default to hold
-				if !active {
-					active = false
-				}
+				active = ShouldActivate(nil)
 			}
 			r := l.RuleEngine.Propose(rules.VersionedRule{
 				Description: u.Payload["description"],
