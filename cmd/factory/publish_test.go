@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"github.com/idristarwala/agent-factory/internal/pack"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -75,7 +76,7 @@ func TestPublishFromUserRepository(t *testing.T) {
 		t.Fatalf("history has %d revisions: %v", len(h), err)
 	}
 	for i, expected := range []string{receipt, revised} {
-		var release packRelease
+		var release pack.Release
 		if err := json.Unmarshal(h[i].Data, &release); err != nil {
 			t.Fatal(err)
 		}

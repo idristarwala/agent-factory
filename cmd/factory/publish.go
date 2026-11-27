@@ -17,15 +17,6 @@ import (
 	"github.com/idristarwala/agent-factory/internal/store"
 )
 
-type packRelease struct {
-	Status      string `json:"status"`
-	Commit      string `json:"commit"`
-	PackSHA     string `json:"pack_sha256"`
-	EvidenceSHA string `json:"evidence_sha256"`
-	Pack        []byte `json:"pack_bytes"`
-	Evidence    []byte `json:"evidence_bytes"`
-}
-
 func publishPack(args []string) error {
 	flags := flag.NewFlagSet("publish", flag.ContinueOnError)
 	path := flags.String("pack", "", "tracked YAML or JSON pack file")
@@ -78,7 +69,7 @@ func publishPack(args []string) error {
 			return fmt.Errorf("evidence contains an unnamed test")
 		}
 	}
-	release := packRelease{Status: "proposed", Commit: commit, PackSHA: digest, EvidenceSHA: fmt.Sprintf("%x", sha256.Sum256(raw)), Pack: data, Evidence: raw}
+	release := pack.Release{Status: "proposed", Commit: commit, PackSHA: digest, EvidenceSHA: fmt.Sprintf("%x", sha256.Sum256(raw)), Pack: data, Evidence: raw}
 	db, err := store.NewFromEnv()
 	if err != nil {
 		return err
@@ -91,7 +82,7 @@ func publishPack(args []string) error {
 	return json.NewEncoder(os.Stdout).Encode(saved)
 }
 
-func saveRelease(s revision.Store, name string, expected int, release packRelease) (revision.Document, error) {
+func saveRelease(s revision.Store, name string, expected int, release pack.Release) (revision.Document, error) {
 	id := "pack-release/" + name
 	data, err := json.Marshal(release)
 	if err != nil {
@@ -108,11 +99,11 @@ func saveRelease(s revision.Store, name string, expected int, release packReleas
 	}
 	if len(history) == expected+1 && len(history) > 0 {
 		latest := history[len(history)-1]
-		var previous packRelease
+		var previous pack.Release
 		if err := json.Unmarshal(latest.Data, &previous); err != nil {
 			return revision.Document{}, err
 		}
-		if previous.Commit == release.Commit && previous.PackSHA == release.PackSHA && previous.EvidenceSHA == release.EvidenceSHA {
+		if previous.Status == release.Status && previous.Commit == release.Commit && previous.PackSHA == release.PackSHA && previous.EvidenceSHA == release.EvidenceSHA {
 			return latest, nil
 		}
 	}
