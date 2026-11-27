@@ -2,6 +2,8 @@
 
 Run `go run ./cmd/api`. The default address is `:8080`. Send JSON request bodies with `Content-Type: application/json`. When the server has any [API role token](../AUTH.md) configured, every `/api/` route requires an `Authorization: Bearer <token>` header. `GET /health` is public. Set `CORS_ORIGIN` to the operator UI origin for cross-origin browser requests.
 
+Set the server write timeout to cover expected response time for synchronous model-backed requests. The client, reverse proxy, and model gateway each have their own deadlines. [API server configuration](CONFIGURATION.md#deployment-settings)
+
 ## Goals and review
 
 | Method and route | Behavior |

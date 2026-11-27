@@ -93,22 +93,42 @@ func main() {
 
 	feedbackRoute(mux, definitions, ruleEngine)
 
-	addr := os.Getenv("FACTORY_LISTEN_ADDR")
-	if addr == "" {
-		addr = ":8080"
+	srv, err := apiServer(mux)
+	if err != nil {
+		log.Fatal(err)
 	}
-	fmt.Println("API listening on", addr, "(store:", storeKind, ")")
-	srv := &http.Server{
-		Addr:         addr,
-		Handler:      mux,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 30 * time.Second,
-		IdleTimeout:  60 * time.Second,
-	}
+	fmt.Println("API listening on", srv.Addr, "(store:", storeKind, ")")
 	if err := srv.ListenAndServe(); err != nil {
 		fmt.Fprintf(os.Stderr, "server: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func apiServer(handler http.Handler) (*http.Server, error) {
+	addr := os.Getenv("FACTORY_LISTEN_ADDR")
+	if addr == "" {
+		addr = ":8080"
+	}
+	srv := &http.Server{Addr: addr, Handler: handler, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second}
+	for _, setting := range []struct {
+		name   string
+		target *time.Duration
+	}{
+		{"FACTORY_API_READ_TIMEOUT", &srv.ReadTimeout},
+		{"FACTORY_API_WRITE_TIMEOUT", &srv.WriteTimeout},
+		{"FACTORY_API_IDLE_TIMEOUT", &srv.IdleTimeout},
+	} {
+		raw := os.Getenv(setting.name)
+		if raw == "" {
+			continue
+		}
+		d, err := time.ParseDuration(raw)
+		if err != nil || d < 0 {
+			return nil, fmt.Errorf("%s must be a nonnegative duration", setting.name)
+		}
+		*setting.target = d
+	}
+	return srv, nil
 }
 
 func chatRoute(mux *http.ServeMux, ws *factory.Workspace, gw models.Gateway) {

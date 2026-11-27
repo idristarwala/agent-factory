@@ -14,6 +14,9 @@ services:
       - API_TOKEN
       - FACTORY_OPERATOR_TOKEN
       - FACTORY_VIEWER_TOKEN
+      - FACTORY_API_READ_TIMEOUT
+      - FACTORY_API_WRITE_TIMEOUT
+      - FACTORY_API_IDLE_TIMEOUT
     healthcheck:
       test: ["CMD", "wget", "-Y", "off", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health"]
       interval: 5s
