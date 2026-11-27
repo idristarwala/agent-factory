@@ -62,7 +62,7 @@ func (w *LLMWorker) Execute(uow *unitofwork.UnitOfWork) (*graph.Mutation, error)
 	preserveWording := false
 	for _, r := range w.Rules {
 		text := strings.ToLower(r.Description + " " + r.Action + " " + r.Condition)
-		if strings.Contains(text, "original wording") || strings.Contains(text, "keep the original") || strings.Contains(text, "preserve wording") || strings.Contains(text, "do not rewrite") || strings.Contains(text, "preserve original") || strings.Contains(text, "keep original") || strings.Contains(text, "seller wording") {
+		if strings.Contains(text, "original wording") || strings.Contains(text, "keep the original") || strings.Contains(text, "preserve wording") || strings.Contains(text, "do not rewrite") || strings.Contains(text, "preserve original") || strings.Contains(text, "keep original") || strings.Contains(text, "seller wording") || strings.Contains(text, "do not change the wording") {
 			preserveWording = true
 			break
 		}
@@ -116,8 +116,8 @@ Respond ONLY with valid JSON of the allowed fields.`, uow.Description, ruleText.
 	}
 	systemPrompt := "You produce structured attribute updates that obey the provided rules and evidence. Output JSON only."
 	if preserveWording {
-		systemPrompt += " When a rule requires preserving original wording, preserve the phrasing in the source record and only fill missing factual values from evidence. Do not rewrite existing text. Prefer the original sentence structure and vocabulary."
-		prompt += "\nIMPORTANT: A customer rule requires preserving original wording. Keep existing phrasing. Only insert missing factual values. Do not paraphrase or rewrite."
+		systemPrompt += " When a rule requires preserving original wording, preserve the exact phrasing, sentence structure and vocabulary from the source record. Only insert missing factual values that are present in the evidence. Never paraphrase, reword, or invent descriptive language."
+		prompt += "\nIMPORTANT: A customer rule requires preserving original wording. Keep every existing phrase exactly as written. Only fill gaps with factual values from evidence. Do not rewrite, paraphrase or improve the language."
 	}
 
 	var lastErr error
