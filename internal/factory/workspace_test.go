@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/idristarwala/agent-factory/internal/models"
 	"github.com/idristarwala/agent-factory/internal/revision"
+	"github.com/idristarwala/agent-factory/internal/rules"
 	"github.com/idristarwala/agent-factory/internal/schema"
 	"github.com/idristarwala/agent-factory/internal/store"
 	"path/filepath"
@@ -67,5 +68,34 @@ func TestPinnedNonRetailRunSurvivesRestartAndReview(t *testing.T) {
 	}
 	if _, err = ws.Decide(r.ID, d.ID, "rejected", "", r.Version-1); !errors.Is(err, revision.ErrConflict) {
 		t.Fatal(err)
+	}
+}
+
+func TestSelectedRulesPinnedAtStart(t *testing.T) {
+	s := revision.NewMemory()
+	_, err := revision.SaveDocument(s, "factory/desk", 0, "human", []byte(`{"record_type":"request","fields":{"owner":"string"}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	engine := rules.NewStoredEngine(s)
+	for _, id := range []string{"a", "b"} {
+		if _, err := engine.Save(rules.VersionedRule{ID: id, Active: true}, 0); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ws := Workspace{Store: s}
+	req := RunRequest{Description: "Assign owner", Factory: "desk", Records: []schema.Entity{{ID: "req", Type: "request"}}, SelectedRules: map[string]int{"b": 1}}
+	run, err := ws.Start(req)
+	if err != nil || len(run.Plan.Rules) != 1 || run.Plan.Rules[0].ID != "b" {
+		t.Fatal(run.Plan.Rules, err)
+	}
+	req.SelectedRules["b"] = 2
+	if _, err = ws.Start(req); err == nil {
+		t.Fatal("accepted stale selection")
+	}
+	req.SelectedRules = nil
+	run, err = ws.Start(req)
+	if err != nil || len(run.Plan.Rules) != 2 {
+		t.Fatal(run.Plan.Rules, err)
 	}
 }

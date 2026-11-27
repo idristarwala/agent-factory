@@ -19,11 +19,12 @@ import (
 var ErrNotFound = errors.New("run not found")
 
 type RunRequest struct {
-	Description string          `json:"description"`
-	Factory     string          `json:"factory"`
-	Revision    int             `json:"factory_revision"`
-	Records     []schema.Entity `json:"records"`
-	MaxTokens   int             `json:"max_tokens"`
+	SelectedRules map[string]int  `json:"selected_rules"`
+	Description   string          `json:"description"`
+	Factory       string          `json:"factory"`
+	Revision      int             `json:"factory_revision"`
+	Records       []schema.Entity `json:"records"`
+	MaxTokens     int             `json:"max_tokens"`
 }
 type Call struct {
 	Model  string  `json:"model"`
@@ -139,6 +140,23 @@ func (w *Workspace) Start(req RunRequest) (Run, error) {
 		plan, err := Prepare(w.Store, req.Factory, req.Revision)
 		if err != nil {
 			return Run{}, err
+		}
+		if req.SelectedRules != nil {
+			selected := plan.Rules[:0]
+			for _, rule := range plan.Rules {
+				version, ok := req.SelectedRules[rule.ID]
+				if !ok {
+					continue
+				}
+				if version != rule.Version {
+					return Run{}, fmt.Errorf("rule %s changed; reload available rules", rule.ID)
+				}
+				selected = append(selected, rule)
+			}
+			if len(selected) != len(req.SelectedRules) {
+				return Run{}, fmt.Errorf("a selected rule is no longer active")
+			}
+			plan.Rules = selected
 		}
 		r.Plan = plan
 		seen := map[string]bool{}

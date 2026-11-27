@@ -1,6 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 export default function Runs({runs, source, setSource, request, refresh, setMessage, page}) {
+  const [availableRules,setAvailableRules]=useState([])
+  useEffect(()=>{
+    if(page!=='Goal builder') return
+    let live=true
+    request('/api/rules').then(rows=>{if(live)setAvailableRules(rows)}).catch(e=>{if(live)setMessage(e.message)})
+    return ()=>{live=false}
+  },[page,request,setMessage])
   const [goal,setGoal] = useState('')
   const [definition,setDefinition]=useState(''), [expected,setExpected]=useState(0)
   const [selected,setSelected] = useState('')
@@ -14,7 +21,7 @@ export default function Runs({runs, source, setSource, request, refresh, setMess
   if(page==='Goal builder') return <form className="definitions" onSubmit={e=>{e.preventDefault();action(async()=>{
     const records=JSON.parse(source.records)
     if(!Array.isArray(records)||!records.length) throw new Error('Supply at least one source record.')
-    const r=await request('/api/goals',{description:goal, factory:source.factory,records,max_tokens:Number(source.budget)})
+    const r=await request('/api/goals',{description:goal, factory:source.factory,records,selected_rules:source.rules,max_tokens:Number(source.budget)})
     setSelected(r.id);setMessage('Started run '+r.id)
   })}}><h2>Create a goal</h2><label>Outcome<input required value={goal} onChange={e=>setGoal(e.target.value)}/></label>
     <label>Factory definition ID<input required value={source.factory} onChange={e=>setSource({...source,factory:e.target.value})}/></label>
@@ -24,7 +31,10 @@ export default function Runs({runs, source, setSource, request, refresh, setMess
       <button type="button" disabled={busy||!source.factory} onClick={()=>action(async()=>{const d=await request('/api/definitions/factory/'+encodeURIComponent(source.factory),{Expected:expected,Data:JSON.parse(definition)});setExpected(d.version);setMessage('Saved factory revision '+d.version)})}>Save definition</button></details>
     <label>Source records (JSON array)<textarea required rows={6} value={source.records} onChange={e=>setSource({...source,records:e.target.value})}/></label>
     <label>Token budget (0 uses workspace settings)<input type="number" min="0" value={source.budget} onChange={e=>setSource({...source,budget:e.target.value})}/></label>
-    <p>Uses the selected factory revision and its active workspace rules.</p>
+    <fieldset><legend>Run rules</legend><label><input type="checkbox" checked={source.rules===undefined}
+      onChange={e=>setSource({...source,rules:e.target.checked?undefined:Object.fromEntries(availableRules.map(r=>[r.ID,r.Version]))})}/> Use all active rules</label>
+      {source.rules!==undefined && availableRules.map(r=><label key={r.ID}><input type="checkbox" checked={source.rules[r.ID]===r.Version}
+        onChange={e=>{const rules={...source.rules};if(e.target.checked)rules[r.ID]=r.Version;else delete rules[r.ID];setSource({...source,rules})}}/> {r.Description} · r{r.Version}</label>)}</fieldset>
     <button className="ok" disabled={busy}>Start run</button></form>
   if(page==='Graph') return <section className="definitions"><h2>Record graph</h2>{selectRun}
     {run?.records?.map(e=><article key={e.id}><button onClick={()=>setRecord(e.id)}>{e.id}</button> <span>{e.type}</span>
