@@ -12,3 +12,4 @@
 - [Project status](docs/STATUS.md): verification and outstanding work.
 - [Pack rule schema](schemas/rule.schema.json) for validating individual YAML or JSON rules with `factory validate --rule FILE...`.
 - [OpenAPI tool import](docs/HTTP_TOOLS.md#generate-tool-definitions-from-openapi) for offline generation of reviewable GET evidence tools.
+- [Evidence tool file schema](schemas/evidence-tools.schema.json) for validating HTTP and MCP configuration with `factory validate --tools FILE...`.

@@ -46,6 +46,10 @@ func loadHTTPConfig(path string) (*EvidenceConfig, error) {
 	if err != nil {
 		return nil, err
 	}
+	return parseHTTPConfig(path, data, true)
+}
+
+func parseHTTPConfig(path string, data []byte, deployed bool) (*EvidenceConfig, error) {
 	var config struct {
 		Tools map[string]struct {
 			MCPTool  string `yaml:"mcp_tool"`
@@ -99,21 +103,22 @@ func loadHTTPConfig(path string) (*EvidenceConfig, error) {
 		if (!readPost && def.Method != "GET") || (def.SideEffect != "" && def.SideEffect != "read-only") {
 			return nil, fmt.Errorf("evidence tool %q requires GET or an explicitly read-only POST", name)
 		}
-		if err := validateDestination(def.URL, def.URL); err != nil {
+		if err := validateToolURL(def.URL, def.URL, deployed); err != nil {
 			return nil, fmt.Errorf("invalid destination for tool %q", name)
 		}
 		t := NewHTTPTool(name, def.Method, def.URL)
 		t.mcpTool = def.MCPTool
 		if def.Response != nil {
-			t.response, err = def.Response.compile()
+			mapping, err := def.Response.compile()
 			if err != nil {
 				return nil, fmt.Errorf("tool %q: %w", name, err)
 			}
+			t.response = mapping
 		}
 		if def.Proxy != "" && def.Proxy != "none" {
 			return nil, fmt.Errorf("unsupported proxy mode for evidence tool %q", name)
 		}
-		if caFile := def.TLS.CAFile; caFile != "" {
+		if caFile := def.TLS.CAFile; caFile != "" && deployed {
 			if !filepath.IsAbs(caFile) {
 				caFile = filepath.Join(filepath.Dir(path), caFile)
 			}

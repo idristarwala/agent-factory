@@ -9,16 +9,24 @@ import (
 	"strings"
 
 	"github.com/idristarwala/agent-factory/internal/pack"
+	"github.com/idristarwala/agent-factory/internal/tools"
 
 	"gopkg.in/yaml.v3"
 )
 
 func validateFiles(paths []string) error {
-	if len(paths) > 0 && paths[0] == "--rule" {
+	if len(paths) > 0 && (paths[0] == "--rule" || paths[0] == "--tools") {
 		if len(paths) == 1 {
-			return fmt.Errorf("usage: factory validate --rule FILE...")
+			return fmt.Errorf("usage: factory validate %s FILE...", paths[0])
 		}
 		for _, path := range paths[1:] {
+			if paths[0] == "--tools" {
+				if err := tools.ValidateEvidenceFile(path); err != nil {
+					return fmt.Errorf("%s: %w", path, err)
+				}
+				fmt.Printf("Validated evidence tools %s\n", path)
+				continue
+			}
 			rule, err := pack.LoadRule(path)
 			if err != nil {
 				return fmt.Errorf("%s: %w", path, err)
