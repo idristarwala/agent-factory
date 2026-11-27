@@ -60,3 +60,8 @@ main nav { flex-wrap:wrap; }
 .record-neighborhood > div { padding:.75rem; border:1px solid var(--muted); border-radius:8px; overflow-wrap:anywhere; }
 .record-neighborhood > div:nth-child(2) { border:2px solid var(--accent); text-align:center; }
 @media(max-width:650px) { .record-neighborhood { grid-template-columns:1fr; } }
+
+.chat-attachments { margin: 0 12px 8px; min-width: 0; border: 1px solid #8886; border-radius: 8px; font-size: 13px; }
+.chat-attachments input { display: block; max-width: 100%; margin: 6px 0; }
+.chat-attachments div, .chat-citations { overflow-wrap: anywhere; }
+.chat-citations { display: block; margin-top: 6px; }
