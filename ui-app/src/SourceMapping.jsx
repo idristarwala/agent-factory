@@ -26,6 +26,7 @@ export default function SourceMapping({factory, goal, approved, onApprove, reque
   }
   const [collection,setCollection] = useState(undefined)
   const [identity,setIdentity] = useState([])
+  const [editable,setEditable] = useState([])
   const [result,setResult] = useState(null)
   const [busy,setBusy] = useState(false)
   const [expected,setExpected] = useState(0)
@@ -53,17 +54,19 @@ export default function SourceMapping({factory, goal, approved, onApprove, reque
     ])
     const recordType = defs.at(-1)?.data?.record_type
     if (!recordType) throw new Error('Save a factory definition before proposing a source mapping.')
+    const candidates = Object.keys(defs.at(-1).data.fields || {})
     const response = await request(base + 'proposals/' + id, {
-      sample: payload, goal, record_type: recordType, expected: drafts.length, collection, identity, openapi: spec.document.trim() ? spec : undefined
+      sample: payload, goal, editable_candidates:candidates, record_type: recordType, expected: drafts.length, collection, identity, openapi: spec.document.trim() ? spec : undefined
     },undefined,true)
-    setResult({...response, sample:payload})
+    setResult({...response, sample:payload, candidates})
+    setEditable(response.proposal?.data.editable_fields || [])
     setExpected(mappings.length)
     if (response.status === 'choose_identity') setCollection(response.collection.path)
   }
 
   async function approve() {
     const saved = await request(base + 'mappings/' + id, {
-      sample: parseSample(sample), expected, proposal_revision: result.proposal.version
+      sample: parseSample(sample), expected, editable_fields:editable, proposal_revision: result.proposal.version
     })
     onApprove({mapping, revision:saved.version, sample, receipt})
     setMessage('Approved mapping revision ' + saved.version)
@@ -111,6 +114,14 @@ export default function SourceMapping({factory, goal, approved, onApprove, reque
       </tbody></table>
       {result.proposal.data.next_path && <p>Next page token: <code>{result.proposal.data.next_path}</code></p>}
       <p>Identity: {result.proposal.data.identity.join(', ')}</p>
+      <fieldset disabled={Boolean(approved)}><legend>Fields the worker may edit</legend>
+        {Object.entries(result.proposal.data.fields).filter(([name,path])=>
+          result.candidates.includes(name) && !result.proposal.data.identity.some(id=>
+            path===id || path.startsWith(id+'/') || id.startsWith(path+'/'))
+        ).map(([name])=><label key={name}><input type="checkbox" checked={editable.includes(name)}
+          onChange={e=>setEditable(current=>e.target.checked?[...current,name]:current.filter(key=>key!==name))}/>{name}</label>)}
+        {!editable.length && <p>This mapping is read-only. Select a field to run an editing goal.</p>}
+      </fieldset>
       <RecordPreview key={result.proposal.version} rows={result.rows} sample={result.sample}/>
       {!approved && <button type="button" onClick={()=>perform(approve)}>Approve mapping for this run</button>}
     </section>}

@@ -67,15 +67,8 @@ func (w *Workspace) AdvanceImport(ctx context.Context, source PageSource, factor
 	if len(pages) != expected {
 		return nil, revision.ErrConflict
 	}
-	docs, err := revision.Documents(w.Store, "source-mapping/"+spec.Mapping)
+	approved, err := w.approvedMapping(spec.SourceRef)
 	if err != nil {
-		return nil, err
-	}
-	if spec.Revision > len(docs) {
-		return nil, fmt.Errorf("unknown mapping revision")
-	}
-	var approved mapping.ApprovedMapping
-	if err = json.Unmarshal(docs[spec.Revision-1].Data, &approved); err != nil {
 		return nil, err
 	}
 	if spec.NextPath == "" {

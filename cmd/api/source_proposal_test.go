@@ -26,7 +26,7 @@ func (g *proposalGateway) Generate(req models.Request) (*models.Response, error)
 func TestStewardMappingChoicesAndApproval(t *testing.T) {
 	t.Setenv("API_TOKEN", "")
 	s := revision.NewMemory()
-	g := &proposalGateway{t: t, result: `{"next_path":"/page/next","fields":[{"name":"label","path":"/name"}]}`}
+	g := &proposalGateway{t: t, result: `{"editable_fields":["label"],"next_path":"/page/next","fields":[{"name":"label","path":"/name"}]}`}
 	mux := http.NewServeMux()
 	sourceProposalRoutes(mux, s, g)
 	sourceMappingRoutes(mux, s)
@@ -40,7 +40,7 @@ func TestStewardMappingChoicesAndApproval(t *testing.T) {
 		return w.Body.String()
 	}
 	sample := `{"page":{"next":"PRIVATE-VALUE"},"data":[{"id":1,"name":"PRIVATE-VALUE"},{"id":2,"name":"other"}]}`
-	body := `{"sample":` + sample + `,"goal":"review labels","record_type":"claim","expected":0`
+	body := `{"sample":` + sample + `,"editable_candidates":["label"],"goal":"review labels","record_type":"claim","expected":0`
 	path := "/api/sources/proposals/import"
 	if !strings.Contains(req(path, body+"}", 200), "choose_collection") {
 		t.Fatal("missing collection choice")
@@ -54,10 +54,11 @@ func TestStewardMappingChoicesAndApproval(t *testing.T) {
 		t.Fatal("missing steward draft")
 	}
 	req(path, body, 409)
+	req("/api/sources/mappings/import", `{"expected":0,"proposal_revision":1,"editable_fields":["invented"],"sample":`+sample+`}`, 422)
 	g.result = `{"fields":[{"name":"wrong","path":"/invented"}]}`
 	req(path, strings.Replace(body, `"expected":0`, `"expected":1`, 1), 502)
 	h, _ := revision.Documents(s, "source-proposal/import")
-	if len(h) != 1 || !strings.Contains(string(h[0].Data), "/page/next") || strings.Contains(string(h[0].Data), "PRIVATE-VALUE") {
+	if len(h) != 1 || !strings.Contains(string(h[0].Data), `"editable_fields":["label"]`) || !strings.Contains(string(h[0].Data), "/page/next") || strings.Contains(string(h[0].Data), "PRIVATE-VALUE") {
 		t.Fatal("invalid draft history")
 	}
 	if !strings.Contains(req("/api/sources/mappings/import", `{"expected":0,"proposal_revision":1,"sample":`+sample+`}`, 200), `"proposal_revision":1`) {

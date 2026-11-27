@@ -36,24 +36,33 @@ type SourceLineage struct {
 }
 
 type mappedBatch struct {
-	records  []schema.Entity
-	problems []ImportProblem
-	lineage  map[string]SourceLineage
+	editableFields *[]string
+	records        []schema.Entity
+	problems       []ImportProblem
+	lineage        map[string]SourceLineage
 }
 
-func (w *Workspace) mappedRecords(factory string, input SourceInput) (mappedBatch, error) {
+func (w *Workspace) approvedMapping(input SourceRef) (mapping.ApprovedMapping, error) {
 	if input.Mapping == "" || input.Revision < 1 {
-		return mappedBatch{}, fmt.Errorf("supply a mapping id and explicit positive revision")
+		return mapping.ApprovedMapping{}, fmt.Errorf("supply a mapping id and explicit positive revision")
 	}
 	docs, err := revision.Documents(w.Store, "source-mapping/"+input.Mapping)
 	if err != nil {
-		return mappedBatch{}, err
+		return mapping.ApprovedMapping{}, err
 	}
 	if input.Revision > len(docs) {
-		return mappedBatch{}, fmt.Errorf("source mapping revision not found")
+		return mapping.ApprovedMapping{}, fmt.Errorf("source mapping revision not found")
 	}
 	var m mapping.ApprovedMapping
 	if err := json.Unmarshal(docs[input.Revision-1].Data, &m); err != nil {
+		return mapping.ApprovedMapping{}, err
+	}
+	return m, nil
+}
+
+func (w *Workspace) mappedRecords(factory string, input SourceInput) (mappedBatch, error) {
+	m, err := w.approvedMapping(input.SourceRef)
+	if err != nil {
 		return mappedBatch{}, err
 	}
 	if len(input.Payload) > 1<<20 || !json.Valid(input.Payload) {
@@ -76,7 +85,7 @@ func (w *Workspace) mappedRecords(factory string, input SourceInput) (mappedBatc
 	if err != nil {
 		return mappedBatch{}, err
 	}
-	batch := mappedBatch{lineage: map[string]SourceLineage{}}
+	batch := mappedBatch{editableFields: m.EditableFields, lineage: map[string]SourceLineage{}}
 	for _, row := range rows {
 		if row.Problem != "" {
 			if !input.AllowPartial {

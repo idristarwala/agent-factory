@@ -12,11 +12,12 @@ import (
 
 // SourceMapping describes how a record collection becomes inputs to a factory.
 type SourceMapping struct {
-	NextPath   string            `json:"next_path,omitempty"`
-	Collection string            `json:"collection"`
-	RecordType string            `json:"record_type"`
-	Identity   []string          `json:"identity"`
-	Fields     map[string]string `json:"fields"` // destination attribute -> source pointer
+	EditableFields *[]string         `json:"editable_fields,omitempty"`
+	NextPath       string            `json:"next_path,omitempty"`
+	Collection     string            `json:"collection"`
+	RecordType     string            `json:"record_type"`
+	Identity       []string          `json:"identity"`
+	Fields         map[string]string `json:"fields"` // destination attribute -> source pointer
 }
 
 type RecordLocation struct {
@@ -73,6 +74,27 @@ func lookup(value any, path []string) (any, bool) {
 		}
 	}
 	return value, true
+}
+
+// ValidateEditableFields keeps mapped identities and their enclosing objects read-only.
+func (m SourceMapping) ValidateEditableFields() error {
+	if m.EditableFields == nil {
+		return nil
+	}
+	seen := map[string]bool{}
+	for _, name := range *m.EditableFields {
+		path, ok := m.Fields[name]
+		if !ok || seen[name] {
+			return fmt.Errorf("unknown or duplicate editable field %q", name)
+		}
+		for _, id := range m.Identity {
+			if path == id || strings.HasPrefix(id, path+"/") || strings.HasPrefix(path, id+"/") {
+				return fmt.Errorf("identity field %q cannot be editable", name)
+			}
+		}
+		seen[name] = true
+	}
+	return nil
 }
 
 func (m SourceMapping) Preview(sample any) ([]PreviewRow, error) {
