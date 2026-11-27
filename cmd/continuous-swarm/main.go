@@ -135,7 +135,8 @@ func main() {
 	}
 	fmt.Printf("Run %s: %s (%d tokens)\n", run.ID, run.Status, meter.Tokens())
 	if runErr != nil {
-		fmt.Println("Runner finished:", runErr)
+		fmt.Fprintln(os.Stderr, "Runner finished:", runErr)
+		os.Exit(1)
 	}
 }
 

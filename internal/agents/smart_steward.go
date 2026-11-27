@@ -36,6 +36,27 @@ func (s *SmartSteward) SetRuntime(gw models.Gateway, g graph.Graph, rules []Rule
 	s.Rules = rules
 }
 
+func pendingRecords(snapshot map[graph.NodeID]*graph.Node) []*graph.Node {
+	var needsWork []*graph.Node
+	for _, n := range snapshot {
+		if n == nil {
+			continue
+		}
+		status, _ := n.Props["status"].(string)
+		if status != "fixed" && status != "clean" && status != "complete" {
+			needsWork = append(needsWork, n)
+		}
+	}
+
+	return needsWork
+}
+
+// GoalComplete checks the same terminal states used for planning without creating work units.
+func (s *SmartSteward) GoalComplete(snapshot any) bool {
+	nodes, ok := snapshot.(map[graph.NodeID]*graph.Node)
+	return ok && len(pendingRecords(nodes)) == 0
+}
+
 // InterpretGoal returns units only for entities that still need work.
 // Returns empty when the graph is clean so the runner can stop.
 func (s *SmartSteward) InterpretGoal(goal string, graphSnapshot any) ([]*unitofwork.UnitOfWork, error) {
@@ -56,16 +77,7 @@ func (s *SmartSteward) InterpretGoal(goal string, graphSnapshot any) ([]*unitofw
 		if snap == nil {
 			return nil, nil
 		}
-		var needsWork []*graph.Node
-		for _, n := range snap {
-			if n == nil {
-				continue
-			}
-			status, _ := n.Props["status"].(string)
-			if status != "fixed" && status != "clean" && status != "complete" {
-				needsWork = append(needsWork, n)
-			}
-		}
+		needsWork := pendingRecords(snap)
 		if len(needsWork) == 0 {
 			return nil, nil // graph is clean
 		}

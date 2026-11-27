@@ -48,7 +48,7 @@ func TestContinuousWriteScope(t *testing.T) {
 			steward.AllowedFields = tc.configured
 			r := NewContinuousRunner(steward, agents.NewLLMJudge(gw, g), queue.NewMemoryQueue(), g, rules.NewEngine(), nil)
 			r.Workers = 1
-			r.Budget.MaxRounds = 2
+			r.Budget.MaxRounds = 1
 			r.Budget.MaxFailures = 1
 			err := r.Run(t.Context(), tc.goal)
 			if (err == nil) != (tc.judges == 1) || gw.workers != tc.workers || gw.judges != tc.judges {
