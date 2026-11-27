@@ -1,13 +1,14 @@
 package tools
 
 import (
-	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -23,6 +24,8 @@ type HTTPTool struct {
 	QueryParams  []string // param names that go to query string
 	AuthType     string
 	KeyFile      string
+	AuthHeader   string
+	Username     string
 	Headers      map[string]string
 	SideEffect   string
 	Client       *http.Client
@@ -36,6 +39,8 @@ type cacheEntry struct {
 	body string
 	exp  time.Time
 }
+
+var bodyParameter = regexp.MustCompile(`\{[a-zA-Z0-9_.-]+\}`)
 
 // Call executes the tool with path/body/query templating, key from file, retries, and cache.
 func (t *HTTPTool) Call(ctx context.Context, params map[string]string) (string, error) {
@@ -67,16 +72,23 @@ func (t *HTTPTool) Call(ctx context.Context, params map[string]string) (string, 
 		}
 	}
 
-	var body io.Reader
-	if t.BodyTemplate != "" {
-		b := t.BodyTemplate
-		for k, v := range params {
-			b = strings.ReplaceAll(b, "{"+k+"}", v)
-		}
-		body = bytes.NewReader([]byte(b))
+	body := t.BodyTemplate
+	if body != "" {
+		jsonBody := json.Valid([]byte(body))
+		body = bodyParameter.ReplaceAllStringFunc(body, func(token string) string {
+			value, ok := params[token[1:len(token)-1]]
+			if !ok {
+				return token
+			}
+			if !jsonBody {
+				return value
+			}
+			encoded, _ := json.Marshal(value)
+			return string(encoded[1 : len(encoded)-1])
+		})
 	}
-
-	if t.CacheTTL > 0 && body == nil {
+	cacheable := t.CacheTTL > 0 && body == "" && t.Method == http.MethodGet
+	if cacheable {
 		t.mu.Lock()
 		if e, ok := t.cache[urlStr]; ok && time.Now().Before(e.exp) {
 			t.mu.Unlock()
@@ -94,35 +106,56 @@ func (t *HTTPTool) Call(ctx context.Context, params map[string]string) (string, 
 		if err := ctx.Err(); err != nil {
 			return "", err
 		}
-		req, err := http.NewRequestWithContext(ctx, t.Method, urlStr, body)
+		if attempt > 0 {
+			delay := time.NewTimer(time.Duration(min(attempt, 10)) * 200 * time.Millisecond)
+			select {
+			case <-ctx.Done():
+				delay.Stop()
+				return "", ctx.Err()
+			case <-delay.C:
+			}
+		}
+		req, err := http.NewRequestWithContext(ctx, t.Method, urlStr, strings.NewReader(body))
 		if err != nil {
 			return "", err
 		}
 		for k, v := range t.Headers {
 			req.Header.Set(k, v)
 		}
-		if t.AuthType == "bearer" && t.KeyFile != "" {
+		if t.AuthType != "" {
 			key, err := os.ReadFile(t.KeyFile)
 			if err != nil {
 				return "", fmt.Errorf("read key file: %w", err)
 			}
-			req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(string(key)))
+			value := strings.TrimSpace(string(key))
+			switch t.AuthType {
+			case "bearer":
+				req.Header.Set("Authorization", "Bearer "+value)
+			case "header":
+				req.Header.Set(t.AuthHeader, value)
+			case "basic":
+				req.SetBasicAuth(t.Username, value)
+			default:
+				return "", fmt.Errorf("unsupported HTTP tool authentication")
+			}
 		}
 
 		resp, err := t.Client.Do(req)
 		if err != nil {
-			lastErr = err
-			time.Sleep(time.Duration(attempt+1) * 200 * time.Millisecond)
+			if ctx.Err() != nil {
+				return "", ctx.Err()
+			}
+			lastErr = fmt.Errorf("HTTP tool request failed")
 			continue
 		}
-		defer resp.Body.Close()
 
 		if resp.StatusCode == 429 || resp.StatusCode >= 500 {
 			lastErr = fmt.Errorf("http %d", resp.StatusCode)
-			time.Sleep(time.Duration(attempt+1) * 200 * time.Millisecond)
+			resp.Body.Close()
 			continue
 		}
-		if resp.StatusCode >= 400 {
+		defer resp.Body.Close()
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 			return "", fmt.Errorf("http %d", resp.StatusCode)
 		}
 
@@ -135,7 +168,7 @@ func (t *HTTPTool) Call(ctx context.Context, params map[string]string) (string, 
 		}
 		result := string(respBody)
 
-		if t.CacheTTL > 0 && body == nil {
+		if cacheable {
 			t.mu.Lock()
 			if t.cache == nil {
 				t.cache = make(map[string]cacheEntry)
