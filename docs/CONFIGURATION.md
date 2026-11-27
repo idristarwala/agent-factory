@@ -27,6 +27,7 @@ The API and CLI read deployment configuration from their process environment. Re
 
 | Setting | Type and default | Scope and precedence |
 | --- | --- | --- |
+| `FACTORY_REPLAY_RUN` | Reviewed workspace run reference `RUN_ID@REVISION`, unset | With `replay_gate=true`, compare new steward rules against human-reviewed records. Pass `-review-replay` to require human approval after a gain. [Replay procedure](RULES_REFRESH.md) |
 | `FACTORY_JUDGE_ROUTES` | Comma-separated logical model route names, unset | Continuous multi-judge panel. Provide one distinct configured model per evaluation. [Panel configuration](ENTERPRISE_GATEWAY.md#independent-judge-panels) |
 | `LLM_GATEWAY_CONFIG` | YAML path, unset | Selects configured logical routes before environment-only provider selection. [Gateway guide](ENTERPRISE_GATEWAY.md) |
 | `LLM_PROVIDER` | Provider name, autodetected | Supports Gemini, Anthropic, OpenAI-compatible, Groq and OpenRouter. With no explicit provider or base URL, a Gemini or generic key selects Gemini. |
@@ -49,7 +50,7 @@ Read `GET /api/settings/schema` for a machine-readable JSON Schema with types, b
 | `max_minutes` | Positive integer, 30 | Continuous wall-clock budget, up to 525600 minutes. The CLI uses 10 until a settings revision exists. |
 | `max_tokens` | Positive integer, 1000000 | Model token budget. The continuous runner checks at round boundaries. |
 | `observe` | Boolean, false | Records an approved decision while skipping its graph write in the continuous runner. |
-| `replay_gate` | Boolean, false | Holds learned rule proposals for review or replay under the applicable runner. |
+| `replay_gate` | Boolean, true in a new workspace | Holds learned rule proposals for review or replay under the applicable runner. |
 | `worker_count` | Integer 1–256, default 2 | Concurrent continuous workers per round. |
 | `max_failures` | Positive integer, 20 | Cumulative worker failures before stopping at the next round boundary. |
 | `stagnant_rounds` | Positive integer, 2 | Consecutive unchanged graph comparisons before stopping. |

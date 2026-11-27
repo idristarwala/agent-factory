@@ -13,6 +13,8 @@ import (
 	"github.com/idristarwala/agent-factory/internal/unitofwork"
 )
 
+var ErrInvalidPatch = errors.New("worker validation failed")
+
 // LLMWorker is a real worker that calls the model gateway (cheap tier only).
 type LLMWorker struct {
 	Definition AgentVersion
@@ -129,7 +131,7 @@ Respond ONLY with valid JSON of the allowed fields.`, uow.Description, ruleText.
 		}
 		if err != nil {
 			LogValidationFailure(resp.Content, err)
-			lastErr = fmt.Errorf("worker validation failed: %w; content length=%d", err, len(resp.Content))
+			lastErr = fmt.Errorf("%w: %w; content length=%d", ErrInvalidPatch, err, len(resp.Content))
 			continue
 		}
 
