@@ -1,16 +1,18 @@
 import {useState} from 'react'
 import {parseSample, valueAtPointer} from './sourceInput'
 
-function RecordPreview({rows, sample}) {
+function RecordPreview({rows, sample, relationshipNames}) {
   const [index,setIndex] = useState(0)
   const row = rows[index]
   if (!row) return null
+  const record = {...row.record}
+  if (record.relations) record.relations = record.relations.map(rel=>({...rel,type:relationshipNames.get(rel.type) ?? rel.type}))
   return <details><summary>Preview {rows.length} mapped records</summary>
     <label>Source record<select value={index} onChange={e=>setIndex(Number(e.target.value))}>
       {rows.map((item,i)=><option key={item.index} value={i}>{item.location?.pointer || '(root)'} · {item.record?.id ?? item.index}</option>)}
     </select></label>
     {row.location && <><h4>Source JSON</h4><pre>{JSON.stringify(valueAtPointer(sample,row.location.pointer),null,2)}</pre></>}
-    <h4>Normalized record</h4><pre>{JSON.stringify(row.record,null,2)}</pre>
+    <h4>Normalized record</h4><pre>{JSON.stringify(record,null,2)}</pre>
   </details>
 }
 
@@ -27,6 +29,7 @@ export default function SourceMapping({factory, goal, approved, onApprove, reque
   const [collection,setCollection] = useState(undefined)
   const [identity,setIdentity] = useState([])
   const [includeRelationships,setIncludeRelationships] = useState(false)
+  const [relationshipNames,setRelationshipNames] = useState(new Map())
   const [editable,setEditable] = useState([])
   const [result,setResult] = useState(null)
   const [busy,setBusy] = useState(false)
@@ -60,6 +63,7 @@ export default function SourceMapping({factory, goal, approved, onApprove, reque
       sample: payload, goal, include_relationships:includeRelationships, editable_candidates:candidates, record_type: recordType, expected: drafts.length, collection, identity, openapi: spec.document.trim() ? spec : undefined
     },undefined,true)
     setResult({...response, sample:payload, candidates})
+    setRelationshipNames(new Map())
     setEditable(response.proposal?.data.editable_fields || [])
     setExpected(mappings.length)
     if (response.status === 'choose_identity') setCollection(response.collection.path)
@@ -67,7 +71,7 @@ export default function SourceMapping({factory, goal, approved, onApprove, reque
 
   async function approve() {
     const saved = await request(base + 'mappings/' + id, {
-      sample: parseSample(sample), expected, editable_fields:editable, proposal_revision: result.proposal.version
+      sample: parseSample(sample), expected, relationship_names:Object.fromEntries(relationshipNames), editable_fields:editable, proposal_revision: result.proposal.version
     })
     onApprove({mapping, revision:saved.version, sample, receipt})
     setMessage('Approved mapping revision ' + saved.version)
@@ -117,7 +121,9 @@ export default function SourceMapping({factory, goal, approved, onApprove, reque
       </tbody></table>
       {result.proposal.data.next_path && <p>Next page token: <code>{result.proposal.data.next_path}</code></p>}
       {result.proposal.data.relationships?.length>0 && <section><h4>Relationships</h4>
-        <ul>{result.proposal.data.relationships.map(rel=><li key={rel.name}>{rel.name} · <code>{rel.path}</code></li>)}</ul>
+        {result.proposal.data.relationships.map(rel=><label key={rel.name}>Relationship name for {rel.path}
+          <input value={relationshipNames.get(rel.name) ?? rel.name} disabled={Boolean(approved)}
+            onChange={e=>setRelationshipNames(current=>new Map(current).set(rel.name,e.target.value))}/></label>)}
       </section>}
       <p>Identity: {result.proposal.data.identity.join(', ')}</p>
       <fieldset disabled={Boolean(approved)}><legend>Fields the worker may edit</legend>
@@ -128,7 +134,7 @@ export default function SourceMapping({factory, goal, approved, onApprove, reque
           onChange={e=>setEditable(current=>e.target.checked?[...current,name]:current.filter(key=>key!==name))}/>{name}</label>)}
         {!editable.length && <p>This mapping is read-only. Select a field to run an editing goal.</p>}
       </fieldset>
-      <RecordPreview key={result.proposal.version} rows={result.rows} sample={result.sample}/>
+      <RecordPreview key={result.proposal.version} rows={result.rows} sample={result.sample} relationshipNames={relationshipNames}/>
       {!approved && <button type="button" onClick={()=>perform(approve)}>Approve mapping for this run</button>}
     </section>}
     {approved && <>

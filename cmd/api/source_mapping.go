@@ -29,11 +29,12 @@ func sourceMappingRoutes(mux *http.ServeMux, store revision.Store) {
 				return
 			}
 			var req struct {
-				Sample           any                    `json:"sample"`
-				EditableFields   *[]string              `json:"editable_fields"`
-				ProposalRevision *int                   `json:"proposal_revision"`
-				Mapping          *mapping.SourceMapping `json:"mapping"`
-				Expected         *int                   `json:"expected"`
+				RelationshipNames map[string]string      `json:"relationship_names"`
+				Sample            any                    `json:"sample"`
+				EditableFields    *[]string              `json:"editable_fields"`
+				ProposalRevision  *int                   `json:"proposal_revision"`
+				Mapping           *mapping.SourceMapping `json:"mapping"`
+				Expected          *int                   `json:"expected"`
 			}
 			dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
 			dec.UseNumber()
@@ -65,6 +66,23 @@ func sourceMappingRoutes(mux *http.ServeMux, store revision.Store) {
 			if req.Mapping == nil {
 				http.Error(w, "supply a mapping", 400)
 				return
+			}
+			if len(req.RelationshipNames) > 0 {
+				if req.ProposalRevision == nil {
+					http.Error(w, "relationship names require a proposal revision", 400)
+					return
+				}
+				matched := 0
+				for i, rel := range req.Mapping.Relationships {
+					if name, ok := req.RelationshipNames[rel.Name]; ok {
+						req.Mapping.Relationships[i].Name = name
+						matched++
+					}
+				}
+				if matched != len(req.RelationshipNames) {
+					http.Error(w, "unknown proposed relationship name", 422)
+					return
+				}
 			}
 			if req.EditableFields != nil {
 				if req.ProposalRevision == nil {
