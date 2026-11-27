@@ -19,3 +19,7 @@ The continuous runner counts each recurring worker failure or judge rejection pa
 On the next round, a record that encountered that pattern can use the specialist if the associated rule is active. The worker receives the current rule revision as its focus. Unaffected records use the generic worker. A pending rule cannot trigger dispatch. Retiring the specialist restores generic routing. Later steward observations preserve existing human edits. The proposed mutation records the actual agent name, agent revision and active rule revisions.
 
 When reviewing a proposal, read `Updates[].Props` as a partial update. Omitted fields retain their values. A separate `complete_on_apply` marker tells the runtime to mark the record fixed when it applies an approved mutation. The audit preserves the worker's proposed fields.
+
+## Customer-supplied policies
+
+`rules.IngestPolicies` imports approved customer policies as active revisions. Pass policies from `rules.ParseSimpleTree` through the same function to activate their conditions and actions. Workers and judges see them through `ToAgentsRules`. Supply a stable `Policy.ID` when revising an existing policy. An empty ID creates a separate rule. Importing is an explicit activation decision. Use an inactive proposal for changes awaiting review.

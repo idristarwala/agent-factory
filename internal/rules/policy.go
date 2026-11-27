@@ -3,7 +3,6 @@ package rules
 import (
 	"fmt"
 	"strings"
-	"time"
 )
 
 // Policy is a customer-supplied rule, policy, or decision-tree node.
@@ -24,7 +23,7 @@ type DecisionTree struct {
 	Policies []Policy
 }
 
-// IngestPolicies turns customer policies into versioned rules.
+// IngestPolicies imports approved customer policies as active revisions.
 func IngestPolicies(engine *Engine, policies []Policy, createdBy string) []VersionedRule {
 	var out []VersionedRule
 	for _, p := range policies {
@@ -39,12 +38,13 @@ func IngestPolicies(engine *Engine, policies []Policy, createdBy string) []Versi
 			desc += " | then: " + p.Action
 		}
 		r := engine.Propose(VersionedRule{
+			ID:          p.ID,
+			Active:      true,
 			Description: desc,
 			Condition:   p.Condition,
 			Action:      p.Action,
 			Source:      p.Source,
 			CreatedBy:   createdBy,
-			CreatedAt:   time.Now(),
 		})
 		out = append(out, r)
 	}
