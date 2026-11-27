@@ -75,7 +75,12 @@ func relative(dir, path string) string {
 	return filepath.Join(dir, path)
 }
 
-func load(path string) (*Router, error) {
+func validGatewayURL(base string) bool {
+	u, err := url.Parse(base)
+	return err == nil && u.Hostname() != "" && (u.Scheme == "https" || u.Scheme == "http") && u.User == nil && u.RawQuery == "" && !u.ForceQuery && u.Fragment == ""
+}
+
+func load(path string, checkKeys bool) (*Router, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -96,8 +101,7 @@ func load(path string) (*Router, error) {
 	clients := map[string]*http.Client{}
 	dir := filepath.Dir(path)
 	for name, g := range config.Gateways {
-		u, err := url.Parse(g.BaseURL)
-		if err != nil || u.Host == "" || (u.Scheme != "https" && u.Scheme != "http") || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
+		if !validGatewayURL(g.BaseURL) {
 			return nil, fmt.Errorf("invalid base URL for gateway %q", name)
 		}
 		switch g.Auth.Type {
@@ -113,7 +117,14 @@ func load(path string) (*Router, error) {
 		if err != nil {
 			return nil, err
 		}
-		client.Transport = authTransport{client.Transport, g.Auth.Type, relative(dir, g.Auth.KeyFile)}
+		keyPath := relative(dir, g.Auth.KeyFile)
+		if checkKeys && g.Auth.Type != "none" {
+			key, err := llm.LoadKey(keyPath, "")
+			if err != nil || key == "" {
+				return nil, errors.New("gateway key file is unreadable or empty")
+			}
+		}
+		client.Transport = authTransport{client.Transport, g.Auth.Type, keyPath}
 		client.CheckRedirect = func(*http.Request, []*http.Request) error { return errors.New("gateway endpoint redirected") }
 		clients[name] = client
 	}

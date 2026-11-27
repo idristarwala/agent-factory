@@ -20,8 +20,18 @@ type route struct {
 type Router struct{ routes map[string]route }
 
 func NewFromEnv() (models.Gateway, error) {
+	return fromEnv(false)
+}
+
+// CheckReadiness constructs deployed routes and reads mounted gateway keys without sending requests.
+func CheckReadiness() error {
+	_, err := fromEnv(true)
+	return err
+}
+
+func fromEnv(checkKeys bool) (*Router, error) {
 	if path := os.Getenv("LLM_GATEWAY_CONFIG"); path != "" {
-		return load(path)
+		return load(path, checkKeys)
 	}
 	return environmentRouter()
 }

@@ -76,7 +76,7 @@ models:
   frontier: {gateway: team, protocol: openai, model: test-openai, token_param: max_completion_tokens}
   judge: {gateway: team, protocol: anthropic, model: test-anthropic, headers: {X-Route: review}}
 `, server.URL))
-	router, err := load(filepath.Join(dir, "routing.yaml"))
+	router, err := load(filepath.Join(dir, "routing.yaml"), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,7 +146,7 @@ models:
 	if err := os.WriteFile(path, []byte(text), 0600); err != nil {
 		t.Fatal(err)
 	}
-	router, err := load(path)
+	router, err := load(path, false)
 	if err != nil {
 		t.Fatal(err)
 	}
