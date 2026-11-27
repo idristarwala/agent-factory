@@ -39,7 +39,10 @@ func TestDefinitionHistoryAcrossStewardAndHumanEdits(t *testing.T) {
 	if err != nil || v.Revision != 2 || v.CreatedBy != "human" {
 		t.Fatal(v, err)
 	}
-	r.Deregister(base.Name)
+	v.Retired = true
+	if _, err = r.Save(v, v.Revision); err != nil {
+		t.Fatal(err)
+	}
 	h, err := r.History(base.Name)
 	if err != nil || len(h) != 3 || h[0].Config["instructions"] != "original" || !h[2].Retired {
 		t.Fatal(h, err)

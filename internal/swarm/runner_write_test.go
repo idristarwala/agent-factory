@@ -52,7 +52,7 @@ func TestFailedGraphWriteNeverCompletesUnit(t *testing.T) {
 	s := agents.NewSmartSteward(unitofwork.NewMemoryStore())
 	s.SetRuntime(titleGateway{}, g, nil)
 	q := &writeTrackingQueue{MemoryQueue: queue.NewMemoryQueue()}
-	r := NewContinuousRunner(s, agents.NewStubJudge(), q, g, rules.NewEngine(), nil)
+	r := NewContinuousRunner(s, agents.NewLLMJudge(&evidenceGateway{}, g), q, g, rules.NewEngine(), nil)
 	if err := r.Run(context.Background(), "fix title"); !errors.Is(err, writeErr) {
 		t.Fatalf("expected graph write error, got %v", err)
 	}

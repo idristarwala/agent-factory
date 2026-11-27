@@ -28,7 +28,7 @@ func TestRetryAndRecordAttempts(t *testing.T) {
 		fmt.Fprint(w, `{"model":"served","choices":[{"message":{"content":"ok"}}],"usage":{"prompt_tokens":2,"completion_tokens":3}}`)
 	}))
 	defer server.Close()
-	records := llm.NewRecorder()
+	records := new(llm.Recorder)
 	policy, _ := (retryOverrides{}).resolve()
 	gateway := retryClient{policy: policy, inner: &llm.RecordingClient{Inner: llm.NewOpenAIAdapter(server.URL, "test", nil), Recorder: records}}
 	start := time.Now()
@@ -81,7 +81,7 @@ func TestStreamRecordsFinalUsageOnce(t *testing.T) {
 		fmt.Fprint(w, "data: "+`{"choices":[{"delta":{"content":"ok"},"finish_reason":"stop"}]}`+"\n\ndata: "+`{"usage":{"prompt_tokens":2,"completion_tokens":4,"total_tokens":6}}`+"\n\ndata: [DONE]\n\n")
 	}))
 	defer s.Close()
-	records := llm.NewRecorder()
+	records := new(llm.Recorder)
 	gw := llm.RecordingClient{Inner: llm.NewOpenAIAdapter(s.URL, "key", nil), Recorder: records}
 	stream, err := gw.Stream(t.Context(), llm.ChatRequest{Model: "streaming-model"})
 	if err != nil {
