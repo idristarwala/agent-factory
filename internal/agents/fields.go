@@ -3,7 +3,8 @@ package agents
 import (
 	"fmt"
 	"math"
-	"sort"
+	"slices"
+	"strings"
 
 	"github.com/idristarwala/agent-factory/internal/unitofwork"
 )
@@ -25,18 +26,54 @@ func fieldType(value any) string {
 	}
 	return ""
 }
+
+// continuousFields resolves a write scope before the steward queues the unit.
+func continuousFields(goal string, configured []string, current map[string]any) ([]string, error) {
+	fields := configured
+	// This compact task form names one literal field. More complex goals can
+	// carry their precise scope separately from the natural-language prompt.
+	if verb, rest, ok := strings.Cut(strings.TrimSpace(goal), " "); ok {
+		name := strings.TrimSpace(rest)
+		if only, remainder, found := strings.Cut(name, " "); found && strings.EqualFold(only, "only") {
+			name = strings.TrimSpace(remainder)
+		}
+		if slices.Contains([]string{"edit", "fix", "update", "correct"}, strings.ToLower(verb)) && name != "" && !strings.ContainsAny(name, " \t\n") {
+			if len(configured) > 0 && !slices.Contains(configured, name) {
+				return nil, fmt.Errorf("task field %q is outside the configured write scope", name)
+			}
+			fields = []string{name}
+		}
+	}
+	if len(fields) == 0 {
+		for name, value := range current {
+			if name == "status" || fieldType(value) == "" {
+				continue
+			}
+			if len(fields) > 0 {
+				return nil, fmt.Errorf("ambiguous write scope: supply editable fields for a multi-field record")
+			}
+			fields = []string{name}
+		}
+	}
+	if len(fields) == 0 {
+		return nil, fmt.Errorf("record has no editable fields")
+	}
+	for _, name := range fields {
+		if name == "status" || fieldType(current[name]) == "" {
+			return nil, fmt.Errorf("invalid editable field %q", name)
+		}
+	}
+	return slices.Clone(fields), nil
+}
+
 func outputFields(u *unitofwork.UnitOfWork, current map[string]any) ([]string, map[string]string, error) {
 	allowed := u.AllowedFields
 	if len(allowed) == 0 {
-		for k, v := range current {
-			if k != "status" && fieldType(v) != "" {
-				allowed = append(allowed, k)
-			}
+		fields, err := continuousFields(u.Description, nil, current)
+		if err != nil {
+			return nil, nil, err
 		}
-		sort.Strings(allowed)
-	}
-	if len(allowed) == 0 {
-		return nil, nil, fmt.Errorf("record has no editable fields")
+		allowed = fields
 	}
 	types := make(map[string]string, len(allowed))
 	for _, k := range allowed {

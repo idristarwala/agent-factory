@@ -92,7 +92,7 @@ The [issue tracker](https://github.com/idristarwala/agent-factory/issues) record
 ## Wiring pass (2026-11-27)
 
 - Worker validation failures now call `LogValidationFailure` so raw reply previews appear in logs (#10).
-- Continuous runner applies `agents.GuardDecision` before considering a judge result (#10).
+- Continuous runner stops failed worker proposals before judge evaluation or graph writes (#10).
 - Collected failure signals are attached to learning gaps via `BuildActionableRule` so structured causes influence rule text (#13/#16).
 
 ## Starter template and docs (2026-11-27)
