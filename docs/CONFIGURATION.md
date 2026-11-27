@@ -28,6 +28,9 @@ The API and CLI read deployment configuration from their process environment. Re
 | Setting | Type and default | Scope and precedence |
 | --- | --- | --- |
 | `FACTORY_REPLAY_RUN` | Reviewed workspace run reference `RUN_ID@REVISION`, unset | With `replay_gate=true`, compare new steward rules against human-reviewed records. Pass `-review-replay` to require human approval after a gain. [Replay procedure](RULES_REFRESH.md) |
+| `LLM_RETRY_ATTEMPTS` | Integer 1–16, default 3 | Total transport attempts per environment-routed model call, including the first. Set to 1 for a single attempt. |
+| `LLM_RETRY_BASE_DELAY` | Positive Go duration, default 250ms | Initial backoff after a retryable HTTP 429 or 5xx. |
+| `LLM_RETRY_MAX_DELAY` | Go duration from the base delay to 24h, default 5s | Return the provider error when the next delay exceeds this ceiling. |
 | `FACTORY_JUDGE_ROUTES` | Comma-separated logical model route names, unset | Continuous multi-judge panel. Provide one distinct configured model per evaluation. [Panel configuration](ENTERPRISE_GATEWAY.md#independent-judge-panels) |
 | `LLM_GATEWAY_CONFIG` | YAML path, unset | Selects configured logical routes before environment-only provider selection. [Gateway guide](ENTERPRISE_GATEWAY.md) |
 | `LLM_PROVIDER` | Provider name, autodetected | Supports Gemini, Anthropic, OpenAI-compatible, Groq and OpenRouter. With no explicit provider or base URL, a Gemini or generic key selects Gemini. |
@@ -108,3 +111,5 @@ Edit these fields on the worker or judge in **Agents**, or send them as string v
 For example, `{"max_output_tokens":"1024","max_attempts":"1"}` requests a single worker attempt with at most 1024 output tokens. Omit a limit to use its default. The workspace run token budget still applies across calls. [Versioned definitions](API.md#versioned-definitions)
 
 The continuous CLI accepts repeated `-field FIELD` arguments before its goal. They select existing editable record properties for this invocation. A narrow literal task can only select a field within the supplied list. The runner owns `status` for continuous completion tracking. [Write scope and examples](CONTINUOUS.md#choose-editable-fields)
+
+Gateway retry settings resolve at process startup. With `LLM_GATEWAY_CONFIG`, each model route reads its YAML retry policy and defaults. Without that file, all model routes use the environment policy. [Per-route example](ENTERPRISE_GATEWAY.md#retry-policy)

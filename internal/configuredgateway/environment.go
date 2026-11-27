@@ -29,10 +29,14 @@ func environmentRouter() (*Router, error) {
 		return nil, err
 	}
 	router := &Router{routes: map[string]route{}}
+	retry, err := environmentRetry()
+	if err != nil {
+		return nil, err
+	}
 	logger := obs.New()
 	add := func(name, model string, p environmentProvider) error {
 		client := &http.Client{Timeout: p.timeout, CheckRedirect: func(*http.Request, []*http.Request) error { return fmt.Errorf("gateway endpoint redirected") }}
-		m := modelConfig{Protocol: p.protocol, Model: model, SchemaMode: p.schemaMode}
+		m := modelConfig{Retry: retry, Protocol: p.protocol, Model: model, SchemaMode: p.schemaMode}
 		entry, err := buildRoute(m, p.base, p.key, nil, client, logger)
 		if err == nil {
 			router.routes[name] = entry
