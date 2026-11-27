@@ -22,7 +22,7 @@ Each evidence entry names the tool that returned it. A missing grant, failed loo
 
 The default HTTP client permits public destination addresses and rejects redirects. The tool URL must have a fixed origin. Set `FACTORY_HTTP_ALLOWED_HOSTS` to a comma-separated list of exact hostnames when operators accept tool definitions from another party. An explicitly empty list disables outbound tool destinations. Trusted integrations that need private services can inject a dedicated HTTP client in Go.
 
-## Configure text evidence for catalog-swarm
+## Configure an evidence source
 
 Set `FACTORY_EVIDENCE_CONFIG` to an operator-managed YAML file before running `catalog-swarm`. The command checks grants using the active pack name. It loads the file at startup, then gathers the declared sources before each worker proposal and includes them in judge review.
 
@@ -45,6 +45,19 @@ grants:
   - pack: catalog
     tools: [get-record, find-related]
     side_effects: [read-only]
+```
+
+For `continuous-swarm`, set `FACTORY_EVIDENCE_CONFIG` to the same file format and `FACTORY_PACK` to the pack that will run. Include `propose` and each source tool in that pack’s read-only grants. The command checks all grants before starting workers. For example, a pack named `review` that uses the two sources above can run with this grant and command.
+
+```yaml
+grants:
+  - pack: review
+    tools: [propose, get-record, find-related]
+    side_effects: [read-only]
+```
+
+```sh
+FACTORY_EVIDENCE_CONFIG=./evidence.yaml FACTORY_PACK=review go run ./cmd/continuous-swarm "Correct the record from its source"
 ```
 
 Scalar record properties are available to path and query parameters. The graph node ID supplies `id`. Relative key paths resolve from the configuration file's directory. The loader supports GET and explicitly read-only POST requests. With the variable unset, the command uses the seeded records alone.

@@ -1,7 +1,3 @@
-# Active Rules Reach the Next Round
+# Rules in continuous runs
 
-`ActiveRulesForRound` returns the current active rules from the engine.
-
-The continuous runner should call this before `CreateWorker` each round so newly learned rules are visible to the next set of workers.
-
-This closes the last gap listed for #13.
+At the start of each round, the runner reads active rule revisions from the rule engine. The steward builds workers with that list and the judge evaluates their proposals against the same list. A rule activated during the round takes effect in the following round. A worker records the rule revisions it used on its proposed mutation.

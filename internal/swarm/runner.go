@@ -107,8 +107,11 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 
 		fmt.Printf("===== Round %d =====\n", round)
 
+		var active []agents.Rule
+		if r.Rules != nil {
+			active = r.Rules.ToAgentsRules()
+		}
 		if smart, ok := r.Steward.(*agents.SmartSteward); ok && r.Rules != nil {
-			active := r.Rules.ToAgentsRules()
 			smart.SetRuntime(smart.Gateway, smart.Graph, active)
 		}
 
@@ -209,7 +212,7 @@ func (r *ContinuousRunner) Run(ctx context.Context, goal string) error {
 					if mutation != nil {
 						mutation.Evidence = append(mutation.Evidence, evidence...)
 					}
-					decision, err := r.Judge.Evaluate(mutation, r.Rules.ToAgentsRules())
+					decision, err := r.Judge.Evaluate(mutation, active)
 					if err != nil {
 						r.Queue.Fail(ctx, uow.ID, err.Error())
 						continue

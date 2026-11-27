@@ -21,7 +21,7 @@ func LoadSourceSampler(path string) (*SourceSampler, error) {
 	if err != nil {
 		return nil, err
 	}
-	for name, tool := range config.registry {
+	for name, tool := range config.Tools {
 		if strings.ContainsAny(tool.URLTemplate, "{}") {
 			return nil, fmt.Errorf("source %q must have a fixed sampling URL", name)
 		}
@@ -30,8 +30,8 @@ func LoadSourceSampler(path string) (*SourceSampler, error) {
 	return &SourceSampler{config: config}, nil
 }
 func (s *SourceSampler) Sample(ctx context.Context, factory, name string, query map[string]string) (json.RawMessage, error) {
-	tool := s.config.registry[name]
-	if tool == nil || factory == "" || !CheckGrant(s.config.grants, factory, name, "read-only") {
+	tool := s.config.Tools[name]
+	if tool == nil || factory == "" || !CheckGrant(s.config.Grants, factory, name, "read-only") {
 		return nil, ErrSourceDenied
 	}
 	for k := range query {

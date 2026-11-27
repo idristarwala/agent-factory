@@ -57,19 +57,3 @@ func SimpleYAMLToJSON(data []byte) ([]byte, error) {
 	}
 	return json.Marshal(result)
 }
-
-func ParseSimpleYAML(data []byte) (map[string]string, error) {
-	out := make(map[string]string)
-	lines := strings.Split(string(data), "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		parts := strings.SplitN(line, ":", 2)
-		if len(parts) == 2 {
-			out[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
-		}
-	}
-	return out, nil
-}

@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/idristarwala/agent-factory/internal/tools"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/idristarwala/agent-factory/internal/agents"
@@ -79,6 +81,9 @@ func main() {
 	}
 
 	runner := swarm.NewContinuousRunner(steward, judge, q, g, re, ll)
+	if err := configureEvidence(runner, os.Getenv("FACTORY_EVIDENCE_CONFIG"), os.Getenv("FACTORY_PACK")); err != nil {
+		log.Fatal(err)
+	}
 	runner.Usage = meter
 	runner.Workers = 2
 	cfg, version, err := settings.Current(definitions)
@@ -111,6 +116,26 @@ func main() {
 	if runErr != nil {
 		fmt.Println("Runner finished:", runErr)
 	}
+}
+
+func configureEvidence(runner *swarm.ContinuousRunner, path, pack string) error {
+	pack = strings.TrimSpace(pack)
+	if path == "" && pack == "" {
+		return nil
+	}
+	if pack == "" || path == "" {
+		return fmt.Errorf("set both FACTORY_EVIDENCE_CONFIG and FACTORY_PACK to use continuous runner grants")
+	}
+	cfg, err := tools.LoadEvidenceConfig(path, pack)
+	if err != nil {
+		return err
+	}
+	if !tools.CheckGrant(cfg.Grants, pack, "propose", "read-only") {
+		return fmt.Errorf("pack %q has no read-only propose grant", pack)
+	}
+	runner.SetTools(cfg.Tools, cfg.Recipe)
+	runner.SetGrants(pack, cfg.Grants)
+	return nil
 }
 
 type demoJudge struct{}

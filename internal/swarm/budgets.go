@@ -33,7 +33,3 @@ func (b *Budgets) Exhausted(round int) string {
 	}
 	return ""
 }
-
-func (b *Budgets) AddTokens(n int) {
-	b.TokensUsed += n
-}
