@@ -14,21 +14,31 @@ import (
 // LLMWorker is a real worker that calls the model gateway (cheap tier only).
 // Receives active rules, retries structured JSON parsing, and validates output.
 // Evidence from the context recipe is injected into the prompt when present.
+// Schema is sent on every call so the provider enforces the reply shape.
 type LLMWorker struct {
 	ID      string
 	Role    string
 	Gateway models.Gateway
 	Graph   graph.Graph
 	Rules   []Rule
+	Refresh RuleRefresher
 }
+
+type RuleRefresher func() []Rule
 
 func NewLLMWorker(id, role string, gw models.Gateway, g graph.Graph, rules []Rule) *LLMWorker {
 	return &LLMWorker{ID: id, Role: role, Gateway: gw, Graph: g, Rules: rules}
 }
 
+func (w *LLMWorker) SetRefresher(fn RuleRefresher) { w.Refresh = fn }
+
 func (w *LLMWorker) Claim(uow *unitofwork.UnitOfWork) error { return nil }
 
 func (w *LLMWorker) Execute(uow *unitofwork.UnitOfWork) (*graph.Mutation, error) {
+	if w.Refresh != nil {
+		w.Rules = w.Refresh()
+	}
+
 	var context string
 	var originalTitle, originalDesc string
 	if uow.InputSubgraph != "" {
@@ -81,12 +91,12 @@ Original description: %s
 %s
 %s
 Propose improvements as a JSON object of attribute key-value pairs.
-Respect the rules (e.g. keep original wording when required).
-Use the gathered evidence and family context. Do not invent facts.
-Respond ONLY with valid JSON of this form:
-{"title":"...", "description":"...", "other_attr":"..."}`, uow.Description, ruleText.String(), context, originalTitle, originalDesc, familyNote, evidenceNote)
+Respect the rules. Use the gathered evidence. Do not invent facts.
+Respond ONLY with valid JSON of the allowed fields.`, uow.Description, ruleText.String(), context, originalTitle, originalDesc, familyNote, evidenceNote)
 
 	allowed := []string{"title", "description", "brand", "product_type", "color", "size"}
+	required := []string{"title"}
+	schema := BuildResponseSchema(allowed, required)
 
 	var lastErr error
 	for attempt := 0; attempt < 2; attempt++ {
@@ -95,7 +105,8 @@ Respond ONLY with valid JSON of this form:
 			System:      "You produce structured attribute updates that obey the provided rules and evidence. Output JSON only.",
 			User:        prompt,
 			Temperature: 0.2,
-			MaxTokens:   8000, // raised further; see worker_config for 16000 ceiling
+			MaxTokens:   8000,
+			Schema:      schema,
 		})
 		if err != nil {
 			lastErr = err
@@ -105,9 +116,12 @@ Respond ONLY with valid JSON of this form:
 
 		updates, err := ParseAndValidate(resp.Content, allowed)
 		if err != nil {
-			lastErr = fmt.Errorf("worker validation failed (finish may be truncated): %w; content length=%d", err, len(resp.Content))
+			lastErr = fmt.Errorf("worker validation failed: %w; content length=%d", err, len(resp.Content))
 			continue
 		}
+
+		// Mark the item as fixed so the steward can stop
+		updates["status"] = "fixed"
 
 		nodeID := uow.InputSubgraph
 		if nodeID == "" {
