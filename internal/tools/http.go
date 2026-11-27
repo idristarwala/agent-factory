@@ -20,6 +20,7 @@ type HTTPTool struct {
 	Method       string
 	URLTemplate  string
 	BodyTemplate string
+	QueryParams  []string // param names that go to query string
 	AuthType     string
 	KeyFile      string
 	Headers      map[string]string
@@ -36,7 +37,7 @@ type cacheEntry struct {
 	exp  time.Time
 }
 
-// Call executes the tool with path/body templating, key from file, retries, and cache.
+// Call executes the tool with path/body/query templating, key from file, retries, and cache.
 func (t *HTTPTool) Call(ctx context.Context, params map[string]string) (string, error) {
 	if t.SideEffect != "read-only" && t.SideEffect != "" {
 		return "", fmt.Errorf("non-read-only tools must become proposals")
@@ -45,6 +46,21 @@ func (t *HTTPTool) Call(ctx context.Context, params map[string]string) (string, 
 	urlStr := t.URLTemplate
 	for k, v := range params {
 		urlStr = strings.ReplaceAll(urlStr, "{"+k+"}", url.PathEscape(v))
+	}
+
+	// Add query params
+	if len(t.QueryParams) > 0 {
+		u, err := url.Parse(urlStr)
+		if err == nil {
+			q := u.Query()
+			for _, name := range t.QueryParams {
+				if v, ok := params[name]; ok {
+					q.Set(name, v)
+				}
+			}
+			u.RawQuery = q.Encode()
+			urlStr = u.String()
+		}
 	}
 
 	var body io.Reader
