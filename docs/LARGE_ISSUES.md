@@ -43,4 +43,4 @@ Added a scripted failure-pattern test (`internal/swarm/learning_improvement_test
 
 ## Accuracy wording follow-up (2026-11-27)
 
-Worker now detects "keep original wording" style rules and appends explicit preservation guidance to the system prompt. Covered by unit test. Next live re-run can measure whether original-wording-kept crosses 0.90.
+Worker now detects "keep original wording" style rules and appends guidance to preserve the phrasing in the source record to the system prompt. Covered by unit test. Next live re-run can measure whether original-wording-kept crosses 0.90.

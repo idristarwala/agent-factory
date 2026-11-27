@@ -1,10 +1,11 @@
 package agents
 
 import (
-	"strings"
+	"errors"
 	"github.com/idristarwala/agent-factory/internal/graph"
 	"github.com/idristarwala/agent-factory/internal/models"
 	"github.com/idristarwala/agent-factory/internal/unitofwork"
+	"strings"
 	"testing"
 )
 
@@ -44,7 +45,7 @@ func TestPinnedAgentLimits(t *testing.T) {
 func TestPreserveOriginalWordingRuleStrengthensPrompt(t *testing.T) {
 	gw := &limitsGateway{}
 	g := graph.NewMemoryGraph()
-	g.AddNode(graph.Node{ID: "item", Props: map[string]any{"title": "Original Seller Title", "brand": "Acme"}})
+	g.AddNode(graph.Node{ID: "item", Props: map[string]any{"title": "Saturday library hours", "location": "East Library"}})
 	rules := []Rule{{
 		Description: "Keep original wording where possible",
 		Action:      "do not rewrite existing text",
@@ -56,14 +57,14 @@ func TestPreserveOriginalWordingRuleStrengthensPrompt(t *testing.T) {
 		InputSubgraph: "item",
 		AllowedFields: []string{"title"},
 	})
-	if err != nil && err.Error() != "worker validation failed" { // expected parse fail on "invalid"
-		// ignore validation error; we care about the prompt
+	if !errors.Is(err, ErrInvalidPatch) {
+		t.Fatal(err)
 	}
 	if len(gw.calls) == 0 {
 		t.Fatal("no gateway call")
 	}
 	req := gw.calls[0]
-	if !strings.Contains(req.System, "preserving original wording") && !strings.Contains(req.System, "Do not rewrite existing text") {
+	if !strings.Contains(req.System, "phrasing in the source record") || strings.Contains(req.System, "seller") {
 		t.Errorf("expected strengthened system prompt, got: %s", req.System)
 	}
 	if !strings.Contains(req.User, "Keep original wording") {

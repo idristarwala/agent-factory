@@ -115,11 +115,11 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-    A[BigQuery / API / SQL Source] --> B[Steward samples columns]
-    B --> C[InferMapping]
-    C --> D[AttributeIndex by type]
-    D --> E[Sparse Entity]
-    E --> F[Central Graph]
+    A[Source payload] --> B[ProfileSample]
+    B --> C[Review identifiers and field paths]
+    C --> D[SourceMapping.Preview]
+    D --> E[Approved mapping revision]
+    E --> F[Import mapped records]
     F --> G[Workers + Judge]
     G --> H[Decisions visible to customer]
 ```

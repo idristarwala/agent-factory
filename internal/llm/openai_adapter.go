@@ -187,11 +187,6 @@ func (s *sseStream) Recv() (*StreamEvent, error) {
 
 func (s *sseStream) Close() error { return s.r.Close() }
 
-// BuildOpenAIBody constructs the JSON body for an OpenAI-compatible request.
-func BuildOpenAIBody(req ChatRequest) ([]byte, error) {
-	return buildOpenAIBody(req, false)
-}
-
 func buildOpenAIBody(req ChatRequest, stream bool) ([]byte, error) {
 	msgs := make([]map[string]any, len(req.Messages))
 	for i, msg := range req.Messages {

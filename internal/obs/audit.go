@@ -42,15 +42,3 @@ func (a *AuditLog) All() []AuditEntry {
 	copy(out, a.entries)
 	return out
 }
-
-func (a *AuditLog) ForEntity(id string) []AuditEntry {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	var out []AuditEntry
-	for _, e := range a.entries {
-		if e.EntityID == id {
-			out = append(out, e)
-		}
-	}
-	return out
-}

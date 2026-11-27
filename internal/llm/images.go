@@ -13,12 +13,6 @@ type ImagePart struct {
 	Mime   string
 }
 
-// WithImages is a helper that adapters can use to attach images to a request.
-// Full wiring into OpenAI/Gemini/Anthropic request bodies is an incremental step.
-func WithImages(parts []ImagePart) []ImagePart {
-	return parts
-}
-
 // imageBlocks encodes inline evidence for a provider without delegating URL fetching to it.
 func (m Message) imageBlocks(protocol string) ([]map[string]any, error) {
 	var blocks []map[string]any
