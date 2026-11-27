@@ -13,6 +13,7 @@ Run `go run ./cmd/api`. The default address is `:8080`. Send JSON request bodies
 | GET /api/decisions?run={id} | List decisions with proposals, evidence and before/after values. Omit the filter for all runs. |
 | GET /api/decisions/{id}?run={run} | Fetch one decision. An optional run filter narrows the lookup. |
 | POST /api/decisions | Send `Run`, decision `ID`, current run revision `Expected`, and `Status` (approved or rejected). Optional `Feedback` creates a versioned rule governed by the run’s replay gate. |
+| GET /api/browser-captures/{id} | Fetch the retained text, optional base64 JPEG, source URL and configuration revision referenced by a decision. [Browser tool](BROWSER_CAPTURE.md) |
 | GET /api/graph?run={id}&offset=0&limit=100 | Page through source records, links to decisions and typed outgoing edges. Returns `nodes`, `edges` and total record count. |
 | GET /api/usage?run={id} | Read token totals, estimated USD, model calls, unpriced calls and tool calls. Named tool counts are returned in `tool_calls_by_name`. Completed and failed continuous CLI runs appear here when they share the API’s durable workspace. Omit the run filter for workspace totals including chat tokens. |
 

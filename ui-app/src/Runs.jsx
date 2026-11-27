@@ -1,3 +1,4 @@
+import BrowserCapture from "./BrowserCapture"
 import RunUsage from './RunUsage'
 import SourceMapping from './SourceMapping'
 import {runSource} from './sourceInput'
@@ -46,6 +47,7 @@ export default function Runs({runs, source, setSource, request, refresh, setMess
   const decisionCard = d => <article key={d.id}><h3>{d.entity_id} · {d.status}</h3><p>{d.reason}</p>
       <div className="decision-layout"><div><table><thead><tr><th>Field</th><th>Before</th><th>Proposed</th></tr></thead><tbody>{Object.entries(d.after).map(([k,v])=><tr key={k}><td>{k}</td><td>{JSON.stringify(d.before?.[k]) ?? 'Unset'}</td><td>{JSON.stringify(v)}</td></tr>)}</tbody></table></div>
       <aside aria-label="Decision evidence"><h4>Evidence</h4>
+        {d.browser_capture && <BrowserCapture key={d.browser_capture} id={d.browser_capture} request={request}/>}
         {d.proposal?.tool_proposal && <section aria-label="External change proposal">
           <h4>External change proposal</h4>
           <p>{d.proposal.tool_proposal.name} · r{d.proposal.tool_proposal.tool_revision} · {d.proposal.tool_proposal.side_effect}</p>

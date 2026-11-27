@@ -20,8 +20,9 @@ import (
 )
 
 type reviewedCase struct {
-	record schema.Entity
-	review Review
+	capture *BrowserCapture
+	record  schema.Entity
+	review  Review
 }
 
 type reviewedReplay struct {
@@ -77,7 +78,15 @@ func (w *Workspace) ReviewedReplay(ref string, live graph.Graph, beforeCall func
 			return nil, fmt.Errorf("replay requires immutable image evidence; select a run without external image URLs")
 		}
 		e.Attributes = d.Before
-		replay.cases = append(replay.cases, reviewedCase{e, d})
+		c := reviewedCase{record: e, review: d}
+		if r.Plan.BrowserTool != nil {
+			capture, err := ReadBrowserCapture(w.Store, d.BrowserCapture)
+			if err != nil {
+				return nil, err
+			}
+			c.capture = &capture
+		}
+		replay.cases = append(replay.cases, c)
 	}
 	if r.Plan.UseGoalArtifacts {
 		replay.evidence, err = artifact.Read(w.Store, r.Plan.Spec.Artifacts)
@@ -139,7 +148,11 @@ func (r *reviewedReplay) evaluate(c reviewedCase, active []rules.VersionedRule, 
 	p := r.run.Plan
 	p.Rules = active
 	gw := &replayGateway{Gateway: r.gateway, beforeCall: r.beforeCall, trace: fmt.Sprintf("replay/%s/%d/%s/%s/%s", r.run.ID, r.run.Version, id, phase, c.record.ID)}
-	m, d, err := p.evaluate(gw, r.run.Description, c.record, c.review.Lineage, r.evidence, nil)
+	evidence := r.evidence
+	if c.capture != nil {
+		evidence = c.capture.evidence(evidence)
+	}
+	m, d, err := p.evaluate(gw, r.run.Description, c.record, c.review.Lineage, evidence, nil)
 	if gw.failure != nil {
 		return false, gw.failure
 	}

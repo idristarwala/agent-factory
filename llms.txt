@@ -8,4 +8,5 @@
 - [Configuration](docs/CONFIGURATION.md): deployment variables, model routing, storage and memory.
 - [Source mapping](docs/MAPPING.md): inspect a payload, preview a mapping and pin it for a run.
 - [Tool configuration](docs/HTTP_TOOLS.md): REST, MCP, grants, evidence and external change proposals.
+- [Rendered page evidence](docs/BROWSER_CAPTURE.md) for Playwright tool definitions, pack grants and immutable review captures.
 - [Project status](docs/STATUS.md): verification and outstanding work.
