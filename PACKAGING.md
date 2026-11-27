@@ -38,4 +38,6 @@ See `SECRETS.md` and `AUTH.md`.
 `.github/workflows/ci.yml` runs `go vet`, `go test -race`, and `go build` on every PR.
 `go.sum` is committed so clean clones build.
 
-`deploy/release.sh` produces a sample release manifest. Full digest-pinned automation (docker build + inspect) is the remaining packaging step. See `docs/RELEASE.md`.
+`.github/workflows/release.yml` builds binaries, pushes a digest-pinned image to GHCR, writes a release manifest containing the digest, and creates a GitHub release on `v*` tags.
+
+See `docs/RELEASE.md`.
