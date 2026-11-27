@@ -126,9 +126,12 @@ func (t *HTTPTool) Call(ctx context.Context, params map[string]string) (string, 
 			return "", fmt.Errorf("http %d", resp.StatusCode)
 		}
 
-		respBody, err := io.ReadAll(io.LimitReader(resp.Body, 512*1024))
+		respBody, err := io.ReadAll(io.LimitReader(resp.Body, 512*1024+1))
 		if err != nil {
 			return "", err
+		}
+		if len(respBody) > 512*1024 {
+			return "", fmt.Errorf("tool response exceeds 512 KiB")
 		}
 		result := string(respBody)
 

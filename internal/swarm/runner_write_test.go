@@ -3,6 +3,9 @@ package swarm
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/idristarwala/agent-factory/internal/agents"
@@ -10,6 +13,7 @@ import (
 	"github.com/idristarwala/agent-factory/internal/models"
 	"github.com/idristarwala/agent-factory/internal/queue"
 	"github.com/idristarwala/agent-factory/internal/rules"
+	"github.com/idristarwala/agent-factory/internal/tools"
 	"github.com/idristarwala/agent-factory/internal/unitofwork"
 )
 
@@ -54,5 +58,61 @@ func TestFailedGraphWriteNeverCompletesUnit(t *testing.T) {
 	}
 	if q.failed != 1 || q.completed != 0 {
 		t.Fatalf("failed %d, completed %d", q.failed, q.completed)
+	}
+}
+
+type evidenceGateway struct {
+	requests []models.Request
+}
+
+func (g *evidenceGateway) Generate(req models.Request) (*models.Response, error) {
+	g.requests = append(g.requests, req)
+	if req.CallerRole == "judge" {
+		return &models.Response{Content: "APPROVE: verified"}, nil
+	}
+	return titleGateway{}.Generate(req)
+}
+
+func TestRunnerSharesAuthorizedEvidence(t *testing.T) {
+	payload := strings.Repeat("x", 300) + " fact at end"
+	for _, authorized := range []bool{false, true} {
+		g := graph.NewMemoryGraph()
+		g.AddNode(graph.Node{ID: "record", Props: map[string]any{"status": "needs_fix", "title": "needs review"}})
+		gateway := &evidenceGateway{}
+		steward := agents.NewSmartSteward(unitofwork.NewMemoryStore())
+		steward.SetRuntime(gateway, g, nil)
+		q := &writeTrackingQueue{MemoryQueue: queue.NewMemoryQueue()}
+		r := NewContinuousRunner(steward, agents.NewLLMJudge(gateway, g), q, g, rules.NewEngine(), nil)
+		r.Workers = 1
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			if !authorized {
+				t.Error("request made without grant")
+			}
+			w.Write([]byte(payload))
+		}))
+		tool := tools.NewHTTPTool("source", "GET", srv.URL)
+		tool.Client = srv.Client()
+		r.SetTools(map[string]*tools.HTTPTool{"source": tool}, tools.ContextRecipe{Entity: "source"})
+		names := []string{"propose"}
+		if authorized {
+			names = append(names, "source")
+		}
+		r.SetGrants("review", []tools.Grant{{Pack: "review", Tools: names, SideEffects: []string{"read-only"}}})
+		err := r.Run(t.Context(), "fix title")
+		srv.Close()
+		if !authorized {
+			if err == nil || len(gateway.requests) != 0 || q.failed != 1 {
+				t.Fatalf("denied case: err=%v calls=%d failures=%d", err, len(gateway.requests), q.failed)
+			}
+			continue
+		}
+		if err != nil || len(gateway.requests) != 2 || q.completed != 1 {
+			t.Fatalf("authorized case: err=%v calls=%d completed=%d", err, len(gateway.requests), q.completed)
+		}
+		for _, req := range gateway.requests {
+			if !strings.Contains(req.User, "entity (tool source): "+payload) {
+				t.Errorf("%s missing full source evidence", req.CallerRole)
+			}
+		}
 	}
 }
