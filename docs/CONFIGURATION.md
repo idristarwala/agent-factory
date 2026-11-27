@@ -52,6 +52,15 @@ The API and CLI read deployment configuration from their process environment. Re
 | `LLM_CHEAP_MODEL`, `LLM_FRONTIER_MODEL` | Model names | Direct OpenRouter defaults to `gpt-4o-mini`. Custom OpenAI-compatible endpoints default to `llama-3.1-8b-instant`. Frontier defaults to the cheap model. |
 | `LLM_JUDGE_PROVIDER`, `LLM_JUDGE_MODEL` | Provider and model names, both unset | Set together for independent judge routing. Otherwise judge calls use the primary provider. |
 
+## Configuration files
+
+| Input | Scope and effective time | Field reference |
+| --- | --- | --- |
+| Model gateway YAML | Read at process startup when selected by `LLM_GATEWAY_CONFIG`. Model settings select a protocol and logical route. Authenticated requests reread mounted keys. | [Gateway routes, headers, authentication and retries](ENTERPRISE_GATEWAY.md) |
+| Evidence tool and source YAML | Loaded by the selected API or runner at startup. A continuous run applies the selected pack's grants and context recipe when gathering evidence. | [Tool fields and limits](HTTP_TOOLS.md) · [Tool schema](../schemas/evidence-tools.schema.json) |
+| Pack and rule YAML or JSON | The CLI reads the selected pack files for each validation or working-tree fixture invocation. The receipt workflow reads the committed revision. Omitted rule activation defaults to active. | [Pack schema](../schemas/pack.schema.json) · [Rule schema](../schemas/rule.schema.json) |
+| Factory definition JSON | An import creates a revision. A workspace run selects and pins a definition revision when it starts. The definition describes record fields, worker role and evidence inputs. | [Factory definitions](DOMAIN_PACKS.md#configure-your-own-factory) · [Browser evidence settings](BROWSER_CAPTURE.md#configure-a-factory) |
+
 ## CLI options
 
 Options below apply to a single invocation. Place named flags before positional paths or the goal. The management commands accept plain paths unless a different input mode is selected.
