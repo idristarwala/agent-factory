@@ -75,3 +75,26 @@ func TestResumePagedImport(t *testing.T) {
 		t.Fatal(other, err)
 	}
 }
+
+func TestPagedImportUsesApprovedCursor(t *testing.T) {
+	ws := Workspace{Store: revision.NewMemory()}
+	_, err := revision.SaveDocument(ws.Store, "source-mapping/items", 0, "human", []byte(`{"record_type":"entry","collection":"/rows","identity":["/id"],"fields":{"label":"/label"},"next_path":"/paging/after"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	spec := ImportSpec{SourceRef: SourceRef{Mapping: "items", Revision: 1}, Feed: "f", CursorParam: "cursor"}
+	feed := testFeed(func(q map[string]string) (json.RawMessage, error) {
+		return json.RawMessage(`{"rows":[],"paging":{"after":null}}`), nil
+	})
+	pages, err := ws.AdvanceImport(t.Context(), feed, "desk", "i", spec, 0, 1)
+	if err != nil || len(pages) != 1 || pages[0].Spec.NextPath != "/paging/after" || !pages[0].Complete {
+		t.Fatal(pages, err)
+	}
+	if _, err := ws.AdvanceImport(t.Context(), feed, "desk", "i", spec, 1, 1); err != nil {
+		t.Fatal(err)
+	}
+	spec.NextPath = "/other"
+	if _, err := ws.AdvanceImport(t.Context(), feed, "desk", "j", spec, 0, 1); err == nil {
+		t.Fatal("accepted conflicting cursor")
+	}
+}

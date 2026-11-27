@@ -109,6 +109,7 @@ export default function SourceMapping({factory, goal, approved, onApprove, reque
       <table><thead><tr><th>Source path</th><th>Record field</th></tr></thead><tbody>
         {Object.entries(result.proposal.data.fields).map(([name,path])=><tr key={name}><td>{path}</td><td>{name}</td></tr>)}
       </tbody></table>
+      {result.proposal.data.next_path && <p>Next page token: <code>{result.proposal.data.next_path}</code></p>}
       <p>Identity: {result.proposal.data.identity.join(', ')}</p>
       <RecordPreview key={result.proposal.version} rows={result.rows} sample={result.sample}/>
       {!approved && <button type="button" onClick={()=>perform(approve)}>Approve mapping for this run</button>}

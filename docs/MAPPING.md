@@ -87,6 +87,8 @@ POST the following to `/api/imports/{factory}/{import-id}`. The feed must grant 
 {"expected":0,"max_pages":3,"spec":{"mapping":"meters","revision":1,"feed":"meter-feed","cursor_param":"after","next_path":"/pagination/next","allow_partial":true}}
 ```
 
+The steward can propose a next-token JSON Pointer from observed string or null envelope fields. Goal builder shows the pointer before approval. When the pinned mapping contains an approved pointer, the import can omit `next_path`. An explicit conflicting pointer is rejected. Supply `cursor_param` from the upstream request contract.
+
 The server fetches up to ten pages per request. It atomically saves each page's normalized records, row-level rejections and next token as one immutable checkpoint. GET the same URL to inspect committed pages. Resume with the same specification and the number of committed pages as `expected`. A stale checkpoint returns 409. On a later-page failure, earlier commits remain available. Repeated cursors stop the import. Later occurrences of an already committed record ID are rejected; partial mode preserves other records.
 
 To review a committed page, POST a goal with `factory`, `description` and `"import":{"id":"batch","page":1}`. The run snapshots that page and pins the approved mapping revision. PostgreSQL and SQLite retain checkpoints across restarts; in-process storage retains them for the life of the process.

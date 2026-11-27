@@ -65,6 +65,14 @@ func sourceMappingRoutes(mux *http.ServeMux, store revision.Store) {
 				http.Error(w, "supply a mapping", 400)
 				return
 			}
+			if path := req.Mapping.NextPath; path != "" {
+				value, found, err := mapping.SourceValue(req.Sample, path)
+				_, isString := value.(string)
+				if err != nil || !found || (value != nil && !isString) {
+					http.Error(w, "next-token pointer must select a string or null in the sample", 422)
+					return
+				}
+			}
 			rows, err := req.Mapping.Preview(req.Sample)
 			if err != nil {
 				http.Error(w, err.Error(), 422)

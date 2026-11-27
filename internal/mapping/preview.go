@@ -12,6 +12,7 @@ import (
 
 // SourceMapping describes how a record collection becomes inputs to a factory.
 type SourceMapping struct {
+	NextPath   string            `json:"next_path,omitempty"`
 	Collection string            `json:"collection"`
 	RecordType string            `json:"record_type"`
 	Identity   []string          `json:"identity"`
