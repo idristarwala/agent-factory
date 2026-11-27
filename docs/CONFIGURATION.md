@@ -74,3 +74,11 @@ Memory uses relative virtual paths scoped to a factory. The following calls use 
 Omitting the version from a goal's memory selection pins the latest revision when the run starts. Up to 16 selected files (64 KiB combined) are copied into its plan. Worker and judge receive identical memory evidence with the path, revision and author. Paths are virtual and directories are prefixes. Access to a factory's memory API follows the workspace's existing token policy.
 
 Human review feedback automatically creates a file at `reviews/{run-id}/{decision-index}.txt`, available to later runs by explicit selection. Notes larger than the 32 KiB file limit have a reference to the full decision. Ordinary runs use only the memory selected for them.
+
+## Storage contract for API changes
+
+Source profiling and previews are transient. Steward mapping drafts and approved mappings are immutable configuration documents. Runs store the chosen mapping revision, normalized record snapshot and pinned memory. File-like memory has its own immutable revision collection. Adding a factory domain or editable record property uses these existing representations.
+
+PostgreSQL and SQLite initialize from shared table definitions. For work units, the additive `unit_payloads` table carries the JSON work scope, budgets, field constraints and evidence. Status and attached proposal updates use independent columns on `units`. Older rows without a payload remain readable with the data originally stored. Inline model image bytes are transient; evidence labels and digests remain available.
+
+For an endpoint that introduces durable state, define its identity, lifetime, scope, revision or conflict behavior and atomic updates in the storage contract first. Exercise that contract in RAM and PostgreSQL, with a legacy-row check for migrations. Introduce a physical migration when the existing representation cannot enforce the required behavior or serve the needed query.

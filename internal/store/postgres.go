@@ -50,70 +50,20 @@ func NewPostgresStoreFromDB(db *sql.DB) (*PostgresStore, error) {
 }
 
 func (s *PostgresStore) migrate() error {
-	schema := `
-	CREATE TABLE IF NOT EXISTS nodes (
-		id TEXT PRIMARY KEY,
-		type TEXT,
-		props TEXT
-	);
-	CREATE TABLE IF NOT EXISTS units (
-		id TEXT PRIMARY KEY,
-		goal_id TEXT,
-		description TEXT,
-		status TEXT,
-		proposal TEXT
-	);
-	CREATE TABLE IF NOT EXISTS run_versions (id TEXT, version INTEGER, data TEXT, PRIMARY KEY(id,version));
- CREATE TABLE IF NOT EXISTS memory_file_versions (id TEXT, version INTEGER, data TEXT, PRIMARY KEY(id,version));
- CREATE TABLE IF NOT EXISTS config_versions (id TEXT, version INTEGER, data TEXT, PRIMARY KEY(id,version));
- CREATE TABLE IF NOT EXISTS agent_versions (id TEXT, version INTEGER, data TEXT, PRIMARY KEY(id,version));
- CREATE TABLE IF NOT EXISTS rule_versions (
-		id TEXT,
-		version INTEGER,
-		data TEXT,
-		PRIMARY KEY (id, version)
-	);
-	CREATE TABLE IF NOT EXISTS entries (
-		id SERIAL PRIMARY KEY,
-		kind TEXT,
-		content TEXT,
-		source TEXT,
-		meta TEXT
-	);
-	`
-	_, err := s.db.Exec(schema)
-	return err
+	return migrateSchema(s.db, "SERIAL PRIMARY KEY")
 }
 
 func (s *PostgresStore) GetNode(id graph.NodeID) (*graph.Node, error) { return readNode(s.db, id) }
 func (s *PostgresStore) UpsertNode(n graph.Node) error                { return writeNode(s.db, n) }
 func (s *PostgresStore) ProposeMutation(m *graph.Mutation) error      { return writeMutation(s.db, m) }
 
-func (s *PostgresStore) CreateUnit(u *unitofwork.UnitOfWork) error {
-	_, err := s.db.Exec(
-		"INSERT INTO units (id, goal_id, description, status) VALUES ($1, $2, $3, $4)",
-		u.ID, u.GoalID, u.Description, string(u.Status),
-	)
-	return err
-}
-
-func (s *PostgresStore) GetUnit(id string) (*unitofwork.UnitOfWork, error) {
-	var goal, desc, status string
-	err := s.db.QueryRow("SELECT goal_id, description, status FROM units WHERE id = $1", id).Scan(&goal, &desc, &status)
-	if err != nil {
-		return nil, err
-	}
-	return &unitofwork.UnitOfWork{ID: id, GoalID: goal, Description: desc, Status: unitofwork.Status(status)}, nil
-}
-
+func (s *PostgresStore) CreateUnit(u *unitofwork.UnitOfWork) error         { return createUnit(s.db, u) }
+func (s *PostgresStore) GetUnit(id string) (*unitofwork.UnitOfWork, error) { return readUnit(s.db, id) }
 func (s *PostgresStore) UpdateUnitStatus(id string, status unitofwork.Status) error {
-	_, err := s.db.Exec("UPDATE units SET status = $1 WHERE id = $2", string(status), id)
-	return err
+	return unitUpdate(s.db.Exec("UPDATE units SET status=$1 WHERE id=$2", status, id))
 }
-
 func (s *PostgresStore) AttachProposal(id string, m *graph.Mutation) error {
-	_, err := s.db.Exec("UPDATE units SET proposal = $1 WHERE id = $2", "", id)
-	return err
+	return attachProposal(s.db, id, m)
 }
 
 func (s *PostgresStore) Definitions() revision.Store { return revision.SQL{DB: s.db} }
