@@ -69,9 +69,17 @@ func eachPack(paths []string, visit func(string, *pack.Pack) error) error {
 		if err != nil {
 			return err
 		}
-		var manifest struct{ Packs []struct{ Path string } }
+		var manifest struct {
+			Packs        []struct{ Path string }
+			ToolPackages yaml.Node `yaml:"tool_packages"`
+		}
 		if err := yaml.Unmarshal(raw, &manifest); err != nil {
 			return fmt.Errorf("%s: %w", path, err)
+		}
+		if manifest.ToolPackages.Kind != 0 {
+			if err := tools.ValidateEvidenceFile(path); err != nil {
+				return fmt.Errorf("%s: %w", path, err)
+			}
 		}
 		if len(manifest.Packs) == 0 {
 			return fmt.Errorf("%s: no pack paths declared", path)
