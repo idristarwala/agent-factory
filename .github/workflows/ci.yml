@@ -29,6 +29,8 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: python3 scripts/check-unused-helpers.py "$BASE_SHA"
+      - name: Documentation contracts
+        run: make docs-check
       - name: Vet
         run: go vet ./...
       - name: Test

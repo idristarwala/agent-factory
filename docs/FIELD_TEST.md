@@ -1,14 +1,5 @@
-# Field Test Notes (#10)
+# Original catalog field test
 
-## Reasoning token budget
+Issue #10 records the original 288-item field test, the grouping accuracy gap and the reasoning-token truncation observed in that evaluation. Keep results from synthetic fixtures separate from measurements on that original dataset. [Field notes and acceptance criteria](https://github.com/idristarwala/agent-factory/issues/10)
 
-Reasoning models count thinking tokens against MaxTokens. The previous hard-coded 800 was too low and caused truncated JSON.
-
-- `WorkerConfig.MaxTokens` defaults to 4000.
-- Log the raw reply preview and length on validation failure so finish reasons are visible.
-
-## Output format enforcement
-
-Customer policies can contain their own JSON shapes. The worker should enforce its allowed fields via provider response_format / responseSchema where available, with ParseAndValidate as a backstop.
-
-These changes address the two findings from the 288-item re-run.
+The current worker’s default output limit is 16000 tokens. It builds the response schema from the unit’s editable fields, validates returned values and includes the source evidence in the proposal. The field evaluation still requires access to the original records and labels. [Worker schema](SCHEMA.md) · [Project status](STATUS.md)

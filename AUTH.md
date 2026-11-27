@@ -1,34 +1,11 @@
 # Authentication
 
-Every tool and client supports the auth methods that provider offers.
-Secrets always come from the centralized loader (`SECRETS_DIR`, default `/etc/secrets`).
+| Connection | Runtime configuration |
+| --- | --- |
+| Harness or operator UI to API | Set `API_TOKEN` on the server. Send `Authorization: Bearer <token>` on API requests. `/health` is public. |
+| Native model provider | Environment-only routes read the provider credentials from the process environment. Independent judges use the credential for their selected provider. |
+| Configured model gateway | In `LLM_GATEWAY_CONFIG`, choose `none`, `bearer`, `google_api_key` or `anthropic_api_key`. Authenticated gateways read their configured key file. |
+| Configured REST or MCP tool | Specify the auth method and file references in the tool YAML. The read-only MCP transport uses the tool’s HTTP transport configuration. |
+| GitHub goal attachment | Public imports use anonymous GitHub access. With authenticated Factory API access, a repository on the configured allowlist can use the server’s GitHub credential. |
 
-## BigQuery
-
-| Method | Config | Secret file |
-|--------|--------|-------------|
-| Application Default Credentials | `auth: adc` | none (uses metadata / gcloud) |
-| Service account JSON | `auth: service_account` | `bigquery-sa.json` |
-| Workload Identity Federation | `auth: workload_identity` | `bigquery-wif.json` |
-| Service account impersonation | `auth: impersonation` | none (uses ADC + `impersonate` email) |
-
-## LLM gateways
-
-| Provider | Methods |
-|----------|---------|
-| Gemini | API key (`gemini-api-key`) |
-| OpenAI-compatible | API key (`llm-api-key`) or Bearer token |
-| Enterprise gateways | OAuth2 client credentials, custom headers, file-rotated secrets |
-
-## MCP
-
-| Method | Secret |
-|--------|--------|
-| Bearer token | `mcp-token` |
-| Custom header | configured per transport |
-
-## Adding a new tool
-
-1. Declare the auth methods the provider supports.
-2. Read any required files or tokens via `secrets.New()`.
-3. Never hard-code paths or read env vars directly for credentials.
+For exact keys, file lookup rules, examples and revision boundaries, see [configuration](docs/CONFIGURATION.md), [gateway configuration](docs/ENTERPRISE_GATEWAY.md), [HTTP tools](docs/HTTP_TOOLS.md) and [secrets](SECRETS.md).

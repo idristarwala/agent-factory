@@ -1,4 +1,6 @@
-# Architecture
+# Architecture design goals
+
+This document describes the intended architecture. For the implemented execution paths, storage boundaries and current verification, use the [runtime architecture](docs/ARCHITECTURE.md) and [project status](docs/STATUS.md).
 
 ## Primitives
 
