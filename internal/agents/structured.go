@@ -137,7 +137,6 @@ func stripJSONComments(s string) string {
 	return b.String()
 }
 
-
 // normalizeSingleQuotes replaces single quotes with double quotes outside of existing double-quoted strings.
 // Best-effort recovery for models that emit JavaScript-style object literals.
 func normalizeSingleQuotes(s string) string {
@@ -157,9 +156,8 @@ func normalizeSingleQuotes(s string) string {
 			} else if c == '\\' {
 				escape = true
 			} else if c == '"' {
-				inString = false
+				inDouble = false
 			}
-			i++
 			continue
 		}
 		if c == '"' {
