@@ -2,6 +2,7 @@ package agents
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -35,7 +36,7 @@ func (g *minimalGraph) GetNode(id graph.NodeID) (*graph.Node, error) {
 	if g.node != nil && g.node.ID == id {
 		return g.node, nil
 	}
-	return nil, graph.ErrNotFound
+	return nil, fmt.Errorf("node not found: %s", id)
 }
 func (g *minimalGraph) GetSubgraph(root graph.NodeID, depth int) ([]graph.Node, []graph.Edge, error) {
 	return nil, nil, nil
