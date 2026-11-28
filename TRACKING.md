@@ -149,3 +149,10 @@ The [issue tracker](https://github.com/idristarwala/agent-factory/issues) record
 - System prompt insists on exact phrasing, sentence structure and vocabulary; user prompt says "Keep every existing phrase exactly as written".
 - Updated `TestPreserveOriginalWordingRuleStrengthensPrompt` to assert the new language.
 - Further advances the original-wording-kept > 0.90 gap reported in the field re-run.
+
+## Grounded judge fact rejection (2026-11-27)
+
+- LLMJudge system and user prompts now explicitly require rejection of any value that contradicts the original entity's recorded facts or invents unsupported claims.
+- Added `TestJudgeRejectsContradictoryFacts` (and a prompt-inclusion check) using a fake gateway that detects a brand mismatch in the original vs proposed JSON.
+- Covers the #10 acceptance criterion "The Judge rejects a proposal that states a value contradicting the item's facts (unit test with a fake gateway)".
+- Live field re-run remains the external step for the original-wording-kept, zero-parse-failure and grouping-F1 measurements.
