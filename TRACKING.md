@@ -156,3 +156,7 @@ The [issue tracker](https://github.com/idristarwala/agent-factory/issues) record
 - Added `TestJudgeRejectsContradictoryFacts` (and a prompt-inclusion check) using a fake gateway that detects a brand mismatch in the original vs proposed JSON.
 - Covers the #10 acceptance criterion "The Judge rejects a proposal that states a value contradicting the item's facts (unit test with a fake gateway)".
 - Live field re-run remains the external step for the original-wording-kept, zero-parse-failure and grouping-F1 measurements.
+
+### Error conformance and grouping audience (#8 / #10)
+- Expanded error mapping tests (`TestErrorConformanceCases`, `TestTruncatedAndEmptyChoices`, `TestTimeoutMapping`) covering 400/401/403/429/500/502, truncated bodies, empty choices, and timeout → typed retryable errors. Advances the full 10-case suite from #8.
+- Grouping signature now optionally includes audience (audience/target_audience/age_group) for finer neighbourhoods. Added `TestSignatureIncludesAudience` and a labelled-set F1 demo (`TestDetectorImprovesOnLabelledSet`). Further advances #10 grouping accuracy criteria.

@@ -106,6 +106,10 @@ func signature(e schema.Entity) string {
 		return "id:" + e.ID
 	}
 	stem := nameStem(strings.ToLower(title))
+	aud := audienceFrom(e)
+	if aud != "" {
+		return strings.ToLower(brand) + "|" + strings.ToLower(ptype) + "|" + stem + "|" + aud
+	}
 	return strings.ToLower(brand) + "|" + strings.ToLower(ptype) + "|" + stem
 }
 
@@ -129,4 +133,14 @@ func nameStem(title string) string {
 		return ""
 	}
 	return strings.Join(stems, " ")
+}
+
+// audienceFrom extracts a coarse audience hint when present (helps #10 neighbourhoods).
+func audienceFrom(e schema.Entity) string {
+	for _, k := range []string{"audience", "target_audience", "age_group"} {
+		if v, ok := e.Attributes[k].(string); ok && v != "" {
+			return strings.ToLower(strings.TrimSpace(v))
+		}
+	}
+	return ""
 }

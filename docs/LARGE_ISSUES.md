@@ -55,3 +55,9 @@ Issue #10 still requires three measurements on the field data:
 - Higher grouping F1 than the existing groups on blind human labels, with identical output on repeated runs.
 
 [Field acceptance criteria](https://github.com/idristarwala/agent-factory/issues/10)
+
+## Error conformance and grouping audience (2026-11-28)
+
+- Added comprehensive error conformance tests in `internal/llm/conformance_error_test.go` covering the status codes, truncated responses, empty choices, and timeout cases required by the #8 suite. All map to the documented `Error.Type` and `Retryable` flags.
+- Grouping `signature` now appends an audience token when present, improving neighbourhood quality for the #10 field-test criteria. New unit tests cover the audience inclusion and a small labelled F1 comparison.
+- Live field-test re-run on the 288/300-item set remains the external validation step for the original-wording-kept and zero-parse-failure acceptance criteria.
