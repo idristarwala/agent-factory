@@ -44,6 +44,10 @@ The worker gives source-wording guidance when a customer rule requests it (now i
 
 SimpleDetector now uses a two-word name stem (first two significant non-stop words). This produces tighter neighbourhoods for the block-then-decide path and reduces false merges on single common words, advancing the grouping F1 criterion on labelled data.
 
+## Grounded judge fact rejection (2026-11-27)
+
+The LLMJudge now receives stronger guidance to reject any proposal that contradicts recorded facts or invents unsupported claims. A unit test with a fake gateway (`TestJudgeRejectsContradictoryFacts`) proves a brand mismatch is rejected while a non-contradicting title update is approved. This closes the corresponding acceptance criterion on #10 without requiring a live model.
+
 Issue #10 still requires three measurements on the field data:
 
 - Original wording kept above 0.90 with facts stated at or above 0.85.
