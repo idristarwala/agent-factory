@@ -73,3 +73,12 @@ Issue #10 still requires three measurements on the field data:
 The OpenAI adapter is unit-tested to emit the `json_schema` response_format when a ResponseSchema is supplied (#8). Anthropic and Gemini already implement their native schema mechanisms; additional emission tests can be added as needed.
 
 Live field-test re-run on the 288/300-item set remains the external validation for original-wording-kept and zero-parse-failure criteria.
+
+
+## Single-quote recovery and Jenkins CI example (2026-11-28)
+
+`ValidateJSON` recovers models that emit single-quoted (JavaScript-style) objects in addition to comments, fences, trailing commas and surrounding prose. This further lowers the risk of JSON parse failures on large field runs (#10).
+
+A root `Jenkinsfile` provides a third CI example (alongside GitHub Actions and GitLab) that exercises the factory CLI offline, advancing multi-CI packaging coverage for #9.
+
+Live field-test re-run on the 288/300-item set remains the external validation for original-wording-kept and zero-parse-failure criteria.

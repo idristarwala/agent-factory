@@ -173,3 +173,11 @@ The [issue tracker](https://github.com/idristarwala/agent-factory/issues) record
 - Extended `TestValidateJSONRecoversCommonModelMistakes` covers comment cases.
 - Added `TestOpenAIAdapterEmitsJSONSchema` proving the OpenAI adapter emits `response_format: {type: "json_schema", ...}` when `ResponseSchema` is set.
 - Further advances zero-parse-failure on #10 and schema conformance on #8.
+
+
+## Single-quote JSON recovery and Jenkins example (2026-11-28)
+
+- `ValidateJSON` now performs a best-effort conversion of single-quoted strings to double quotes (outside existing double-quoted strings). This recovers JavaScript-style object literals that models occasionally emit.
+- Extended `TestValidateJSONRecoversCommonModelMistakes` covers the single-quote case.
+- Added a root `Jenkinsfile` example that runs `factory validate`, `readiness`, and `test` offline, matching the GitHub Actions and GitLab examples for #9 packaging.
+- Further advances zero-parse-failure on #10 and multi-CI coverage for #9.
