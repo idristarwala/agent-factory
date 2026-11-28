@@ -51,4 +51,9 @@ func TestValidateJSONRecoversCommonModelMistakes(t *testing.T) {
 		t.Fatalf("single-quote recovery failed: %v %v", m, err)
 	}
 
+	// Unquoted keys
+	m, err = ValidateJSON(`{title: "Widget", desc: "Nice"}`)
+	if err != nil || m["title"] != "Widget" || m["desc"] != "Nice" {
+		t.Fatalf("unquoted-key recovery failed: %v %v", m, err)
+	}
 }

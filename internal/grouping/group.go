@@ -107,10 +107,19 @@ func signature(e schema.Entity) string {
 	}
 	stem := nameStem(strings.ToLower(title))
 	aud := audienceFrom(e)
+	color := attrString(e, "color", "colour")
+	size := attrString(e, "size", "variant_size")
+	parts := []string{strings.ToLower(brand), strings.ToLower(ptype), stem}
 	if aud != "" {
-		return strings.ToLower(brand) + "|" + strings.ToLower(ptype) + "|" + stem + "|" + aud
+		parts = append(parts, aud)
 	}
-	return strings.ToLower(brand) + "|" + strings.ToLower(ptype) + "|" + stem
+	if color != "" {
+		parts = append(parts, "c:"+color)
+	}
+	if size != "" {
+		parts = append(parts, "s:"+size)
+	}
+	return strings.Join(parts, "|")
 }
 
 // nameStem returns up to two significant non-stop words for more stable neighbourhoods (#10).
@@ -138,6 +147,16 @@ func nameStem(title string) string {
 // audienceFrom extracts a coarse audience hint when present (helps #10 neighbourhoods).
 func audienceFrom(e schema.Entity) string {
 	for _, k := range []string{"audience", "target_audience", "age_group"} {
+		if v, ok := e.Attributes[k].(string); ok && v != "" {
+			return strings.ToLower(strings.TrimSpace(v))
+		}
+	}
+	return ""
+}
+
+// attrString returns the lower-cased trimmed value of the first present key.
+func attrString(e schema.Entity, keys ...string) string {
+	for _, k := range keys {
 		if v, ok := e.Attributes[k].(string); ok && v != "" {
 			return strings.ToLower(strings.TrimSpace(v))
 		}

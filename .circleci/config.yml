@@ -1,0 +1,30 @@
+# CircleCI example for Agent Factory packaging (#9).
+# Offline validation and fixture tests — no live model credentials required.
+# See docs/GETTING_STARTED.md, .github/workflows, .gitlab-ci.yml and Jenkinsfile for equivalents.
+
+version: 2.1
+
+jobs:
+  validate-and-test:
+    docker:
+      - image: cimg/go:1.26
+    steps:
+      - checkout
+      - run:
+          name: Validate packs and readiness
+          command: |
+            go run ./cmd/factory validate examples/starter/factory.yaml || true
+            go run ./cmd/factory readiness || true
+      - run:
+          name: Run offline fixture tests
+          command: go run ./cmd/factory test
+      - store_artifacts:
+          path: .
+          destination: receipts
+          when: always
+
+workflows:
+  version: 2
+  packaging:
+    jobs:
+      - validate-and-test

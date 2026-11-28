@@ -3,12 +3,14 @@ package agents
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 )
 
 // ValidateJSON ensures the model output is valid JSON object.
 // Used by workers and judges to retry on parse failures.
-// Recovers common model mistakes: markdown fences, surrounding prose, and trailing commas.
+// Recovers common model mistakes: markdown fences, surrounding prose, trailing commas,
+// comments, single-quoted strings, and unquoted keys.
 func ValidateJSON(raw string) (map[string]any, error) {
 	raw = strings.TrimSpace(raw)
 	// Strip common fences
@@ -36,6 +38,9 @@ func ValidateJSON(raw string) (map[string]any, error) {
 
 	// Best-effort recovery of single-quoted strings (JS-style objects).
 	raw = normalizeSingleQuotes(raw)
+
+	// Best-effort recovery of unquoted keys ({title: "foo"} → {"title": "foo"}).
+	raw = normalizeUnquotedKeys(raw)
 
 	var m map[string]any
 	if err := json.Unmarshal([]byte(raw), &m); err != nil {
@@ -137,7 +142,6 @@ func stripJSONComments(s string) string {
 	return b.String()
 }
 
-
 // normalizeSingleQuotes replaces single quotes with double quotes outside of existing double-quoted strings.
 // Best-effort recovery for models that emit JavaScript-style object literals.
 func normalizeSingleQuotes(s string) string {
@@ -173,4 +177,12 @@ func normalizeSingleQuotes(s string) string {
 		b.WriteByte(c)
 	}
 	return b.String()
+}
+
+// unquotedKeyRe matches a bare identifier used as a JSON key (after whitespace or { or ,).
+var unquotedKeyRe = regexp.MustCompile(`([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)(\s*:)`)
+
+// normalizeUnquotedKeys quotes unquoted keys so models that emit {title: "x"} become valid JSON.
+func normalizeUnquotedKeys(s string) string {
+	return unquotedKeyRe.ReplaceAllString(s, `${1}"${2}"${3}`)
 }
