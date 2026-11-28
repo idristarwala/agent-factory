@@ -44,4 +44,11 @@ func TestValidateJSONRecoversCommonModelMistakes(t *testing.T) {
 	if err != nil || m["title"] != "Widget" || m["desc"] != "Nice" {
 		t.Fatalf("comment stripping failed: %v %v", m, err)
 	}
+
+	// Single-quoted strings (JS-style)
+	m, err = ValidateJSON(`{'title': 'Widget', 'desc': 'Nice'}`)
+	if err != nil || m["title"] != "Widget" || m["desc"] != "Nice" {
+		t.Fatalf("single-quote recovery failed: %v %v", m, err)
+	}
+
 }

@@ -34,6 +34,9 @@ func ValidateJSON(raw string) (map[string]any, error) {
 	// Strip // line comments and /* block comments */ that models sometimes insert.
 	raw = stripJSONComments(raw)
 
+	// Best-effort recovery of single-quoted strings (JS-style objects).
+	raw = normalizeSingleQuotes(raw)
+
 	var m map[string]any
 	if err := json.Unmarshal([]byte(raw), &m); err != nil {
 		return nil, fmt.Errorf("invalid JSON: %w", err)
@@ -130,6 +133,44 @@ func stripJSONComments(s string) string {
 		}
 		b.WriteByte(c)
 		i++
+	}
+	return b.String()
+}
+
+
+// normalizeSingleQuotes replaces single quotes with double quotes outside of existing double-quoted strings.
+// Best-effort recovery for models that emit JavaScript-style object literals.
+func normalizeSingleQuotes(s string) string {
+	if !strings.Contains(s, "'") {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s))
+	inDouble := false
+	escape := false
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if inDouble {
+			b.WriteByte(c)
+			if escape {
+				escape = false
+			} else if c == '\\' {
+				escape = true
+			} else if c == '"' {
+				inDouble = false
+			}
+			continue
+		}
+		if c == '"' {
+			inDouble = true
+			b.WriteByte(c)
+			continue
+		}
+		if c == '\'' {
+			b.WriteByte('"')
+			continue
+		}
+		b.WriteByte(c)
 	}
 	return b.String()
 }
