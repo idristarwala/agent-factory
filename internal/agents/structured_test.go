@@ -18,3 +18,23 @@ func TestValidateJSON(t *testing.T) {
 		t.Fatal("expected error")
 	}
 }
+
+func TestValidateJSONRecoversCommonModelMistakes(t *testing.T) {
+	// Trailing comma
+	m, err := ValidateJSON(`{"title": "Widget", "desc": "Nice",}`)
+	if err != nil || m["title"] != "Widget" {
+		t.Fatalf("trailing comma not recovered: %v %v", m, err)
+	}
+
+	// Surrounding prose
+	m, err = ValidateJSON(`Here is the update: {"title": "Fixed Widget"} Thanks!`)
+	if err != nil || m["title"] != "Fixed Widget" {
+		t.Fatalf("prose extraction failed: %v %v", m, err)
+	}
+
+	// Fence + trailing comma + prose
+	m, err = ValidateJSON("```json\nThe result is {\"title\": \"OK\",}\n```")
+	if err != nil || m["title"] != "OK" {
+		t.Fatalf("combined recovery failed: %v %v", m, err)
+	}
+}
